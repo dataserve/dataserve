@@ -1,3 +1,5 @@
+#!/usr/bin/env nodejs
+
 var socket = require('socket.io-client')('http://localhost:8888');
 socket.on('connect', function(){
     console.log('connected!');
