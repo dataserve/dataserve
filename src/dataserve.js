@@ -3,7 +3,9 @@
 const _array = require("lodash/array");
 const mysql = require("./mysql");
 const config = require("../config/example.json");
-console.log(config);
+const command = require('./command');
+
+console.log("COMMAND", command);
 
 function int_array(arr) {
     if (!arr || !Array.isArray(arr)) {
@@ -36,10 +38,11 @@ function param_fo(arr, param) {
 
 class DataServe {
 
-    constructor(table){
+    constructor(db_table){
         this._primary = "id";
 
-        this._table_name = table;
+        this._db_name = null;
+        this._table_name = null;
         this._model = null;
         this._type = null;
         this._media = null;
@@ -57,14 +60,18 @@ class DataServe {
         };
         this._set_insert = false;
 
+        this._parse_config(db_table, config);
+
         this._add_get({[this._primary]: "int"});
         this._add_field(this._primary);
-        
-        if (this._timestamp.created) {
-            this._add_field(this._timestamp.created);
-        }
-        if (this._timestamp.modified) {
-            this._add_field(this._timestamp.modified);
+
+        if (this._timestamp) {
+            if (this._timestamp.created) {
+                this._add_field(this._timestamp.created);
+            }
+            if (this._timestamp.modified) {
+                this._add_field(this._timestamp.modified);
+            }
         }
         
         if (!this._model) {
@@ -72,6 +79,53 @@ class DataServe {
         }
     }
 
+    _parse_config(db_table, config){
+        [this._db_name, this._table_name] = db_table.split(".");
+        if (!this._db_name || !this._table_name) {
+            throw new Error("Missing db/table names");
+        }
+        console.log("TABLE CONFIG", config, db_table);
+        let table_config = config.db[this._db_name].table[this._table_name];
+        if (!table_config) {
+            throw new Error("Missing config information for db table: " + db_table);
+        }
+        if (typeof table_config.primary_key !== "undefined") {
+            this._primary = table_config.primary_key;
+        }
+        if (typeof table_config.set_insert === "boolean") {
+            this._set_insert = table_config.set_insert;
+        }
+        if (typeof table_config.timestamp !== "undefined") {
+            if (!table_config.timestamp) {
+                this._timestamp = null;
+            } else {
+                if (typeof table_config.timestamp.created !== "undefined") {
+                    this._timestamp.created = table_config.timestamp.created;
+                }
+                if (typeof table_config.timestamp.modified !== "undefined") {
+                    this._timestamp.modified = table_config.timestamp.modified;
+                    
+                }
+            }
+        }
+        if (table_config.field) {
+            for (let key in table_config.field) {
+                this._add_field(table_config.field[key]);
+            }
+        }
+        if (table_config.unique) {
+            this._add_get(table_config.unique);
+        }
+        if (table_config.relationship) {
+            if (table_config.relationship.has_one) {
+                for (let key in table_config.relationship.has_one) {
+                    this._add_relationship("has_one", table_config.relationship.has_one[key]);
+                }
+            }
+        }
+        console.log("PARSE CONFIG", config);
+    }
+    
     _add_get(obj){
         for (let key in obj) {
             this._get[key] = obj[key];
@@ -79,15 +133,23 @@ class DataServe {
     }
 
     _add_field(field){
-        if (field == this._timestamp.created || field == this._timestamp.modified) {
+        if (this._timestamp && (field == this._timestamp.created || field == this._timestamp.modified)) {
             return;
         }
         this._fields.push(field);
         this._fields = [...new Set(this._fields)];
     }
+
+    _add_relationship(type, table){
+        if (!this._relationships[type]) {
+            this._relationships[type] = {};
+        }
+        this._relationships[type][table] = true;
+    }
     
     get(input){
         var field = null;
+        console.log("CHECK INPUT PRIMARY", this._primary);
         if (input[this._primary]) {
             field = this._primary;
         } else {
@@ -98,7 +160,7 @@ class DataServe {
                 }
             }
             if (!field) {
-                return Promise.resolve(r(false, "missing param"));
+                return Promise.resolve(r(false, "missing param:"+JSON.stringify(input)));
             }
         }
 
@@ -139,16 +201,21 @@ class DataServe {
 
         return this._query(sql, bind, this._primary)
             .then(rows => {
-                this._fillin(input, rows);
-                
+                return this._fillin(input, rows);
+            })
+            .then(rows => {
+                let extra = {
+                    db_name: this._db_name,
+                    table_name: this._table_name,
+                };
                 if (single_row_result) {
                     for (let id in rows) {
-                        return r(true, rows[id]);
+                        return r(true, rows[id], extra);
                     }
                     return r(true, {});
                 }
                 if (input.return_by_id) {
-                    return r(true, rows);
+                    return r(true, rows, extra);
                 }
                 let result = [];
                 for (let id of input[this._primary]) {
@@ -156,8 +223,11 @@ class DataServe {
                         result.push(rows[id]);
                     }
                 }
-                return r(true, result);
-            }).catch(error => r(false, error));
+                return r(true, result, extra);
+            })
+            .catch(error => {
+                return r(false, error);
+            });
     }
 
     set(input) {
@@ -270,8 +340,9 @@ class DataServe {
                 sql += "LEFT JOIN " + table + " ON (" + input.left_table[table] + ") ";
             }
         }
-        sql += this._where(where);
-        sql += this._order(order);
+        sql += this._where(input.where);
+        sql += this._order(input.order);
+        sql += this._group(input.group);
         sql += this._limit(input);
 
         return this._query(sql, bind, this._primary)
@@ -283,7 +354,7 @@ class DataServe {
                     return [rows, 0];
                 }
             }).then((...args) => {
-                let ids = rows?array_keys(rows):[];
+                let ids = rows ? Object.keys(rows) : [];
                 if (ids) {
                     let inp = {
                         [this._primary]: ids,
@@ -324,8 +395,8 @@ class DataServe {
         }
         return "SELECT "
             + this._fields.join(",")
-            + (this._timestamp.created?",UNIX_TIMESTAMP(" + this._timestamp.created + ") AS " + this._timestamp.created:"") + " "
-            + (this._timestamp.modified?",UNIX_TIMESTAMP(" + this._timestamp.modified + ") AS " + this._timestamp.modified:"") + " ";
+            + (this._timestamp && this._timestamp.created?",UNIX_TIMESTAMP(" + this._timestamp.created + ") AS " + this._timestamp.created:"") + " "
+            + (this._timestamp && this._timestamp.modified?",UNIX_TIMESTAMP(" + this._timestamp.modified + ") AS " + this._timestamp.modified:"") + " ";
     }
 
     _from(alias="") {
@@ -379,60 +450,83 @@ class DataServe {
     }
 
     _fillin(input, rows) {
-        if (!input.fillin) {
-            return;
+        console.log("HELLO", input);
+        if (!input.fillin || typeof input.fillin !== "object") {
+            console.log("RETURN", rows);
+            return Promise.resolve(rows);
         }
         if (!this._relationships) {
-            return;
+            return Promise.resolve(rows);
         }
-        ids = rows.length ? array_keys(rows) : [];
-        fillin = {};
+        let ids = rows ? Object.keys(rows) : [];
+
+        let promises = [];
+        let promise_map = {};
         for (let type in this._relationships) {
-            for (let name in this._relationships[type]) {
-                if (!input.fillin.name) {
+            for (let table in this._relationships[type]) {
+                if (!input.fillin[table]) {
                     continue;
                 }
                 let inp = {
-                    fillin: param_fo(input.fillin, name),
+                    fillin: param_fo(input.fillin, table),
                     return_by_id: true,
                 };
-                if (is_array(opts)) {
+                if (this._relationships[type][table] && typeof this._relationships[type][table] == "object") {
                     inp = Object.assign(opts, inp);
                 }
-                let res;
                 if (type == "has_many") {
                     inp[this._model + "_id"] = ids;
-                    res = m(name + ".get_multi", inp, out);
+                    promises.push(command.run_internal("get_multi", this._db_name + "." + table, inp));
                 } else {
                     if (type == "has_one") {
                         inp[this._model + "_id"] = ids;
                     } else if (type == "belongs_to") {
-                        inp["id"] = array_column(rows, name + "_id");
+                        inp["id"] = rows.map(obj => obj[table + "_id"]);
                     }
-                    res = m(name + ".get", inp, out);
+                    promises.push(command.run_internal("get", this._db_name + "." + table, inp));
                 }
-                fillin[name] = {
-                    type: type,
-                    result: res,
-                };
+                promise_map[table] = type;
             }
         }
-        if (!fillin) {
-            return;
+        console.log("PROMISES", promises);
+        if (!promises.length) {
+            return Promise.resolve(rows);
         }
-        for (let index in rows) {
-            for (let name in fillin) {
-                if (!fillin[name].result) {
-                    continue;
+        return Promise.all(promises)
+            .then(res => {
+                let fillin = {};
+
+                for (let promise_res of res) {
+                    if (!promise_res.status) {
+                        throw new Error('Fillin call failed: ' + promise_res.error);
+                    }
+                    fillin[promise_res.table_name] = {
+                        type: promise_map[promise_res.table_name],
+                        result: promise_res.result,
+                    };
                 }
-                if (in_array(fillin[name].type, ["has_one", "has_many"])) {
-                    rows[index][name] = param_fo(fillin[name].result, rows[index]["id"]);
-                } else if (fillin[name].type == "belongs_to") {
-                    rows[index][name] = param_fo(fillin[name].result, rows[index][name + "_id"]);
+                
+                if (!fillin) {
+                    return rows;
                 }
-            }
-        }
-        return;
+
+                for (let index in rows) {
+                    for (let table in fillin) {
+                        if (!fillin[table].result) {
+                            continue;
+                        }
+                        if (["has_one", "has_many"].indexOf(fillin[table].type) !== -1) {
+                            rows[index][table] = param_fo(fillin[table].result, rows[index]["id"]);
+                        } else if (fillin[table].type == "belongs_to") {
+                            rows[index][table] = param_fo(fillin[table].result, rows[index][table + "_id"]);
+                        }
+                    }
+                }
+                return rows;
+            })
+            .catch(error => {
+                console.log("FILLIN ERR", error);
+            });
     }
 
     _query(sql, bind={}, ret_type=null) {

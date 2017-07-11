@@ -31,6 +31,10 @@ class MySql {
                     }.bind(this));
                 };
 
+                if (true) {
+                    console.log(sql);
+                }
+                
                 connection.query(sql, bind, (error, results, fields) => {
                     connection.release();
 
