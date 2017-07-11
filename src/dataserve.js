@@ -230,6 +230,55 @@ class DataServe {
             });
     }
 
+    get_multi(input){
+        var field = null;
+        for (let key in this._get_multi) {
+            if (input[key]) {
+                field = key;
+                break;
+            }
+        }
+        if (!field) {
+            return Promise.resolve(r(false, "missing param"));
+        }
+        //this._fillin_limit(input);
+
+        var queries = [];
+        if (this._get_multi[field] == 'int') {
+            input[field] = int_array(input[field]);
+            for (let id of input[field]) {
+                let sql = 'SELECT ' + this._primary + ' ';
+                sql += this._from();
+                sql += 'WHERE ' + field + '=' + id;
+                queries.push(sql);
+            }
+        } else {}
+        rows = this._query_multi(queries);
+
+        let ids = [];
+        for (let r of rows) {
+            for (let a of r) {
+                ids.push(a[this._primary]);
+            }
+        }
+        let inp = {
+            id: ids,
+            fillin: param_fo(input, 'fillin'),
+            return_by_id: true
+        };
+        ret = this._m('get', inp);
+        res = [];
+        for (let id of input[field]) {
+            arr = array_shift(rows);
+            let r = [];
+            for (let a of arr) {
+                r.push(ret[a['id']]);
+            }
+            res[id] = r;
+        }
+        return r(true, output, res);
+    }
+
     set(input) {
         if (!input[this._primary]) {
             return Promise.resolve(r(false, "missing primary key"));
