@@ -59,6 +59,7 @@ class DataServe {
 
         this._add_get({[this._primary]: "int"});
         this._add_field(this._primary);
+        
         if (this._timestamp.created) {
             this._add_field(this._timestamp.created);
         }
@@ -163,47 +164,49 @@ class DataServe {
         if (!input[this._primary]) {
             return Promise.resolve(r(false, "missing primary key"));
         }
-
-        let exist = this.get({[this._primary]: input[this._primary]});
-        if (!exist && !this._set_insert) {
-            return Promise.resolve(r(false, "Not Found"));
+        if (!input.fields) {
+            return Promise.resolve(r(false, "missing update fields"));
         }
 
-        if (table) {
-            if (this._set_insert) {
-                table[this._primary] = input[this._primary];
-                let cols = [], vals = [], updates = [], bind = {};
-                for (let key in table) {
-                    cols.push(key);
-                    vals.push(":" + key);
-                    if (key != this._primary) {
-                        updates.push(key + "=:" + key + " ");
-                    }
-                    bind[key] = table[key];
-                }
-                let sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ") ON DUPLICATE KEY UPDATE " + updates.join(",") + " ";
-                //this._query(sql, bind);
-            } else {
-                let updates = [], bind = {};
-                let sql = "UPDATE " + this._table() + " SET ";
-                for (let key in table) {
-                    updates.push(key + "=:" + key + " ");
-                    bind[key] = table[key];
-                }
-                sql += updates.join(",") + " ";
-                if (custom) {
-                    if (updates) {
-                        sql += ",";
-                    }
-                    sql += custom.join(",") + " ";
-                }
-                sql += "WHERE " + this._primary + "=:" + this._primary;
-                bind[this._primary] = parseInt(input[this._primary], 10);
+        return this.get({[this._primary]: input[this._primary]}).then(exist => {
+            if (!exist && !this._set_insert) {
+                return Promise.resolve(r(false, "Not Found"));
             }
-            return this._query(sql, bind)
-                .then(rows => r(true));
-        }
-        return Promise.resolve(r(false));
+            if (input.fields) {
+                var sql = "", updates = [], bind = {};
+                if (this._set_insert) {
+                    input.fields[this._primary] = input[this._primary];
+                    let cols = [], vals = [];
+                    for (let key in fields) {
+                        cols.push(key);
+                        vals.push(":" + key);
+                        if (key != this._primary) {
+                            updates.push(key + "=:" + key + " ");
+                        }
+                        bind[key] = input.fields[key];
+                    }
+                    sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ") ON DUPLICATE KEY UPDATE " + updates.join(",") + " ";
+                } else {
+                    sql = "UPDATE " + this._table() + " SET ";
+                    for (let key in input.fields) {
+                        updates.push(key + "=:" + key + " ");
+                        bind[key] = input.fields[key];
+                    }
+                    sql += updates.join(",") + " ";
+                    if (input.custom) {
+                        if (updates) {
+                            sql += ",";
+                        }
+                        sql += custom.join(",") + " ";
+                    }
+                    sql += "WHERE " + this._primary + "=:" + this._primary;
+                    bind[this._primary] = parseInt(input[this._primary], 10);
+                }
+                return this._query(sql, bind)
+                    .then(rows => r(true));
+            }
+            return Promise.resolve(r(false));
+        });
     }
 
     add(input){
@@ -296,7 +299,7 @@ class DataServe {
                     return r(true, rows, extra);
                 }
                 return r(true, array_values(rows), extra);
-            });
+            }).catch(error => r(false, error));
     }
 
     get_count(input) {
@@ -306,7 +309,9 @@ class DataServe {
             return_raw: true,
             return_found: true,
         });
-        this._lookup(inp, out).then(output => output.status ? r(true, output.found) : output);
+        this._lookup(inp, out)
+            .then(output => output.status ? r(true, output.found) : output)
+            .catch(error => r(false, error));
     }
 
     _table(){
@@ -381,7 +386,7 @@ class DataServe {
             return;
         }
         ids = rows.length ? array_keys(rows) : [];
-        fillin = [];
+        fillin = {};
         for (let type in this._relationships) {
             for (let name in this._relationships[type]) {
                 if (!input.fillin.name) {
@@ -475,10 +480,20 @@ class DataServe {
                     return results;
                 }
                 if (query_type == "INSERT") {
-                    return {insertId: results.insertId};
+                    return {
+                        insertId: results.insertId,
+                    };
                 }
                 if (query_type == "DELETE") {
-                    return {affectedRows: results.affectedRows};
+                    return {
+                        affectedRows: results.affectedRows,
+                    };
+                }
+                if (query_type == "UPDATE" || query_type == "REPLACE") {
+                    return {
+                        affectedRows: results.affectedRows,
+                        changedRows: results.changedRows,
+                    };
                 }
                 return null;
             });
