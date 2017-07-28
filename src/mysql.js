@@ -17,6 +17,12 @@ class MySql {
             database: db_name,
             multipleStatements: true,
         });
+        this._query("SHOW VARIABLES LIKE 'max_connections'")
+            .then(rows => {
+                if (rows[0].Value < config.connectionLimit) {
+                    throw new Error("Mysql max_connections less than connectionLimit");
+                }
+            });
     }
 
     query(sql, bind={}, ret_type=null) {
@@ -189,7 +195,7 @@ class MySql {
                     });
                 };
 
-                if (true) {
+                if (false) {
                     console.log(sql);
                 }
 

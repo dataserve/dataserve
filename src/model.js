@@ -162,7 +162,6 @@ class Model {
     
     get(input){
         var field = null;
-        console.log("CHECK INPUT PRIMARY", this._primary);
         if (input[this._primary]) {
             field = this._primary;
         } else {
@@ -192,8 +191,7 @@ class Model {
         } else if (this._get[field] == "string") {
             if (is_array(input[field])) {
                 input[field] = [...new Set(input[field])];
-                let wh = [];
-                let cnt = 1;
+                let wh = [], cnt = 1;
                 for (let index in input[field]) {
                     wh.push(field + "=:" + field+cnt);
                     bind[field+cnt] = input[field][index];
@@ -363,15 +361,14 @@ class Model {
         let sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
         return this.query(sql, bind)
             .then(res => this.get({[this._primary]: res.insertId}))
-            .catch(error => r(false, error));
-        /*
-          } catch (e) {
-          if (e.indexOf("Duplicate entry") !== -1) {
-          return r(false, output, {email: "Already in use"});
-          }
-          throw e;
-          }
-        */
+            .catch(error => {
+                /*
+                if (error.toString().indexOf("ER_DUP_ENTRY") !== -1) {
+                    return r(false, {email: "Already in use"});
+                }
+                */
+                return r(false, error)
+            });
     }
 
     remove(input){
@@ -419,10 +416,9 @@ class Model {
         
         let sql_rows = sql_select + sql + sql_limit;
 
+        let sql_cnt = "SELECT COUNT(*) AS cnt " + sql;
         if (sql_group.length) {
-            var sql_cnt = "SELECT COUNT(*) AS cnt FROM (" + sql_select + sql + ") AS t";
-        } else {
-            var sql_cnt = "SELECT COUNT(*) AS cnt " + sql;
+            sql_cnt = "SELECT COUNT(*) AS cnt FROM (" + sql_select + sql + ") AS t";
         }
 
         if (input.return_found_only) {

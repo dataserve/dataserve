@@ -11,10 +11,14 @@ class DataServe {
         
         this._model = {};
         this._db = new DB;
+        this._db_default = null;
+        if (config.db._default_) {
+            this._db_default = config.db._default_;
+        }
     }
     
     run_external(command){
-        console.log('query', command);
+        //console.log('query', command);
 
         var promise = null;
         var type = command[0].toLowerCase();
@@ -74,27 +78,23 @@ class DataServe {
 
     run(db_table_command, input){
         let [db_table, command] = db_table_command.split(":");
+        if (db_table.split(".").length == 1) {
+            db_table = this._db_default + "." + db_table;
+        }
         if (!this._model[db_table]) {
             this._model[db_table] = new this._model_class(this, this._config, this._db, db_table);
             console.log("CREATED", db_table);
         }
         switch (command) {
-        case "get":
-            return this._model[db_table].get(input);
-        case "get_multi":
-            return this._model[db_table].get_multi(input);
-        case "set":
-            return this._model[db_table].set(input);
         case "add":
-            return this._model[db_table].add(input);
-        case "remove":
-            return this._model[db_table].remove(input);
-        case "remove_multi":
-            return this._model[db_table].remove_multi(input);
-        case "lookup":
-            return this._model[db_table].lookup(input);
+        case "get":
         case "get_count":
-            return this._model[db_table].get_count(input);
+        case "get_multi":
+        case "lookup":
+        case "remove":
+        case "remove_multi":
+        case "set":
+            return this._model[db_table][command](input);
         }
         throw new Error("invalid command");
     }
