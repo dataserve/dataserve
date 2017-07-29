@@ -38,6 +38,7 @@ class Model {
 
         this._dataserve = dataserve;
         this._db = db;
+        this._cache = null;
 
         this._db_name = null;
         this._table_name = null;
@@ -131,6 +132,18 @@ class Model {
                 }
             }
         }
+        if (table_config.cache) {
+            switch (table_config.cache.type) {
+            case "js":
+                let CacheJS = require("./cache/js");
+                this._cache = new CacheJS(table_config.cache);
+                break;
+            case "memcached":
+                break;
+            case "redis":
+                break;
+            }
+        }
     }
     
     _add_get(obj){
@@ -166,7 +179,7 @@ class Model {
             field = this._primary;
         } else {
             for (let key in this._get) {
-                if (input[key]) {
+                if (typeof input[key] !== "undefined") {
                     field = key;
                     break;
                 }
@@ -176,44 +189,45 @@ class Model {
             }
         }
 
-        var single_row_result = false;
-        var rows = {}, where = [], bind = {};
+        var single_row_result = !Array.isArray(input[field]);
+        var cache_rows = {}, where = [], bind = {}, cache_promise = null;
 
-        if (this._get[field] == "int") {
-            if (Array.isArray(input[field])) {
-                input[field] = int_array(input[field]);
-                where.push(field + " IN (" + input[field].join(",") + ")");
-            } else {
-                single_row_result = true;
-                where.push(field + "=:" + field);
-                bind[field] = parseInt(input[field], 10);
-            }
-        } else if (this._get[field] == "string") {
-            if (is_array(input[field])) {
-                input[field] = [...new Set(input[field])];
-                let wh = [], cnt = 1;
-                for (let index in input[field]) {
-                    wh.push(field + "=:" + field+cnt);
-                    bind[field+cnt] = input[field][index];
-                    ++cnt;
-                }
-                where.push("(" + wh.join(" OR ") + ")");
-            } else {
-                single_row_result = true;
-                where.push(field + "=:" + field);
-                bind[field] = input[field];
-            }
+        //cacheable
+        if (this._cache && field == this._primary) {
+            cache_promise = this._cache_get_primary(input[field]);
+        } else {
+            cache_promise = Promise.resolve([{}, input[field]]);
         }
+        return cache_promise
+            .then(result => {
+                [cache_rows, input[field]] = result;
+                if (!input[field].length) {
+                    return cache_rows;
+                }
+                if (!Array.isArray(input[field])) {
+                    input[field] = [input[field]];
+                }
+                if (this._get[field] == "int") {
+                    input[field] = int_array(input[field]);
+                    where.push(field + " IN (" + input[field].join(",") + ")");
+                } else if (this._get[field] == "string") {
+                    input[field] = [...new Set(input[field])];
+                    let wh = [], cnt = 1;
+                    for (let index in input[field]) {
+                        wh.push(field + "=:" + field+cnt);
+                        bind[field+cnt] = input[field][index];
+                        ++cnt;
+                    }
+                    where.push("(" + wh.join(" OR ") + ")");
+                }
+                let sql = this._select();
+                sql += this._from();
+                sql += this._where(where);
+                //this._master();
 
-        let sql = this._select();
-        sql += this._from();
-        sql += this._where(where);
-        //this._master();
-
-        return this.query(sql, bind, this._primary)
-            .then(rows => {
-                return this._fillin(input, rows);
+                return this.query(sql, bind, this._primary);
             })
+            .then(rows => this._fillin(input, rows))
             .then(rows => {
                 let extra = {
                     db_name: this._db_name,
@@ -236,9 +250,7 @@ class Model {
                 }
                 return r(true, result, extra);
             })
-            .catch(error => {
-                return r(false, error);
-            });
+            .catch(error => r(false, error));
     }
 
     get_multi(input){
@@ -296,7 +308,7 @@ class Model {
                     }
                     return r(true, output);
                 });
-            });
+            }).catch(error => r(false, error));
     }
 
     set(input) {
@@ -345,7 +357,7 @@ class Model {
                     .then(rows => r(true));
             }
             return Promise.resolve(r(false));
-        });
+        }).catch(error => r(false, error));
     }
 
     add(input){
@@ -361,14 +373,7 @@ class Model {
         let sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
         return this.query(sql, bind)
             .then(res => this.get({[this._primary]: res.insertId}))
-            .catch(error => {
-                /*
-                if (error.toString().indexOf("ER_DUP_ENTRY") !== -1) {
-                    return r(false, {email: "Already in use"});
-                }
-                */
-                return r(false, error)
-            });
+            .catch(error => r(false, error));
     }
 
     remove(input){
@@ -428,7 +433,7 @@ class Model {
                     found: found,
                 };
                 return r(true, [], extra);
-            });
+            }).catch(error => r(false, error));
         }
 
         return this.query(sql_rows, input.bind, this._primary)
@@ -566,7 +571,6 @@ class Model {
                 promise_map[table] = type;
             }
         }
-        console.log("PROMISES", promises);
         if (!promises.length) {
             return Promise.resolve(rows);
         }
@@ -614,7 +618,34 @@ class Model {
     query_multi(...args) {
         return this._db.get_db(this._db_name, this._db_config).query_multi(...args);
     }
-    
+
+    _cache_get_primary(keys) {
+        return this._cache_get(this._primary, keys);
+    }
+
+    _cache_get(field, keys) {
+        if (!Array.isArray(keys)) {
+            keys = [keys];
+        }
+        return this._cache.get(field, keys).then(cache_rows => {
+            let ids = [];
+            for (let key of keys) {
+                if (typeof cache_rows[key] == "undefined") {
+                    ids.push(key);
+                }
+            }
+            return [cache_rows, ids];
+        });
+    }
+
+    _cache_set_primary(rows) {
+        return this._cache_set(this._primary, rows);
+    }
+
+    _cache_set(field, rows) {
+        return this._cache.set(field, rows);
+    }
+
 }
 
 module.exports = Model;
