@@ -13,8 +13,9 @@ class CacheJS {
         }
         let output = {};
         for (let key of keys) {
-            if (typeof this._cache[field] !== "undefined" && typeof this._cache[field][key] !== "undefined") {
-                output[key] = this._cache[field][key];
+            let field_key = field + ":" + key;
+            if (typeof this._cache[field_key] !== "undefined") {
+                output[key] = this._cache[field_key];
             }
         }
         return Promise.resolve(output);
@@ -30,23 +31,30 @@ class CacheJS {
                 if (this._size_limit <= reduce_by) {
                     this._cache[key] = {};
                 } else {
-                    for (let i = 0; i < reduce_by; ++i) {
-                        for (let key in this._cache) {
-                            delete this._cache[key];
-                            break;
-                        }
-                    }
+                    let keys = Object.keys(this._cache).slice(0, reduce_by);
+                    this.del(field, keys);
                 }
             }
         }
-        if (typeof this._cache[field] == "undefined") {
-            this._cache[field] = {};
-        }
         for (let key in vals) {
-            this._cache[field][key] = vals[key];
+            let field_key = field + ":" + key;
+            this._cache[field_key] = vals[key];
             ++current_size;
             if (this._size_limit < current_size) {
                 break;
+            }
+        }
+        return Promise.resolve(vals);
+    }
+
+    del(field, keys) {
+        if (!Array.isArray(keys)) {
+            keys = [keys];
+        }
+        for (let key of keys) {
+            let field_key = field + ":" + key;
+            if (typeof this._cache[field_key] !== "undefined") {
+                delete this._cache[field_key];
             }
         }
     }

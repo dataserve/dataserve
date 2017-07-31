@@ -227,6 +227,12 @@ class Model {
 
                 return this.query(sql, bind, this._primary);
             })
+            .then(rows => {
+                if (this._cache) {
+                    return this._cache_set_primary(rows);
+                }
+                return rows;
+            })
             .then(rows => this._fillin(input, rows))
             .then(rows => {
                 let extra = {
@@ -354,6 +360,12 @@ class Model {
                     bind[this._primary] = parseInt(input[this._primary], 10);
                 }
                 return this.query(sql, bind)
+                    .then(rows => {
+                        if (this._cache) {
+                            return this._cache_delete_primary(input[this._primary]);
+                        }
+                        return rows;
+                    })
                     .then(rows => r(true));
             }
             return Promise.resolve(r(false));
@@ -372,6 +384,12 @@ class Model {
         }
         let sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
         return this.query(sql, bind)
+            .then(res => {
+                if (this._cache) {
+                    this._cache_delete_primary(res.insertId);
+                }
+                return res;
+            })
             .then(res => this.get({[this._primary]: res.insertId}))
             .catch(error => r(false, error));
     }
@@ -385,6 +403,11 @@ class Model {
         sql += this._from();
         sql += "WHERE " + this._primary + "=:" + this._primary;
         return this.query(sql, {[this._primary]: parseInt(input[this._primary], 10)})
+            .then(res => {
+                if (this._cache) {
+                    this._cache_delete_primary(input[this._primary]);
+                }
+            })
             .then(() => r(true))
             .catch (error => r(false, error));
     }
@@ -611,12 +634,16 @@ class Model {
             });
     }
 
+    db() {
+        return this._db.get_db(this._db_name, this._db_config);
+    }
+    
     query(...args) {
-        return this._db.get_db(this._db_name, this._db_config).query(...args);
+        return this.db().query(...args);
     }
 
     query_multi(...args) {
-        return this._db.get_db(this._db_name, this._db_config).query_multi(...args);
+        return this.db().query_multi(...args);
     }
 
     _cache_get_primary(keys) {
@@ -644,6 +671,14 @@ class Model {
 
     _cache_set(field, rows) {
         return this._cache.set(field, rows);
+    }
+
+    _cache_delete_primary(keys) {
+        return this._cache_delete(this._primary, keys);
+    }
+
+    _cache_delete(field, keys) {
+        return this._cache.del(field, keys);
     }
 
 }
