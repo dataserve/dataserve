@@ -33,12 +33,12 @@ function param_fo(arr, param) {
 
 class Model {
 
-    constructor(dataserve, config, db, db_table){
+    constructor(dataserve, config, db_container, cache_container, db_table){
         this._primary = "id";
 
         this._dataserve = dataserve;
-        this._db = db;
-        this._cache = null;
+        this._db_container = db_container;
+        this._cache_container = cache_container;
 
         this._db_name = null;
         this._table_name = null;
@@ -85,63 +85,57 @@ class Model {
         if (!this._db_config) {
             throw new Error("Configuration missing for db: " + this._db_name);
         }
-
-        let table_config = this._db_config.table[this._table_name];
-        if (!table_config) {
+        this._table_config = this._db_config.table[this._table_name];
+        if (!this._table_config) {
             throw new Error("Missing config information for table: " + this._table_name);
         }
-        if (typeof table_config.primary_key !== "undefined") {
-            this._primary = table_config.primary_key;
+        this._db = this._db_container.get_db(this._db_name, this._db_config);
+        if (this._db_config.cache) {
+            this._cache = this._cache_container.get_cache(this._db_name, this._db_config);
+        } else {
+            this._cache = this._cache_container.get_cache(this._db_name, this._table_config);
         }
-        if (typeof table_config.set_insert === "boolean") {
-            this._set_insert = table_config.set_insert;
+        
+        if (typeof this._table_config.primary_key !== "undefined") {
+            this._primary = this._table_config.primary_key;
         }
-        if (typeof table_config.timestamp !== "undefined") {
-            if (!table_config.timestamp) {
+        if (typeof this._table_config.set_insert === "boolean") {
+            this._set_insert = this._table_config.set_insert;
+        }
+        if (typeof this._table_config.timestamp !== "undefined") {
+            if (!this._table_config.timestamp) {
                 this._timestamp = null;
             } else {
-                if (typeof table_config.timestamp.created !== "undefined") {
-                    this._timestamp.created = table_config.timestamp.created;
+                if (typeof this._table_config.timestamp.created !== "undefined") {
+                    this._timestamp.created = this._table_config.timestamp.created;
                 }
-                if (typeof table_config.timestamp.modified !== "undefined") {
-                    this._timestamp.modified = table_config.timestamp.modified;
+                if (typeof this._table_config.timestamp.modified !== "undefined") {
+                    this._timestamp.modified = this._table_config.timestamp.modified;
                     
                 }
             }
         }
-        if (table_config.field) {
-            for (let key in table_config.field) {
-                this._add_field(table_config.field[key]);
+        if (this._table_config.field) {
+            for (let key in this._table_config.field) {
+                this._add_field(this._table_config.field[key]);
             }
         }
-        if (table_config.unique) {
-            this._add_get(table_config.unique);
+        if (this._table_config.unique) {
+            this._add_get(this._table_config.unique);
         }
-        if (table_config.multi) {
-            this._add_get_multi(table_config.multi);
+        if (this._table_config.multi) {
+            this._add_get_multi(this._table_config.multi);
         }
-        if (table_config.relationship) {
-            if (table_config.relationship.has_one) {
-                for (let other_table of table_config.relationship.has_one) {
+        if (this._table_config.relationship) {
+            if (this._table_config.relationship.has_one) {
+                for (let other_table of this._table_config.relationship.has_one) {
                     this._add_relationship("has_one", other_table);
                 }
             }
-            if (table_config.relationship.belongs_to) {
-                for (let other_table of table_config.relationship.belongs_to) {
+            if (this._table_config.relationship.belongs_to) {
+                for (let other_table of this._table_config.relationship.belongs_to) {
                     this._add_relationship("belongs_to", other_table);
                 }
-            }
-        }
-        if (table_config.cache) {
-            switch (table_config.cache.type) {
-            case "js":
-                let CacheJS = require("./cache/js");
-                this._cache = new CacheJS(table_config.cache);
-                break;
-            case "memcached":
-                break;
-            case "redis":
-                break;
             }
         }
     }
@@ -372,6 +366,34 @@ class Model {
         }).catch(error => r(false, error));
     }
 
+    inc(input) {
+        if (!input[this._primary]) {
+            return Promise.resolve(r(false, "missing primary key"));
+        }
+        if (!Array.isArray(input[this._primary])) {
+            input[this._primary] = [input[this._primary]];
+        }
+        input[field] = int_array(input[field]);
+        if (!input.fields) {
+            return Promise.resolve(r(false, "missing update fields"));
+        }
+
+        sql = "UPDATE " + this._table() + " SET ";
+        for (let key in input.fields) {
+            updates.push(key + "=" + key + " + " + parseInt(input[fields], 10));
+        }
+        sql += "WHERE " + this._primary + " IN (" + input[this._primary].join(",") + ")";
+        return this.query(sql)
+            .then(rows => {
+                if (this._cache) {
+                    return this._cache_delete_primary(input[this._primary]);
+                }
+                return rows;
+            })
+            .then(rows => r(true))
+            .catch(error => r(false, error));
+    }
+
     add(input){
         if (!input.fields) {
             return Promise.resolve(r(false, "missing fields"));
@@ -398,10 +420,14 @@ class Model {
         if (!input[this._primary]) {
             return Promise.resolve(r(false, "primary key value required"));
         }
+        if (!Array.isArray(input[this._primary])) {
+            input[this._primary] = [input[this._primary]];
+        }
+        input[field] = int_array(input[field]);
 
         let sql = "DELETE ";
         sql += this._from();
-        sql += "WHERE " + this._primary + "=:" + this._primary;
+        sql += "WHERE " + this._primary + " IN (" + input[this._primary].join(",") + ")";
         return this.query(sql, {[this._primary]: parseInt(input[this._primary], 10)})
             .then(res => {
                 if (this._cache) {
@@ -635,7 +661,11 @@ class Model {
     }
 
     db() {
-        return this._db.get_db(this._db_name, this._db_config);
+        return this._db;
+    }
+
+    cache() {
+        return this._cache;
     }
     
     query(...args) {

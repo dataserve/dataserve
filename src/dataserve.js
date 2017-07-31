@@ -2,6 +2,7 @@
 
 const util = require("util");
 const DB = require("./db");
+const Cache = require("./cache");
 
 class DataServe {
 
@@ -11,6 +12,7 @@ class DataServe {
         
         this._model = {};
         this._db = new DB;
+        this._cache = new Cache;
         this._db_default = null;
         if (config.db._default_) {
             this._db_default = config.db._default_;
@@ -26,7 +28,7 @@ class DataServe {
             db_table = this._db_default + "." + db_table;
         }
         if (!this._model[db_table]) {
-            this._model[db_table] = new this._model_class(this, this._config, this._db, db_table);
+            this._model[db_table] = new this._model_class(this, this._config, this._db, this._cache, db_table);
             console.log("CREATED", db_table);
         }
         switch (command) {
