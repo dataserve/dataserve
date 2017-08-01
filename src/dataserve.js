@@ -41,8 +41,10 @@ class DataServe {
         case "remove_multi":
         case "set":
             return this._model[db_table][command](input);
+        case "output_cache":
+            return this._model[db_table][command]();
         }
-        throw new Error("invalid command");
+        throw new Error("invalid command: " + command);
     }
 }
 

@@ -1,6 +1,7 @@
 "use strict"
 
 const _array = require("lodash/array");
+const _object = require("lodash/object");
 
 function int_array(arr) {
     if (!arr || !Array.isArray(arr)) {
@@ -40,6 +41,7 @@ class Model {
         this._db_container = db_container;
         this._cache_container = cache_container;
 
+        this._db_table = db_table;
         this._db_name = null;
         this._table_name = null;
         this._model = null;
@@ -57,7 +59,7 @@ class Model {
         };
         this._set_insert = false;
 
-        this._parse_config(db_table, config);
+        this._parse_config(config);
 
         this._add_get({[this._primary]: "int"});
         this._add_field(this._primary);
@@ -76,8 +78,8 @@ class Model {
         }
     }
 
-    _parse_config(db_table, config){
-        [this._db_name, this._table_name] = db_table.split(".");
+    _parse_config(config){
+        [this._db_name, this._table_name] = this._db_table.split(".");
         if (!this._db_name || !this._table_name) {
             throw new Error("Missing db/table names");
         }
@@ -166,6 +168,28 @@ class Model {
         }
         this._relationships[type][table] = true;
     }
+
+    add(input){
+        if (!input.fields) {
+            return Promise.resolve(r(false, "missing fields"));
+        }
+        let cols = [], vals = [], bind = [];
+        for (let key in input.fields) {
+            cols.push(key);
+            vals.push(":" + key);
+            bind[key] = input.fields[key];
+        }
+        let sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
+        return this.query(sql, bind)
+            .then(res => {
+                if (this._cache) {
+                    this._cache_delete_primary(res.insertId);
+                }
+                return res;
+            })
+            .then(res => this.get({[this._primary]: res.insertId}))
+            .catch(error => r(false, error));
+    }
     
     get(input){
         var field = null;
@@ -185,6 +209,7 @@ class Model {
 
         var single_row_result = !Array.isArray(input[field]);
         var cache_rows = {}, where = [], bind = {}, cache_promise = null;
+        var input_field_orig = input[field];
 
         //cacheable
         if (this._cache && field == this._primary) {
@@ -219,15 +244,20 @@ class Model {
                 sql += this._where(where);
                 //this._master();
 
-                return this.query(sql, bind, this._primary);
+                return this.query(sql, bind, this._primary).then(rows => {
+                    var cache_promise = Promise.resolve(rows);
+                    if (this._cache) {
+                        cache_promise = this._cache_set_primary(rows);
+                    }
+                    return cache_promise.then(ignore => rows);
+                });
             })
             .then(rows => {
-                if (this._cache) {
-                    return this._cache_set_primary(rows);
-                }
-                return rows;
+                return Object.assign(cache_rows, rows);
             })
-            .then(rows => this._fillin(input, rows))
+            .then(rows => {
+                return this._fillin(input, rows)
+            })
             .then(rows => {
                 let extra = {
                     db_name: this._db_name,
@@ -242,14 +272,19 @@ class Model {
                 if (input.return_by_id) {
                     return r(true, rows, extra);
                 }
-                let result = [];
-                for (let id of input[this._primary]) {
-                    if (rows[id]) {
-                        result.push(rows[id]);
-                    }
-                }
-                return r(true, result, extra);
+                return r(true, _object.pick(rows, input_field_orig), extra);
             })
+            .catch(error => r(false, error));
+    }
+
+    get_count(input) {
+        let inp = Object.assign(input, {
+            page: 1,
+            limit: 1,
+            return_found_only: true,
+        });
+        return this.lookup(inp)
+            .then(output => output.status ? r(true, output.found) : output)
             .catch(error => r(false, error));
     }
 
@@ -311,61 +346,6 @@ class Model {
             }).catch(error => r(false, error));
     }
 
-    set(input) {
-        if (!input[this._primary]) {
-            return Promise.resolve(r(false, "missing primary key"));
-        }
-        if (!input.fields) {
-            return Promise.resolve(r(false, "missing update fields"));
-        }
-
-        return this.get({[this._primary]: input[this._primary]}).then(exist => {
-            if (!exist && !this._set_insert) {
-                return Promise.resolve(r(false, "Not Found"));
-            }
-            if (input.fields) {
-                var sql = "", updates = [], bind = {};
-                if (this._set_insert) {
-                    input.fields[this._primary] = input[this._primary];
-                    let cols = [], vals = [];
-                    for (let key in fields) {
-                        cols.push(key);
-                        vals.push(":" + key);
-                        if (key != this._primary) {
-                            updates.push(key + "=:" + key + " ");
-                        }
-                        bind[key] = input.fields[key];
-                    }
-                    sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ") ON DUPLICATE KEY UPDATE " + updates.join(",") + " ";
-                } else {
-                    sql = "UPDATE " + this._table() + " SET ";
-                    for (let key in input.fields) {
-                        updates.push(key + "=:" + key + " ");
-                        bind[key] = input.fields[key];
-                    }
-                    sql += updates.join(",") + " ";
-                    if (input.custom) {
-                        if (updates) {
-                            sql += ",";
-                        }
-                        sql += custom.join(",") + " ";
-                    }
-                    sql += "WHERE " + this._primary + "=:" + this._primary;
-                    bind[this._primary] = parseInt(input[this._primary], 10);
-                }
-                return this.query(sql, bind)
-                    .then(rows => {
-                        if (this._cache) {
-                            return this._cache_delete_primary(input[this._primary]);
-                        }
-                        return rows;
-                    })
-                    .then(rows => r(true));
-            }
-            return Promise.resolve(r(false));
-        }).catch(error => r(false, error));
-    }
-
     inc(input) {
         if (!input[this._primary]) {
             return Promise.resolve(r(false, "missing primary key"));
@@ -394,62 +374,18 @@ class Model {
             .catch(error => r(false, error));
     }
 
-    add(input){
-        if (!input.fields) {
-            return Promise.resolve(r(false, "missing fields"));
-        }
-        let cols = [], vals = [], bind = [];
-        for (let key in input.fields) {
-            cols.push(key);
-            vals.push(":" + key);
-            bind[key] = input.fields[key];
-        }
-        let sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
-        return this.query(sql, bind)
-            .then(res => {
-                if (this._cache) {
-                    this._cache_delete_primary(res.insertId);
-                }
-                return res;
-            })
-            .then(res => this.get({[this._primary]: res.insertId}))
-            .catch(error => r(false, error));
-    }
-
-    remove(input){
-        if (!input[this._primary]) {
-            return Promise.resolve(r(false, "primary key value required"));
-        }
-        if (!Array.isArray(input[this._primary])) {
-            input[this._primary] = [input[this._primary]];
-        }
-        input[field] = int_array(input[field]);
-
-        let sql = "DELETE ";
-        sql += this._from();
-        sql += "WHERE " + this._primary + " IN (" + input[this._primary].join(",") + ")";
-        return this.query(sql, {[this._primary]: parseInt(input[this._primary], 10)})
-            .then(res => {
-                if (this._cache) {
-                    this._cache_delete_primary(input[this._primary]);
-                }
-            })
-            .then(() => r(true))
-            .catch (error => r(false, error));
-    }
-
     lookup(input) {
         //this._fillin_limit(input);
 
-        if (!input.prefix) {
-            input.prefix = this._table().substring(0, 1);
+        if (!input.alias) {
+            input.alias = this._table().substring(0, 1);
         }
-        if (!input.bind || typeof input.fillin !== "object") {
+        if (!input.bind || typeof input.bind !== "object") {
             input.bind = {};
         }
 
-        let sql_select = "SELECT " + input.prefix + "." + this._primary + " "
-        let sql = this._from(input.prefix);
+        let sql_select = "SELECT " + input.alias + "." + this._primary + " "
+        let sql = this._from(input.alias);
         if (input.join) {
             for (let table in input.join) {
                 sql += "INNER JOIN " + table + " ON (" + input.join[table] + ") ";
@@ -523,15 +459,74 @@ class Model {
             }).catch(error => r(false, error));
     }
 
-    get_count(input) {
-        let inp = Object.assign(input, {
-            page: 1,
-            limit: 1,
-            return_found_only: true,
-        });
-        return this.lookup(inp)
-            .then(output => output.status ? r(true, output.found) : output)
+    set(input) {
+        if (!input[this._primary]) {
+            return Promise.resolve(r(false, "missing primary key"));
+        }
+        if (!input.fields) {
+            return Promise.resolve(r(false, "missing update fields"));
+        }
+
+        var sql = "", updates = [], bind = {};
+        if (this._set_insert) {
+            input.fields[this._primary] = input[this._primary];
+            let cols = [], vals = [];
+            for (let key in fields) {
+                cols.push(key);
+                vals.push(":" + key);
+                if (key != this._primary) {
+                    updates.push(key + "=:" + key + " ");
+                }
+                bind[key] = input.fields[key];
+            }
+            sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ") ON DUPLICATE KEY UPDATE " + updates.join(",") + " ";
+        } else {
+            sql = "UPDATE " + this._table() + " SET ";
+            for (let key in input.fields) {
+                updates.push(key + "=:" + key + " ");
+                bind[key] = input.fields[key];
+            }
+            sql += updates.join(",") + " ";
+            if (input.custom) {
+                if (updates) {
+                    sql += ",";
+                }
+                sql += custom.join(",") + " ";
+            }
+            sql += "WHERE " + this._primary + "=:" + this._primary;
+            bind[this._primary] = parseInt(input[this._primary], 10);
+        }
+        return this.query(sql, bind)
+            .then(rows => {
+                if (this._cache) {
+                    return this._cache_delete_primary(input[this._primary]);
+                }
+                return rows;
+            })
+            .then(rows => r(true))
             .catch(error => r(false, error));
+    }
+
+    remove(input){
+        if (!input[this._primary]) {
+            return Promise.resolve(r(false, "primary key value required"));
+        }
+        if (!Array.isArray(input[this._primary])) {
+            input[this._primary] = [input[this._primary]];
+        }
+        input[field] = int_array(input[field]);
+
+        let sql = "DELETE ";
+        sql += this._from();
+        sql += "WHERE " + this._primary + " IN (" + input[this._primary].join(",") + ")";
+        return this.query(sql, {[this._primary]: parseInt(input[this._primary], 10)})
+            .then(res => {
+                if (this._cache) {
+                    this._cache_delete_primary(input[this._primary]);
+                }
+            })
+            .then(() => r(true))
+            .catch (error => r(false, error));
     }
 
     _table(){
@@ -544,8 +539,9 @@ class Model {
         }
         return "SELECT "
             + this._fields.join(",")
-            + (this._timestamp && this._timestamp.created?",UNIX_TIMESTAMP(" + this._timestamp.created + ") AS " + this._timestamp.created:"") + " "
-            + (this._timestamp && this._timestamp.modified?",UNIX_TIMESTAMP(" + this._timestamp.modified + ") AS " + this._timestamp.modified:"") + " ";
+            + (this._timestamp && this._timestamp.created?",UNIX_TIMESTAMP(" + this._timestamp.created + ") AS " + this._timestamp.created:"")
+            + (this._timestamp && this._timestamp.modified?",UNIX_TIMESTAMP(" + this._timestamp.modified + ") AS " + this._timestamp.modified:"")
+            + " ";
     }
 
     _from(alias="") {
@@ -660,6 +656,11 @@ class Model {
             });
     }
 
+    output_cache() {
+        return this.cache().get_all()
+            .then(result => r(true, result));
+    }
+
     db() {
         return this._db;
     }
@@ -684,7 +685,7 @@ class Model {
         if (!Array.isArray(keys)) {
             keys = [keys];
         }
-        return this._cache.get(field, keys).then(cache_rows => {
+        return this._cache.get(this._db_table, field, keys).then(cache_rows => {
             let ids = [];
             for (let key of keys) {
                 if (typeof cache_rows[key] == "undefined") {
@@ -700,7 +701,7 @@ class Model {
     }
 
     _cache_set(field, rows) {
-        return this._cache.set(field, rows);
+        return this._cache.set(this._db_table, field, rows);
     }
 
     _cache_delete_primary(keys) {
@@ -708,7 +709,7 @@ class Model {
     }
 
     _cache_delete(field, keys) {
-        return this._cache.del(field, keys);
+        return this._cache.del(this._db_table, field, keys);
     }
 
 }

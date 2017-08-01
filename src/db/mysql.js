@@ -195,8 +195,8 @@ class MySql {
                     });
                 };
 
-                if (false) {
-                    console.log(sql);
+                if (true) {
+                    console.log(sql, bind);
                 }
 
                 connection.query(sql, bind, (error, results, fields) => {

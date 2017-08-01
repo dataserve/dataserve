@@ -20,10 +20,10 @@ class Cache {
         switch (db_config.type) {
         case "js":
             let CacheJS = require("./cache/js");
-            this._dbs[db_key] = new CacheJS(db_name, db_config);
+            this._dbs[db_key] = new CacheJS(db_config);
             break;
         case "memcache":
-            this._dbs[db_key] = new Memcache(db_name, db_config);
+            this._dbs[db_key] = new Memcache(db_config);
             break;
         case "redis":
             this._dbs[db_key] = new Redis(db_name, db_config);
