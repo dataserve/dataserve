@@ -35,8 +35,6 @@ function param_fo(arr, param) {
 class Model {
 
     constructor(dataserve, config, db_container, cache_container, db_table){
-        this._primary = "id";
-
         this._dataserve = dataserve;
         this._db_container = db_container;
         this._cache_container = cache_container;
@@ -48,30 +46,24 @@ class Model {
         this._type = null;
         this._media = null;
 
-        this._fields = [];
+        this._primary = null;
+        this._fields = {};
         this._relationships = [];
-        this._get = [];
+        this._unique = [];
         this._get_multi = {};
 
         this._timestamp = {
-            created: "ctime",
-            modified: "mtime",
+            created: {
+                name: "ctime",
+                type: "timestamp",
+            },
+            modified: {
+                name: "mtime",
+                type: "timestamp",
+            },
         };
-        this._set_insert = false;
 
         this._parse_config(config);
-
-        this._add_get({[this._primary]: "int"});
-        this._add_field(this._primary);
-
-        if (this._timestamp) {
-            if (this._timestamp.created) {
-                this._add_field(this._timestamp.created);
-            }
-            if (this._timestamp.modified) {
-                this._add_field(this._timestamp.modified);
-            }
-        }
         
         if (!this._model) {
             this._model = this._table_name;
@@ -97,12 +89,21 @@ class Model {
         } else {
             this._cache = this._cache_container.get_cache(this._db_name, this._table_config);
         }
-        
-        if (typeof this._table_config.primary_key !== "undefined") {
+               
+        if (this._table_config.primary_key !== "undefined") {
             this._primary = this._table_config.primary_key;
+            this._add_unique(this._table_config.primary_key.name);
         }
-        if (typeof this._table_config.set_insert === "boolean") {
-            this._set_insert = this._table_config.set_insert;
+        if (this._table_config.field) {
+            for (let key in this._table_config.field) {
+                this._add_field(key, this._table_config.field[key]);
+            }
+        }
+        if (this._table_config.unique) {
+            this._add_unique(this._table_config.unique);
+        }
+        if (this._table_config.multi) {
+            this._add_get_multi(this._table_config.multi);
         }
         if (typeof this._table_config.timestamp !== "undefined") {
             if (!this._table_config.timestamp) {
@@ -117,16 +118,13 @@ class Model {
                 }
             }
         }
-        if (this._table_config.field) {
-            for (let key in this._table_config.field) {
-                this._add_field(this._table_config.field[key]);
+        if (this._timestamp) {
+            if (this._timestamp.created) {
+                this._add_field(this._timestamp.created.name, {type: this._timestamp.created.type});
             }
-        }
-        if (this._table_config.unique) {
-            this._add_get(this._table_config.unique);
-        }
-        if (this._table_config.multi) {
-            this._add_get_multi(this._table_config.multi);
+            if (this._timestamp.modified) {
+                this._add_field(this._timestamp.modified.name, {type: this._timestamp.modified.type});
+            }
         }
         if (this._table_config.relationship) {
             if (this._table_config.relationship.has_one) {
@@ -142,9 +140,9 @@ class Model {
         }
     }
     
-    _add_get(obj){
+    _add_unique(obj){
         for (let key in obj) {
-            this._get[key] = obj[key];
+            this._unique[key] = obj[key];
         }
     }
 
@@ -154,12 +152,14 @@ class Model {
         }
     }
     
-    _add_field(field){
-        if (this._timestamp && (field == this._timestamp.created || field == this._timestamp.modified)) {
+    _add_field(field, attributes){
+        if (this._primary_key && field == this._primary_key.name) {
             return;
         }
-        this._fields.push(field);
-        this._fields = [...new Set(this._fields)];
+        if (this._timestamp && (field == this._timestamp.created.name || field == this._timestamp.modified.name)) {
+            return;
+        }
+        this._fields[field] = attributes;
     }
 
     _add_relationship(type, table){
@@ -196,7 +196,7 @@ class Model {
         if (input[this._primary]) {
             field = this._primary;
         } else {
-            for (let key in this._get) {
+            for (let key in this._unique) {
                 if (typeof input[key] !== "undefined") {
                     field = key;
                     break;
@@ -226,10 +226,10 @@ class Model {
                 if (!Array.isArray(input[field])) {
                     input[field] = [input[field]];
                 }
-                if (this._get[field] == "int") {
+                if (this._unique[field] == "int") {
                     input[field] = int_array(input[field]);
                     where.push(field + " IN (" + input[field].join(",") + ")");
-                } else if (this._get[field] == "string") {
+                } else if (this._unique[field] == "string") {
                     input[field] = [...new Set(input[field])];
                     let wh = [], cnt = 1;
                     for (let index in input[field]) {
@@ -468,7 +468,7 @@ class Model {
         }
 
         var sql = "", updates = [], bind = {};
-        if (this._set_insert) {
+        if (this._primary_key.set_insert) {
             input.fields[this._primary] = input[this._primary];
             let cols = [], vals = [];
             for (let key in fields) {
