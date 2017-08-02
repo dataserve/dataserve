@@ -562,7 +562,7 @@ class Model {
         sql += this._from();
         if (this.get_fields(this._primary_key).type == "int") {
             vals = int_array(vals);
-            sql += "WHERE " + this._primary_key + " IN (" + query[this._primary_key].join(",") + ")";
+            sql += "WHERE " + this._primary_key + " IN (" + vals.join(",") + ")";
         } else {
             vals = [...new Set(vals)];
             let wh = [], cnt = 1;
