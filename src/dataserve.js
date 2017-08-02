@@ -2,7 +2,7 @@
 
 const Query = require("./query");
 const util = require("util");
-const {r} = require("./util");
+const {r, int_array} = require("./util");
 
 class DataServe {
 
@@ -83,80 +83,105 @@ class DataServe {
         hooks.pre.push(query => {
             let model = this.get_model(db_table);
             let table_config = model.table_config();
-            /*
-            if (input['=']) {
-                for (let field in input["="]) {
+            let where = [], bind = {}, input = null;
+            if (input = query.raw('=')) {
+                for (let field in input) {
                     if (!model.get_field(field)) {
                         continue;
                     }
-                    if (!is_array($val)) {
-                        $val = [$val];
+                    let vals = input[field];
+                    if (!Array.isArray(vals)) {
+                        vals = [vals];
                     }
-                    if ($this->_config_table['fields'][$field]['type'] == 'int') {
-                        $this->_int_array($val);
-                        $where[] = $this->alias . '.' . $field . ' IN (' . implode(',', $val) . ') ';
+                    if (model.get_field(field).type == "int") {
+                        vals = int_array(vals);
+                        where.push(query.alias + "." + field + " IN (" + vals.join(",") + ") ");
                     } else {
-                        $val = array_unique($val);
-                        $wh = []; $cnt = 1;
-                        foreach ($val as $v) {
-                            $wh[] = ':' . $field . $cnt;
-                            $bind[$field . $cnt] = $v;
-                            ++$cnt;
+                        vals = [...new Set(vals)];
+                        let wh = [], cnt = 1;
+                        for (let val of vals) {
+                            wh.push(":" + field + cnt);
+                            bind[field + cnt] = val;
+                            ++cnt;
                         }
-                        $where[] = $field . ' IN (' . implode(',', $wh) . ')';
+                        where.push(field + " IN (" + wh.join(",") + ")");
                     }
                 }
             }
-            if (!empty($input['%search'])) {
-                foreach ($input['search'] as $field => $val) {
-                    $where[] = $this->alias . '.' . $field . ' LIKE :' . $field;
-                    $bind[$field] = '%' . $val;
+            if (input = query.raw("%search")) {
+                for (let field in input) {
+                    if (!model.get_field(field)) {
+                        continue;
+                    }
+                    where.push(query.alias + "." + field + " LIKE :" + field);
+                    bind[field] = "%" + input[field];
                 }
             }
-            if (!empty($input['search%'])) {
-                foreach ($input['search'] as $field => $val) {
-                    $where[] = $this->alias . '.' . $field . ' LIKE :' . $field;
-                    $bind[$field] = $val . '%';
+            if (input = query.raw("search%")) {
+                for (let field in input) {
+                    if (!model.get_field(field)) {
+                        continue;
+                    }
+                    where.push(query.alias + "." + field + " LIKE :" + field);
+                    bind[field] = input[field] + "%";
                 }
             }
-            if (!empty($input['%search%'])) {
-                foreach ($input['search'] as $field => $val) {
-                    $where[] = $this->alias . '.' . $field . ' LIKE :' . $field;
-                    $bind[$field] = '%' . $val . '%';
+            if (input = query.raw("%search%")) {
+                for (let field in input) {
+                    if (!model.get_field(field)) {
+                        continue;
+                    }
+                    where.push(query.alias + "." + field + " LIKE :" + field);
+                    bind[field] = "%" + input[field] + "%";
                 }
             }
-            if (!empty($input['>'])) {
-                foreach ($input['>'] as $field => $val) {
-                    $where[] = ':' . $key . '_greater < ' . $this->alias . '.' . $key;
-                    $bind[$field . '_greater'] = (integer)$val;
+            if (input = query.raw(">")) {
+                for (let field in input) {
+                    if (!model.get_field(field)) {
+                        continue;
+                    }
+                    where.push(":" + field + "_greater < " + query.alias + "." + field);
+                    bind[field + "_greater"] = parseInt(input[field], 10);
                 }
             }
-            if (!empty($input['>='])) {
-                foreach ($input['>='] as $field => $val) {
-                    $where[] = ':' . $field . '_greater_equal <= ' . $this->alias . '.' . $field;
-                    $bind[$field . '_greater_equal'] = (integer)$val;
+            if (input = query.raw(">=")) {
+                for (let field in input) {
+                    if (!model.get_field(field)) {
+                        continue;
+                    }
+                    where.push(":" + field + "_greater_equal <= " + query.alias + "." + field);
+                    bind[field + "_greater_equal"] = parseInt(input[field], 10);
                 }
             }
-            if (!empty($input['<'])) {
-                foreach ($input['<'] as $field => $val) {
-                    $where[] = $this->alias . '.' . $field . ' < :' . $field . '_less';
-                    $bind[$field . '_less'] = (integer)$val;
+            if (input = query.raw("<")) {
+                for (let field in input) {
+                    if (!model.get_field(field)) {
+                        continue;
+                    }
+                    where.push(query.alias + "." + field + " < :" + field + "_less");
+                    bind[field + "_less"] = parseInt(input[field], 10);
                 }
             }
-            if (!empty($input['<='])) {
-                foreach ($input['<='] as $field => $val) {
-                    $where[] = $this->alias . '.' . $field . '. <= :' . $field . '_less_equal';
-                    $bind[$field . '_less_equal'] = (integer)$val;
+            if (input = query.raw("<=")) {
+                for (let field in input) {
+                    if (!model.get_field(field)) {
+                        continue;
+                    }
+                    where.push(query.alias + "." + field + ". <= :" + field + "_less_equal");
+                    bind[field + "_less_equal"] = parseInt(input[field], 10);
                 }
             }
-            if (isset($input['modulo'])) {
-                foreach ($input['modulo'] as $field => $modulo) {
-                    $where[] = $this->alias . '.' . $field . ' % :' . $field . '_modulo_mod = :' . $field . '_modulo_val';
-                    $bind[$field . '_modulo_mod'] = (integer)$modulo['mod'];
-                    $bind[$field . '_modulo_val'] = (integer)$modulo['val'];
+            if (input = query.raw("modulo")) {
+                for (let field in input) {
+                    if (!model.get_field(field)) {
+                        continue;
+                    }
+                    where.push(query.alias + "." + field + " % :" + field + "_modulo_mod = :" + field + "_modulo_val");
+                    bind[field + "_modulo_mod"] = parseInt(input[field]["mod"], 10);
+                    bind[field + "_modulo_val"] = parseInt(input[field]["val"], 10);
                 }
             }
-*/
+            query.add_where(where, bind);
         });
         hooks.post.push(result => {
             console.log("WHATS UP OUT");

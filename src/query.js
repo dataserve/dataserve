@@ -9,6 +9,8 @@ const ALLOWED_OUTPUT_STYLE = [
 class Query {
 
     constructor(input, command, model) {
+        this.input = input;
+        
         this.alias = "";
         this.get = {
             field: null,
@@ -126,6 +128,10 @@ class Query {
             break;
         }
     }
+
+    raw(field) {
+        return this.input[field];
+    }
   
     set_alias(alias) {
         this.alias = alias;
@@ -139,6 +145,8 @@ class Query {
         if (!Array.isArray(vals)) {
             vals = [vals];
             this.single_row_result = true;
+        } else if (!vals.length) {
+            return;
         }
         this.get.field = field;
         this.get.vals = vals;
@@ -152,6 +160,8 @@ class Query {
         if (!Array.isArray(vals)) {
             vals = [vals];
             this.single_row_result = true;
+        } else if (!vals.length) {
+            return;
         }
         this.get_multi.field = field;
         this.get_multi.vals = vals;
@@ -180,8 +190,10 @@ class Query {
     add_where(where, binds) {
         if (!Array.isArray(where)) {
             where = [where];
+        } else if (!where.length) {
+            return;
         }
-        this.where.concat(where);
+        this.where = this.where.concat(where);
         if (binds) {
             this.bind = Object.assign(binds, this.bind);
         }
@@ -190,15 +202,19 @@ class Query {
     add_group(group) {
         if (!Array.isArray(group)) {
             group = [group];
+        } else if (!group.length) {
+            return;
         }
-        this.group.concat(group);
+        this.group = this.group.concat(group);
     }
 
     add_order(order) {
         if (!Array.isArray(order)) {
             order = [order];
+        } else if (!order.length) {
+            return;
         }
-        this.order.concat(order);
+        this.order = this.order.concat(order);
     }
 
     set_limit(page, limit) {
@@ -211,8 +227,10 @@ class Query {
     add_custom(custom) {
         if (!Array.isArray(custom)) {
             custom = [custom];
+        } else if (!custom.length) {
+            return;
         }
-        this.custom.concat(custom);
+        this.custom = this.custom.concat(custom);
     }
 
     set_fillin(field, val) {
@@ -233,19 +251,22 @@ class Query {
     add_ouput_style(style) {
         if (!Array.isArray(style)) {
             style = [style];
+        } else if (!style.length) {
+            return;
         }
         for (let st of style) {
             if (!this.valid_output_style(st)) {
                 continue;
             }
         }
-        this.output_style.concat(style);
+        this.output_style = this.output_style.concat(style);
     }
 
     set_output_style(style) {
         if (!Array.isArray(style)) {
             style = [style];
         }
+        //CAN SET TO EMPTY ARRAY
         let style_valid = [];
         for (let st of style) {
             if (!this.valid_output_style(st)) {

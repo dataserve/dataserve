@@ -412,6 +412,7 @@ class Model {
                 sql += "LEFT JOIN " + table + " ON (" + query.left_table[table] + ") ";
             }
         }
+        
         sql += this._where(query.where);
         let sql_group = this._group(query.group);
         sql += sql_group;
