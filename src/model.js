@@ -224,6 +224,7 @@ class Model {
         if (!query.has_fields()) {
             return Promise.resolve(r(false, "missing fields"));
         }
+        var primary_key_val = null;
         return hooks.run_pre(query)
             .then(() => {
                 let cols = [], vals = [], bind = [];
@@ -236,7 +237,6 @@ class Model {
                         bind[field] = query.fields[field];
                     }
                 }
-                var primary_key_val = null;
                 if (!this.get_field(this._primary_key).autoinc) {
                     if (typeof query.fields[this._primary_key] === "undefined") {
                         return Promise.reject(r(false, "primary key required"));

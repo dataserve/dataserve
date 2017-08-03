@@ -32,7 +32,8 @@ class Module {
         hooks.add_pre(query => {
             return new Promise((resolve, reject) => {
                 let validator = this.get_validator();
-            
+                let errors = {};
+                
                 for (let field in query.fields) {
                     if (!this.model.get_field(field).validate) {
                         continue;
@@ -41,11 +42,22 @@ class Module {
                         continue;
                     }
                     let rules = this.model.get_field(field).validate.add.split("|");
-                    for (let rule of rules) {
+                    for (let split of rules) {
+                        let [rule, extra] = split.split(":");
+                        if (rule == "min") {
+                            if (parseInt(query.fields[field], 10)
+                            errors[field] = "MIN FAILED";
+                        } else if (rule == "max") {
+                            
+                        } else if (rule == "required") {
+                        } else if (rule == "email") {
+                        }
                         console.log(rule);
                     }
                 }
-                
+                if (errors) {
+                    return reject(errors);
+                }
                 resolve();
             });
         });

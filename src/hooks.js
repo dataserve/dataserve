@@ -20,7 +20,7 @@ class Hooks {
         }
         return Promise.all(promises)
             .then(results => {
-                return Promise.resolve();
+                return;// Promise.resolve();
             });
     }
 
