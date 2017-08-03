@@ -1,6 +1,8 @@
 {
-  "name": "dataserve",
-  "version": "0.0.1",
+  "author": {
+    "name": "kdeegan"
+    "url": "https://github.com/kdeegan",
+  },
   "description": "backend data service - proof of concept",
   "dependencies": {
     "dotenv": "^4.0.0",
@@ -15,5 +17,12 @@
     "redis-protocol": "^0.1.10",
     "type-of-is": "^3.5.1",
     "validator": "^8.0.0"
-  }
+  },
+  "keywords": [
+    "dataserve",
+    "db",
+    "cache"
+  ],
+  "name": "dataserve",
+  "version": "0.0.1"
 }
