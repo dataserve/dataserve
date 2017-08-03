@@ -308,7 +308,6 @@ class Model {
                 let sql = this._select();
                 sql += this._from();
                 sql += this._where(where);
-                //this._master();
 
                 return this.query(sql, bind, this._primary_key).then(rows => {
                     var cache_promise = Promise.resolve(rows);
