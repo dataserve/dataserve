@@ -18,9 +18,14 @@ module.exports.r = function(success, result=null, meta={}){
             meta: meta,
         };
     }
+    let error = result.error || result;
+    if (result instanceof Error) {
+        //error = result.toString();
+        error = result.stack;
+    }
     return {
         status: false,
-        error: result.error || result,
+        error: error,
         meta: meta,
     };
 }

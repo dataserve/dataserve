@@ -7,11 +7,13 @@
     "lodash": "^4.17.4",
     "lru-cache": "^4.1.1",
     "memcached": "^2.2.2",
+    "microtime": "^2.1.6",
     "mysql": "^2.13.0",
     "redis": "^2.7.1",
     "redis-parser": "^3.0.0",
     "redis-protocol": "^0.1.10",
     "socket.io": "^2.0.3",
-    "socket.io-client": "^2.0.3"
+    "socket.io-client": "^2.0.3",
+    "validator": "^8.0.0"
   }
 }

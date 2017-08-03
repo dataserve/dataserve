@@ -4,6 +4,16 @@ const _object = require("lodash/object");
 const Query = require("./query");
 const {r, int_array, param_fo} = require("./util");
 
+const ALLOWED_COMMANDS = [
+    "add",
+    "get",
+    "get_count",
+    "get_multi",
+    "lookup",
+    "remove",
+    "set",
+];
+
 class Model {
 
     constructor(dataserve, config, db_container, cache_container, db_table){
@@ -111,6 +121,27 @@ class Model {
         return this._table_config;
     }
 
+    run(command, input) {
+        if (command == "output_cache") {
+            return this[command]();
+        }
+        
+        let query = new Query(input, command, this), module = null;
+        
+        if (module = this.table_config().module) {
+            module = new (require("./module/" + module))(this);
+        } else {
+            module = new (require("./module"))(this);
+        }
+        
+        let hooks = module.get_hooks(command);
+
+        if (ALLOWED_COMMANDS.indexOf(command) === -1) {
+            throw new Error("invalid command: " + command);
+        }
+        return this[command](query, hooks);
+    }
+    
     get_field(field) {
         if (typeof this._fields[field] === "undefined") {
             return null;
@@ -154,8 +185,7 @@ class Model {
         if (!Array.isArray(arr)) {
             arr = [arr];
         }
-        this._fillable.concat(arr);
-        this._fillable = [...new Set(this._unqiue)];
+        this._fillable = [...new Set(this._fillable.concat(arr))];
     }
 
     is_unique(field) {
@@ -166,8 +196,7 @@ class Model {
         if (!Array.isArray(arr)) {
             arr = [arr];
         }
-        this._unique.concat(arr);
-        this._unique = [...new Set(this._unqiue)];
+        this._unique = [...new Set(this._unique.concat(arr))];
     }
 
     is_get_multi(field) {
@@ -178,8 +207,7 @@ class Model {
         if (!Array.isArray(arr)) {
             arr = [arr];
         }
-        this._get_multi.concat(arr);
-        this._get_multi = [...new Set(this._get_multi)];
+        this._get_multi = [...new Set(this._get_multi.concat(arr))];
     }
     
     _add_relationship(type, table){
@@ -192,32 +220,32 @@ class Model {
         this._relationships[type][table] = true;
     }
 
-    add(query){
+    add(query, hooks){
         if (!query.has_fields()) {
             return Promise.resolve(r(false, "missing fields"));
         }
-        let cols = [], vals = [], bind = [];
-        for (let field in query.fields) {
-            if (!this.is_fillable(field)) {
-                continue;
-            }
-            cols.push(field);
-            if (this.get_field(field).type == "int") {
-                vals.push(parseInt(query.fields[field], 10));
-            } else {
-                vals.push(":" + field);
-                bind[field] = query.fields[field];
-            }
-        }
-        var primary_key_val = null;
-        if (!this.get_field(this._primary_key).autoinc) {
-            if (typeof query.fields[this._primary_key] === "undefined") {
-                return Promise.resolve(r(false, "primary key required"));
-            }
-            primary_key_val = query.fields[this._primary_key];
-        }
-        let sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
-        return this.query(sql, bind)
+        return hooks.run_pre(query)
+            .then(() => {
+                let cols = [], vals = [], bind = [];
+                for (let field in query.fields) {
+                    cols.push(field);
+                    if (this.get_field(field).type == "int") {
+                        vals.push(parseInt(query.fields[field], 10));
+                    } else {
+                        vals.push(":" + field);
+                        bind[field] = query.fields[field];
+                    }
+                }
+                var primary_key_val = null;
+                if (!this.get_field(this._primary_key).autoinc) {
+                    if (typeof query.fields[this._primary_key] === "undefined") {
+                        return Promise.reject(r(false, "primary key required"));
+                    }
+                    primary_key_val = query.fields[this._primary_key];
+                }
+                let sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
+                return this.query(sql, bind);
+            })
             .then(res => {
                 if (!primary_key_val) {
                     primary_key_val = res.insertId;
@@ -227,8 +255,18 @@ class Model {
                 }
                 return res;
             })
-            .then(res => this.get({[this._primary_key]: primary_key_val}))
-            .catch(error => r(false, error));
+            .then(res => {
+                return this.run("get", {
+                    [this._primary_key]: primary_key_val,
+                    fillin: query.fillin,
+                });
+            })
+            .catch(output => {
+                if (typeof output.status === "undefined") {
+                    return r(false, output);
+                }
+                return output;
+            });
     }
     
     get(query){
@@ -275,7 +313,12 @@ class Model {
                 return this.query(sql, bind, this._primary_key).then(rows => {
                     var cache_promise = Promise.resolve(rows);
                     if (this._cache) {
-                        cache_promise = this._cache_set_primary(rows);
+                        //set cache to null for vals that didn't exist in DB
+                        let cache = Object.assign(get_vals.reduce((obj, val) => {
+                            obj[val] = null;
+                            return obj;
+                        }, {}), rows);
+                        cache_promise = this._cache_set_primary(cache);
                     }
                     return cache_promise.then(ignore => rows);
                 });
@@ -302,7 +345,12 @@ class Model {
                 }
                 return r(true, _object.pick(rows, query.get.vals), extra);
             })
-            .catch(error => r(false, error));
+            .catch(output => {
+                if (typeof output.status === "undefined") {
+                    return r(false, output);
+                }
+                return output;
+            });
     }
 
     get_count(query) {
@@ -310,7 +358,12 @@ class Model {
         query.set_output_style("FOUND_ONLY");
         return this.lookup(query)
             .then(output => output.status ? r(true, output.found) : output)
-            .catch(error => r(false, error));
+            .catch(output => {
+                if (typeof output.status === "undefined") {
+                    return r(false, output);
+                }
+                return output;
+            });
     }
 
     get_multi(query){
@@ -346,22 +399,29 @@ class Model {
                     fillin: query.fillin,
                     output_style: "BY_ID",
                 }, "get", this);
-                return this.get(q).then(res => {
-                    if (!res.status) {
-                        return res;
+                return this.get(q);
+            })
+            .then(res => {
+                if (!res.status) {
+                    return Promise.reject(res);
+                }
+                let output = [];
+                for (let id of query.get_multi.vals) {
+                    let rows = result.shift();
+                    let r = [];
+                    for (let row of rows) {
+                        r.push(res.result[row['id']]);
                     }
-                    let output = [];
-                    for (let id of query.get_multi.vals) {
-                        let rows = result.shift();
-                        let r = [];
-                        for (let row of rows) {
-                            r.push(res.result[row['id']]);
-                        }
-                        output[id] = r;
-                    }
-                    return r(true, output);
-                });
-            }).catch(error => r(false, error));
+                    output[id] = r;
+                }
+                return r(true, output);
+            })
+            .catch(output => {
+                if (typeof output.status === "undefined") {
+                    return r(false, output);
+                }
+                return output;
+            });
     }
 
     inc(query) {
@@ -390,100 +450,102 @@ class Model {
                 return rows;
             })
             .then(rows => r(true))
-            .catch(error => r(false, error));
+            .catch(output => {
+                if (typeof output.status === "undefined") {
+                    return r(false, output);
+                }
+                return output;
+            });
     }
 
     lookup(query, hooks) {
-        //this._fillin_limit(query);
-        if (typeof hooks.pre !== "undefined" && Array.isArray(hooks.pre)) {
-            for (let hook of hooks.pre) {
-                hook(query);
-            }
-        }
-        let sql_select = "SELECT " + query.alias + "." + this._primary_key + " "
-        let sql = this._from(query.alias);
-        if (query.join && Array.isArray(query.join) && query.join.length) {
-            for (let table in query.join) {
-                sql += "INNER JOIN " + table + " ON (" + query.join[table] + ") ";
-            }
-        }
-        if (query.left_join && Array.isArray(query.left_join) && query.left_join.length) {
-            for (let table in query.left_join) {
-                sql += "LEFT JOIN " + table + " ON (" + query.left_table[table] + ") ";
-            }
-        }
-        
-        sql += this._where(query.where);
-        let sql_group = this._group(query.group);
-        sql += sql_group;
-        sql += this._order(query.order);
-
-        let sql_limit = this._limit(query);
-        
-        let sql_rows = sql_select + sql + sql_limit;
-
-        let sql_cnt = "SELECT COUNT(*) AS cnt " + sql;
-        if (sql_group.length) {
-            sql_cnt = "SELECT COUNT(*) AS cnt FROM (" + sql_select + sql + ") AS t";
-        }
-
-        if (query.is_output_style("FOUND_ONLY")) {
-            return this.query(sql_cnt, query.bind, true).then(found => {
-                let meta = {
-                    pages: query.limit ? Math.ceil(found/query.limit) : null,
-                    found: found,
-                };
-                return r(true, [], meta);
-            }).catch(error => r(false, error));
-        }
-
         var meta = {};
         
-        return this.query(sql_rows, query.bind, this._primary_key)
+        return hooks.run_pre(query)
+            .then(() => {
+                let sql_select = "SELECT " + query.alias + "." + this._primary_key + " "
+                let sql = this._from(query.alias);
+                if (query.join && Array.isArray(query.join) && query.join.length) {
+                    for (let table in query.join) {
+                        sql += "INNER JOIN " + table + " ON (" + query.join[table] + ") ";
+                    }
+                }
+                if (query.left_join && Array.isArray(query.left_join) && query.left_join.length) {
+                    for (let table in query.left_join) {
+                        sql += "LEFT JOIN " + table + " ON (" + query.left_table[table] + ") ";
+                    }
+                }
+                
+                sql += this._where(query.where);
+                let sql_group = this._group(query.group);
+                sql += sql_group;
+                sql += this._order(query.order);
+
+                let sql_limit = this._limit(query);
+                
+                let sql_rows = sql_select + sql + sql_limit;
+
+                let sql_cnt = "SELECT COUNT(*) AS cnt " + sql;
+                if (sql_group.length) {
+                    sql_cnt = "SELECT COUNT(*) AS cnt FROM (" + sql_select + sql + ") AS t";
+                }
+
+                if (query.is_output_style("FOUND_ONLY")) {
+                    return this.query(sql_cnt, query.bind, true).then(found => {
+                        let meta = {
+                            pages: query.limit ? Math.ceil(found/query.limit) : null,
+                            found: found,
+                        };
+                        return Promise.reject(r(true, [], meta));
+                    });
+                }
+                
+                return this.query(sql_rows, query.bind, this._primary_key)
+            })
             .then(rows => {
                 if (query.is_output_style("INCLUDE_FOUND")) {
                     return this.query(sql_cnt, query.bind, true).then(found => [rows, found["cnt"]]);
                 } else {
                     return [rows, null];
                 }
-            }).then(args => {
+            })
+            .then(args => {
                 let [rows, found] = args;
+                meta = {
+                    pages: query.limit ? Math.ceil(found / query.limit) : null,
+                    found: found,
+                };
                 let ids = rows ? Object.keys(rows) : [];
                 if (!ids.length) {
-                    meta = {
-                        pages: query.limit ? Math.ceil(found / query.limit) : null,
-                        found: found,
-                    };
                     if (query.return_by_id) {
                         return {};
                     }
                     return [];
                 }
-                let q = new Query({
+                return this.run("get", {
                     [this._primary_key]: ids,
                     fillin: query.fillin,
-                }, "get", this);
-                return this.get(q).then(result => {
-                    if (!result.status) {
-                        throw new Error(result.error);
-                    }
-                    meta = {
-                        pages: query.limit ? Math.ceil(found / query.limit) : null,
-                        found: found,
-                    };
-                    if (query.is_output_style("BY_ID")) {
-                        return result.result;
-                    }
-                    return Object.values(result.result);
                 });
-            }).then(result => {
-                if (typeof hooks.post !== "undefined" && Array.isArray(hooks.post)) {
-                    for (let hook of hooks.post) {
-                        result = hook(result);
-                    }
+            })
+            .then(result => {
+                if (!result.status) {
+                    return Promise.reject(result);
                 }
-                return r(true, result, meta);
-            }).catch(error => r(false, error));
+                if (query.is_output_style("BY_ID")) {
+                    return result.result;
+                }
+                return Object.values(result.result);
+            })
+            .then(result => {
+                return hooks.run_post(result);
+            })
+            .then(result => r(true, result, meta))
+            .catch(output => {
+                if (typeof output.status === "undefined") {
+                    return r(false, output);
+                }
+                return output;
+            });
     }
 
     set(query) {
@@ -546,7 +608,12 @@ class Model {
                 return rows;
             })
             .then(rows => r(true))
-            .catch(error => r(false, error));
+            .catch(output => {
+                if (typeof output.status === "undefined") {
+                    return r(false, output);
+                }
+                return output;
+            });
     }
 
     remove(query){
@@ -580,7 +647,12 @@ class Model {
                 }
             })
             .then(() => r(true))
-            .catch (error => r(false, error));
+            .catch(output => {
+                if (typeof output.status === "undefined") {
+                    return r(false, output);
+                }
+                return output;
+            });
     }
 
     _table(){
@@ -704,9 +776,6 @@ class Model {
                     }
                 }
                 return rows;
-            })
-            .catch(error => {
-                console.log("FILLIN ERR", error);
             });
     }
 
@@ -742,7 +811,7 @@ class Model {
         return this._cache.get(this._db_table, field, keys).then(cache_rows => {
             let ids = [];
             for (let key of keys) {
-                if (typeof cache_rows[key] == "undefined") {
+                if (typeof cache_rows[key] === "undefined") {
                     ids.push(key);
                 }
             }

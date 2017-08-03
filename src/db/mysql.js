@@ -2,10 +2,13 @@
 
 const mysql = require('mysql');
 const util = require("util");
+const microtime = require('microtime');
 
 class MySql {
     
     constructor(db_name, config){
+        this.debug = true;
+        
         if (!config.connectionLimit) {
             config.connectionLimit = 10;
         }
@@ -195,11 +198,15 @@ class MySql {
                     });
                 };
 
-                if (true) {
-                    console.log(sql, bind);
+                var time_start = null;
+                if (this.debug) {
+                    time_start = microtime.now();
                 }
 
                 connection.query(sql, bind, (error, results, fields) => {
+                    if (this.debug) {
+                        console.log((microtime.now() - time_start) / 1000000, sql, bind);
+                    }
                     connection.release();
 
                     if (error) {

@@ -10,6 +10,7 @@ class Query {
 
     constructor(input, command, model) {
         this.input = input;
+        this.model = model;
         
         this.alias = "";
         this.get = {
@@ -94,9 +95,7 @@ class Query {
         switch (command) {
         case "add":
             for (let field in input) {
-                if (model.is_fillable(field)) {
-                    this.set_field(field, input[field]);
-                }
+                this.set_field(field, input[field]);
             }
             break;
         case "get":
@@ -104,26 +103,20 @@ class Query {
                 this.set_get(model.get_primary_key(), this.primary_key);
             } else {
                 for (let field in input) {
-                    if (model.is_unique(field)) {
-                        this.set_get(field, input[field]);
-                    }
+                    this.set_get(field, input[field]);
                 }
             }
             break;
         case "get_multi":
             for (let field in input) {
-                if (model.is_get_multi(field)) {
-                    this.set_get_multi(field, input[field]);
-                }
+                this.set_get_multi(field, input[field]);
             }
             break;
         case "lookup":
             break;
         case "set":
             for (let field in input) {
-                if (model.is_fillable(field)) {
-                    this.set_field(field, input[field]);
-                }
+                this.set_field(field, input[field]);
             }
             break;
         }
@@ -142,6 +135,9 @@ class Query {
     }
     
     set_get(field, vals) {
+        if (field != this.model.get_primary_key() && !this.model.is_unique(field)) {
+            return;
+        }
         if (!Array.isArray(vals)) {
             vals = [vals];
             this.single_row_result = true;
@@ -157,6 +153,9 @@ class Query {
     }
 
     set_get_multi(field, vals) {
+        if (!this.model.is_get_multi(field)) {
+            return;
+        }
         if (!Array.isArray(vals)) {
             vals = [vals];
             this.single_row_result = true;
@@ -172,6 +171,9 @@ class Query {
     }
     
     set_field(field, val) {
+        if (!this.model.is_fillable(field)) {
+            return;
+        }
         this.fields[field] = val;
     }
 
