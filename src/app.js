@@ -1,24 +1,35 @@
 #!/usr/bin/env nodejs
 
-require('dotenv').config({path: "../.env"});
-
-const util = require("util");
-const redisd = require("./redis-protocol/lib/index");
+const cli = require("commander");
+const fs = require("fs");
 const microtime = require("microtime");
+const {r} = require("./util");
+const redisd = require("./redis-protocol/lib/index");
+const util = require("util");
+
+let dotenv = "../.env", dotenv_dev = "../.env_dev";
+if (fs.existsSync(dotenv_dev)) {
+    dotenv = dotenv_dev;
+}
+require('dotenv').config({path: dotenv});
+
 const Model = require("./model");
 const config = new (require("./config"))("../config/example.json");
 const db = new (require("./db"));
 const cache = new (require("./cache"));
 const dataserve = new (require("./dataserve"))(Model, config, db, cache);
 
-var server = redisd.createServer(function(command) {
-    //console.log("QUERY", command);
+cli.version('0.0.2')
+    .option('-p, --port <n>', 'Port', parseInt)
+    .parse(process.argv);
 
-    var promise = null;
-    var type = command[0].toLowerCase();
-    var time_start = microtime.now();
+const server = redisd.createServer(function(input) {
+    //console.log("QUERY", input);
+
+    const command = input[0].toLowerCase();
+    const time_start = microtime.now();
     
-    switch (type) {
+    switch (command) {
     case "command":
         {
             this.encode(
@@ -52,30 +63,37 @@ var server = redisd.createServer(function(command) {
     case "ds_remove":
     case "ds_remove_multi":
         {
-            let db_table = command[1], input = {};
+            let db_table = input[1], payload = {};
             try {
-                input = JSON.parse(command[2]);
+                payload = JSON.parse(input[2]);
             } catch (error) {}
-            promise = dataserve.run(db_table + ":" + type.substr(3), input);
+            dataserve.run(db_table + ":" + command.substr(3), payload)
+                .then(output => {
+                    let time_run = (microtime.now() - time_start) / 1000000;
+                    if (output.status) {
+                        if (process.env.APP_DEBUG) {
+                            console.log(time_run, "CALL SUCCESS");
+                        }
+                    } else {
+                        if (process.env.APP_DEBUG) {
+                            console.log(time_run, "CALL FAIL:", JSON.stringify(output));//, util.inspect(output, false, null));
+                        }
+                    }
+                    this.encode(JSON.stringify(output));
+                })
+                .catch(() => {
+                    this.encode(JSON.stringify(r(false, "Unknown error")));
+                });
         }
         break;
-    }
-    if (promise) {
-        promise.then(output => {
-            let time_run = (microtime.now() - time_start) / 1000000;
-            if (output.status) {
-                console.log(time_run, "CALL SUCCESS");
-            } else {
-                console.log(time_run, "CALL FAIL:", JSON.stringify(output));//, util.inspect(output, false, null));
-            }
-            this.encode(JSON.stringify(output));
-        });
-    } else {
-        console.log("COMMAND NOT UNDERSTOOD");
-        this.encode("ERROR");
+    default:
+        console.log("Command not understood: " + command);
+        this.encode(JSON.stringify(r(false, "Command not understood: " + command)));
+        break;
     }
 });
 
-server.listen(6380, function() {
-    console.log("fake redis started");
+let port = cli.port ? cli.port : 6380;
+server.listen(port, function() {
+    console.log("Redis protocol listening on port " + port);
 });

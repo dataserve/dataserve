@@ -20,7 +20,7 @@ class Hooks {
         }
         return Promise.all(promises)
             .then(results => {
-                return;// Promise.resolve();
+                return;
             });
     }
 
@@ -33,7 +33,15 @@ class Hooks {
         for (let hook of this.post) {
             promises.push(hook(result));
         }
-        return Promise.all(promises);
+        return Promise.all(promises)
+            .then(output => {
+                for (let out of output) {
+                    if (out && typeof out.status !== "undefined" && !out.status) {
+                        return out;
+                    }
+                }
+                return result;
+            });
     }
 }
 

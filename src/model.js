@@ -492,7 +492,7 @@ class Model {
                 if (query.is_output_style("FOUND_ONLY")) {
                     return this.query(sql_cnt, query.bind, true).then(found => {
                         let meta = {
-                            pages: query.limit ? Math.ceil(found/query.limit) : null,
+                            pages: query.limit.limit ? Math.ceil(found/query.limit.limit) : null,
                             found: found,
                         };
                         return Promise.reject(r(true, [], meta));
@@ -511,15 +511,21 @@ class Model {
             .then(args => {
                 let [rows, found] = args;
                 meta = {
-                    pages: query.limit ? Math.ceil(found / query.limit) : null,
+                    pages: query.limit.limit ? Math.ceil(found / query.limit.limit) : null,
                     found: found,
                 };
                 let ids = rows ? Object.keys(rows) : [];
                 if (!ids.length) {
-                    if (query.return_by_id) {
-                        return {};
+                    if (query.is_output_style("BY_ID")) {
+                        return Promise.reject(r(true, {}));
                     }
-                    return [];
+                    return Promise.reject(r(true, []));
+                }
+                if (query.is_output_style("LOOKUP_RAW")) {
+                    if (query.is_output_style("BY_ID")) {
+                        return Promise.reject(r(true, rows));
+                    }
+                    return Promise.reject(r(true, Object.values(rows)));
                 }
                 return this.run("get", {
                     [this._primary_key]: ids,
@@ -540,7 +546,7 @@ class Model {
             })
             .then(result => r(true, result, meta))
             .catch(output => {
-                if (typeof output.status === "undefined") {
+                if (!output || typeof output.status === "undefined") {
                     return r(false, output);
                 }
                 return output;
@@ -695,11 +701,11 @@ class Model {
     }
 
     _limit(query){
-        if (!query.page || !query.limit) {
+        if (!query.limit.page || !query.limit.limit) {
             return "";
         }
-        let page = parseInt(query.page, 10) - 1;
-        let limit = parseInt(query.limit, 10);
+        let page = parseInt(query.limit.page, 10) - 1;
+        let limit = parseInt(query.limit.limit, 10);
         let offset = page * limit;
         return "LIMIT " + offset + "," + limit;
     }

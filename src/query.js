@@ -3,7 +3,8 @@
 const ALLOWED_OUTPUT_STYLE = [
     "BY_ID",
     "INCLUDE_FOUND",
-    "FOUND_ONLY"
+    "FOUND_ONLY",
+    "LOOKUP_RAW",
 ];
 
 class Query {
@@ -250,7 +251,7 @@ class Query {
         return true;
     }
     
-    add_ouput_style(style) {
+    add_output_style(style) {
         if (!Array.isArray(style)) {
             style = [style];
         } else if (!style.length) {

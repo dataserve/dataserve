@@ -33,7 +33,7 @@
                         "email": {
                             "type": "string",
                             "validate": {
-                                "add": "required|email",
+                                "add": "required|email|unique:user",
                                 "set": "email"
                             },
                             "key": "unique",

@@ -22,23 +22,30 @@ class Module {
 
     add(hooks) {
         hooks.add_pre(query => {
-            return new Promise((resolve, reject) => {
-                let validate = new Validate, errors = {};
-                
-                for (let field in query.fields) {
-                    if (!this.model.get_field(field).validate) {
-                        continue;
-                    }
-                    if (!this.model.get_field(field).validate.add) {
-                        continue;
-                    }
-                    validate.check(field, query.fields[field], this.model.get_field(field).validate.add, errors);
+            let validate = new Validate(this.model), errors = {}, promises = [];
+            
+            for (let field in query.fields) {
+                if (!this.model.get_field(field).validate) {
+                    continue;
                 }
-                if (Object.keys(errors).length) {
-                    return reject(errors);
+                if (!this.model.get_field(field).validate.add) {
+                    continue;
                 }
-                resolve();
-            });
+                let promise = validate.check(field, query.fields[field], this.model.get_field(field).validate.add, errors);
+                if (promise.length) {
+                    promises = promises.concat(promise);
+                }
+            }
+            if (!promises.length) {
+                promises.push(Promise.resolve());
+            }
+            return Promise.all(promises)
+                .then(() => {
+                    if (Object.keys(errors).length) {
+                        return Promise.reject(errors);
+                    }
+                    Promise.resolve();
+                });
         });
     }
 
@@ -158,8 +165,6 @@ class Module {
             });
         });
         hooks.add_post(result => {
-            
-            return result;
         });
     }
 

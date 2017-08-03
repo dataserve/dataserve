@@ -55,10 +55,10 @@ class MySql {
             .then(rows => {
                 if (query_type == "SELECT") {
                     if (typeof(ret_type) === "boolean" && ret_type) {
-                        if (rows.length) {
-                            return rows[0];
+                        if (!rows.length) {
+                            return {};
                         }
-                        return rows;
+                        return rows[0];
                     }
                     if (typeof(ret_type) === "string") {
                         if (!rows.length) {
