@@ -1,7 +1,7 @@
 {
   "author": {
-    "name": "kdeegan"
-    "url": "https://github.com/kdeegan",
+    "name": "kdeegan",
+    "url": "https://github.com/kdeegan"
   },
   "description": "backend data service - proof of concept",
   "dependencies": {
