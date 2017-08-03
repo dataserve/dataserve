@@ -1,0 +1,3 @@
+Dataserve is a fast and consistent interface to your data layer. It can be run as a server (via the Redis protocol), interacting with multiple services, or included in a standard NodeJS project. If you decide to change your frontend to a different language, Dataserve can still be used so you do not need to write your model logic all over in a new language. If you decide to spawn off different servers to handle different types of requests, Dataserve can be run independently, serving your applications data consistently.
+
+With caching built in, you can quickly setup apps for whatever the use case. Version 0.0.1 currently supports MySql only. Redis and Memcache will be supported shortly.

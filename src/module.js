@@ -1,6 +1,7 @@
 "use strict"
 
 const Hooks = require("./hooks");
+const Validate = require("./validate");
 
 class Module {
 
@@ -8,8 +9,6 @@ class Module {
         this.model = model;
         
         this.hooks = {};
-
-        this.validator = null;
     }
 
     get_hooks(command) {
@@ -21,18 +20,10 @@ class Module {
         return this.hooks[command] = hooks;
     }
 
-    get_validator() {
-        if (!this.validator) {
-            this.validator = require('validator');
-        }
-        return this.validator;
-    }
-   
     add(hooks) {
         hooks.add_pre(query => {
             return new Promise((resolve, reject) => {
-                let validator = this.get_validator();
-                let errors = {};
+                let validate = new Validate, errors = {};
                 
                 for (let field in query.fields) {
                     if (!this.model.get_field(field).validate) {
@@ -41,21 +32,9 @@ class Module {
                     if (!this.model.get_field(field).validate.add) {
                         continue;
                     }
-                    let rules = this.model.get_field(field).validate.add.split("|");
-                    for (let split of rules) {
-                        let [rule, extra] = split.split(":");
-                        if (rule == "min") {
-                            if (parseInt(query.fields[field], 10)
-                            errors[field] = "MIN FAILED";
-                        } else if (rule == "max") {
-                            
-                        } else if (rule == "required") {
-                        } else if (rule == "email") {
-                        }
-                        console.log(rule);
-                    }
+                    validate.check(field, query.fields[field], this.model.get_field(field).validate.add, errors);
                 }
-                if (errors) {
+                if (Object.keys(errors).length) {
                     return reject(errors);
                 }
                 resolve();
@@ -189,7 +168,23 @@ class Module {
 
     set(hooks) {
         hooks.add_pre(query => {
-            
+            return new Promise((resolve, reject) => {
+                let validate = new Validate, errors = {};
+                
+                for (let field in query.fields) {
+                    if (!this.model.get_field(field).validate) {
+                        continue;
+                    }
+                    if (!this.model.get_field(field).validate.add) {
+                        continue;
+                    }
+                    validate.check(this.model.get_field(field).validate.add, errors);
+                }
+                if (errors) {
+                    return reject(errors);
+                }
+                resolve();
+            });
         });
     }
     

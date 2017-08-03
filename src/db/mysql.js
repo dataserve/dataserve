@@ -7,7 +7,7 @@ const microtime = require('microtime');
 class MySql {
     
     constructor(db_name, config){
-        this.debug = true;
+        this.debug = process.env.APP_DEBUG;
         
         if (!config.connectionLimit) {
             config.connectionLimit = 10;
