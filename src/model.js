@@ -1,6 +1,7 @@
 "use strict"
 
 const _object = require("lodash/object");
+const AsyncLock = require('async-lock');
 const Query = require("./query");
 const {r, int_array, param_fo} = require("./util");
 
@@ -20,6 +21,8 @@ class Model {
         this._dataserve = dataserve;
         this._db_container = db_container;
         this._cache_container = cache_container;
+
+        this.lock = new AsyncLock();
 
         this._db_table = db_table;
         this._db_name = null;
@@ -251,7 +254,13 @@ class Model {
                     primary_key_val = res.insertId;
                 }
                 if (this._cache) {
-                    this._cache_delete_primary(primary_key_val);
+                    let lock_key = this.lock_key(this._primary_key, primary_key_val);
+                    return this.lock.acquire(lock_key, () => {
+                        return this._cache_delete_primary(primary_key_val)
+                            .then (() => {
+                                return res;
+                            });
+                    });
                 }
                 return res;
             })
@@ -262,7 +271,7 @@ class Model {
                 });
             })
             .catch(output => {
-                if (typeof output.status === "undefined") {
+                if (!output || typeof output.status === "undefined") {
                     return r(false, output);
                 }
                 return output;
@@ -309,17 +318,19 @@ class Model {
                 sql += this._from();
                 sql += this._where(where);
 
-                return this.query(sql, bind, this._primary_key).then(rows => {
-                    var cache_promise = Promise.resolve(rows);
-                    if (this._cache) {
-                        //set cache to null for vals that didn't exist in DB
-                        let cache = Object.assign(get_vals.reduce((obj, val) => {
-                            obj[val] = null;
-                            return obj;
-                        }, {}), rows);
-                        cache_promise = this._cache_set_primary(cache);
-                    }
-                    return cache_promise.then(ignore => rows);
+                return this.get_lock(query.get.field, get_vals, () => {
+                    return this.query(sql, bind, this._primary_key)
+                        .then(rows => {
+                            if (this._cache) {
+                                //set cache to null for vals that didn't exist in DB
+                                let cache = Object.assign(get_vals.reduce((obj, val) => {
+                                    obj[val] = null;
+                                    return obj;
+                                }, {}), rows);
+                                return this._cache_set_primary(cache);
+                            }
+                            return rows;
+                        });
                 });
             })
             .then(rows => {
@@ -345,7 +356,7 @@ class Model {
                 return r(true, _object.pick(rows, query.get.vals), extra);
             })
             .catch(output => {
-                if (typeof output.status === "undefined") {
+                if (!output || typeof output.status === "undefined") {
                     return r(false, output);
                 }
                 return output;
@@ -358,7 +369,7 @@ class Model {
         return this.lookup(query)
             .then(output => output.status ? r(true, output.found) : output)
             .catch(output => {
-                if (typeof output.status === "undefined") {
+                if (!output || typeof output.status === "undefined") {
                     return r(false, output);
                 }
                 return output;
@@ -416,7 +427,7 @@ class Model {
                 return r(true, output);
             })
             .catch(output => {
-                if (typeof output.status === "undefined") {
+                if (!output || typeof output.status === "undefined") {
                     return r(false, output);
                 }
                 return output;
@@ -441,16 +452,19 @@ class Model {
             updates.push(key + "=" + key + " + " + parseInt(query.fields[key], 10));
         }
         sql += "WHERE " + this._primary_key + " IN (" + vals.join(",") + ")";
-        return this.query(sql)
-            .then(rows => {
-                if (this._cache) {
-                    return this._cache_delete_primary(vals);
-                }
-                return rows;
-            })
+        
+        return this.get_lock(this._primary_key, query.primary_key, () => {
+            return this.query(sql)
+                .then(rows => {
+                    if (this._cache) {
+                        return this._cache_delete_primary(vals);
+                    }
+                    return rows;
+                });
+        })
             .then(rows => r(true))
             .catch(output => {
-                if (typeof output.status === "undefined") {
+                if (!output || typeof output.status === "undefined") {
                     return r(false, output);
                 }
                 return output;
@@ -599,22 +613,24 @@ class Model {
                 sql += custom.join(",") + " ";
             }
             if (this.get_field(this._primary_key).type == "int") {
-                sql += "WHERE " + this._primary_key + "=" + parseInt(this._primary_key, 10);
+                sql += "WHERE " + this._primary_key + "=" + parseInt(query.primary_key, 10);
             } else {
                 sql += "WHERE " + this._primary_key + "=:" + this._primary_key;
                 bind[this._primary_key] = query.primary_key;
             }
         }
-        return this.query(sql, bind)
-            .then(rows => {
-                if (this._cache) {
-                    return this._cache_delete_primary(query.primary_key);
-                }
-                return rows;
-            })
+        return this.get_lock(this._primary_key, query.primary_key, () => {
+            return this.query(sql, bind)
+                .then(rows => {
+                    if (this._cache) {
+                        return this._cache_delete_primary(query.primary_key);
+                    }
+                    return rows;
+                })
+        })
             .then(rows => r(true))
             .catch(output => {
-                if (typeof output.status === "undefined") {
+                if (!output || typeof output.status === "undefined") {
                     return r(false, output);
                 }
                 return output;
@@ -632,7 +648,7 @@ class Model {
         let bind = {};
         let sql = "DELETE ";
         sql += this._from();
-        if (this.get_fields(this._primary_key).type == "int") {
+        if (this.get_field(this._primary_key).type == "int") {
             vals = int_array(vals);
             sql += "WHERE " + this._primary_key + " IN (" + vals.join(",") + ")";
         } else {
@@ -645,15 +661,17 @@ class Model {
             }
             sql += "WHERE " + this._primary_key + " IN (" + wh.join(",") + ")";
         }
-        return this.query(sql, bind)
-            .then(res => {
-                if (this._cache) {
-                    this._cache_delete_primary(vals);
-                }
-            })
+        return this.get_lock(this._primary_key, query.primary_key, () => {
+            return this.query(sql, bind)
+                .then(res => {
+                    if (this._cache) {
+                        return this._cache_delete_primary(vals);
+                    }
+                })
+        })
             .then(() => r(true))
             .catch(output => {
-                if (typeof output.status === "undefined") {
+                if (!output || typeof output.status === "undefined") {
                     return r(false, output);
                 }
                 return output;
@@ -805,6 +823,17 @@ class Model {
         return this.db().query_multi(...args);
     }
 
+    get_lock(field, val, func) {
+        if (!Array.isArray(val)) {
+            val = [val];
+        }
+        let lock_key = [];
+        for (let v of val) {
+            lock_key.push(field + ":" + v);
+        }
+        return this.lock.acquire(lock_key, func);
+    }
+    
     _cache_get_primary(keys) {
         return this._cache_get(this._primary_key, keys);
     }
