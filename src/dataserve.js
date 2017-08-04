@@ -1,21 +1,32 @@
 "use strict"
 
-const Query = require("./query");
 const util = require("util");
+
 const {r, int_array} = require("./util");
+const Cache = require("./cache");
+const Config = require("./config");
+const DB = require("./db");
+const Model = require("./model");
+const Query = require("./query");
 
 class Dataserve {
 
-    constructor(model_class, config, db, cache){
-        this._model_class = model_class;
-        this._config = config;
+    constructor(config_path, dotenv_path){
+        //required if dotenv file not already loaded
+        if (dotenv_path) {
+            require('dotenv').config({path: dotenv_path});
+        }
+        
+        this._model_class = Model;
+        this._db = new DB;
+        this._cache = new Cache;
+
+        this._config = new Config(config_path);
         
         this._model = {};
-        this._db = db;
-        this._cache = cache;
         this._db_default = null;
-        if (config.db._default_) {
-            this._db_default = config.db._default_;
+        if (this._config.db._default_) {
+            this._db_default = this._config.db._default_;
         }
     }
 
@@ -32,7 +43,9 @@ class Dataserve {
     get_model(db_table) {
         if (!this._model[db_table]) {
             this._model[db_table] = new this._model_class(this, this._config, this._db, this._cache, db_table);
-            console.log("CREATED", db_table);
+            if (process.env.APP_DEBUG) {
+                console.log("CREATED", db_table);
+            }
         }
         return this._model[db_table];
     }

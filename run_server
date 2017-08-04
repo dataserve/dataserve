@@ -1,0 +1,4 @@
+#!/bin/bash
+
+./src/server.js --socket ./net/dataserve.sock --env ./.env_dev
+#./src/server.js --port 6380 --env ./.env_dev

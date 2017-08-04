@@ -128,6 +128,10 @@ class Model {
         if (command == "output_cache") {
             return this[command]();
         }
+
+        if (ALLOWED_COMMANDS.indexOf(command) === -1) {
+            return Promise.resolve(r(false, "invalid command: " + command));
+        }
         
         let query = new Query(input, command, this), module = null;
         
@@ -136,12 +140,9 @@ class Model {
         } else {
             module = new (require("./module"))(this);
         }
-        
+               
         let hooks = module.get_hooks(command);
 
-        if (ALLOWED_COMMANDS.indexOf(command) === -1) {
-            throw new Error("invalid command: " + command);
-        }
         return this[command](query, hooks);
     }
     
@@ -280,7 +281,7 @@ class Model {
     
     get(query){
         if (!query.has_get()) {
-            return Promise.resolve(r(false, "missing param:"+JSON.stringify(query)));
+            return Promise.resolve(r(false, "missing param:"+JSON.stringify(query.input)));
         }
 
         var cache_rows = {}, where = [], bind = {}, cache_promise = null;
@@ -436,7 +437,7 @@ class Model {
 
     inc(query) {
         if (!query.primary_key) {
-            Promise.resolve(r(false, "missing primary field:"+JSON.stringify(query)));
+            Promise.resolve(r(false, "missing primary field:"+JSON.stringify(query.input)));
         }
         let vals = query.primary_key;
         if (!Array.isArray(vals)) {

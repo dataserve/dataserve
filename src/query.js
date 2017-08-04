@@ -46,6 +46,11 @@ class Query {
     }
 
     build(input, command, model) {
+        if (parseInt(input, 10) !== NaN) {
+            this.input = input = {
+                [model.get_primary_key()]: parseInt(input, 10),
+            };
+        }
         if (input.alias) {
             this.set_alias(input.alias);
         } else {

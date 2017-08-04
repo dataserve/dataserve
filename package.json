@@ -19,7 +19,6 @@
     "mysql": "^2.13.0",
     "redis": "^2.7.1",
     "redis-parser": "^3.0.0",
-    "redis-protocol": "^0.1.10",
     "type-of-is": "^3.5.1",
     "validator": "^8.0.0"
   },
@@ -29,6 +28,7 @@
     "db",
     "cache"
   ],
+  "main": "src/index.js",
   "name": "dataserve",
   "version": "0.0.2"
 }
