@@ -1,3 +1,4 @@
+/* Credit to https://github.com/athoune/node-redis-protocol */
 
 var Response = function(writer) {
     this.writer = writer;

@@ -9,7 +9,7 @@ const util = require("util");
 
 const {r} = require("./util");
 const Dataserve = require("./dataserve");
-const {Response} = require('./redisd/encoder');
+const {Response} = require('./server/encoder');
 
 class Server {
     
