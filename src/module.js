@@ -2,6 +2,7 @@
 
 const Hooks = require("./hooks");
 const Validate = require("./validate");
+const {intArray} = require("./util");
 
 class Module {
 
@@ -11,7 +12,7 @@ class Module {
         this.hooks = {};
     }
 
-    get_hooks(command) {
+    getHooks(command) {
         if (typeof this.hooks[command] !== "undefined") {
             return this.hooks[command];
         }
@@ -21,17 +22,17 @@ class Module {
     }
 
     add(hooks) {
-        hooks.add_pre(query => {
+        hooks.addPre(query => {
             let validate = new Validate(this.model), errors = {}, promises = [];
             
             for (let field in query.fields) {
-                if (!this.model.get_field(field).validate) {
+                if (!this.model.getField(field).validate) {
                     continue;
                 }
-                if (!this.model.get_field(field).validate.add) {
+                if (!this.model.getField(field).validate.add) {
                     continue;
                 }
-                let promise = validate.check(field, query.fields[field], this.model.get_field(field).validate.add, errors);
+                let promise = validate.check(field, query.fields[field], this.model.getField(field).validate.add, errors);
                 if (promise.length) {
                     promises = promises.concat(promise);
                 }
@@ -52,28 +53,28 @@ class Module {
     get(hooks) {
     }
 
-    get_count(hooks) {
+    getCount(hooks) {
     }
 
-    get_multi(hooks) {
+    getMulti(hooks) {
     }
     
     lookup(hooks) {
-        hooks.add_pre(query => {
+        hooks.addPre(query => {
             return new Promise((resolve, reject) => {
-                let table_config = this.model.table_config();
+                let tableConfig = this.model.tableConfig();
                 let where = [], bind = {}, input = null;
                 if (input = query.raw('=')) {
                     for (let field in input) {
-                        if (!this.model.get_field(field)) {
+                        if (!this.model.getField(field)) {
                             continue;
                         }
                         let vals = input[field];
                         if (!Array.isArray(vals)) {
                             vals = [vals];
                         }
-                        if (this.model.get_field(field).type == "int") {
-                            vals = int_array(vals);
+                        if (this.model.getField(field).type == "int") {
+                            vals = intArray(vals);
                             where.push(query.alias + "." + field + " IN (" + vals.join(",") + ") ");
                         } else {
                             vals = [...new Set(vals)];
@@ -89,7 +90,7 @@ class Module {
                 }
                 if (input = query.raw("%search")) {
                     for (let field in input) {
-                        if (!this.model.get_field(field)) {
+                        if (!this.model.getField(field)) {
                             continue;
                         }
                         where.push(query.alias + "." + field + " LIKE :" + field);
@@ -98,7 +99,7 @@ class Module {
                 }
                 if (input = query.raw("search%")) {
                     for (let field in input) {
-                        if (!this.model.get_field(field)) {
+                        if (!this.model.getField(field)) {
                             continue;
                         }
                         where.push(query.alias + "." + field + " LIKE :" + field);
@@ -107,7 +108,7 @@ class Module {
                 }
                 if (input = query.raw("%search%")) {
                     for (let field in input) {
-                        if (!this.model.get_field(field)) {
+                        if (!this.model.getField(field)) {
                             continue;
                         }
                         where.push(query.alias + "." + field + " LIKE :" + field);
@@ -116,7 +117,7 @@ class Module {
                 }
                 if (input = query.raw(">")) {
                     for (let field in input) {
-                        if (!this.model.get_field(field)) {
+                        if (!this.model.getField(field)) {
                             continue;
                         }
                         where.push(":" + field + "_greater < " + query.alias + "." + field);
@@ -125,7 +126,7 @@ class Module {
                 }
                 if (input = query.raw(">=")) {
                     for (let field in input) {
-                        if (!this.model.get_field(field)) {
+                        if (!this.model.getField(field)) {
                             continue;
                         }
                         where.push(":" + field + "_greater_equal <= " + query.alias + "." + field);
@@ -134,7 +135,7 @@ class Module {
                 }
                 if (input = query.raw("<")) {
                     for (let field in input) {
-                        if (!this.model.get_field(field)) {
+                        if (!this.model.getField(field)) {
                             continue;
                         }
                         where.push(query.alias + "." + field + " < :" + field + "_less");
@@ -143,7 +144,7 @@ class Module {
                 }
                 if (input = query.raw("<=")) {
                     for (let field in input) {
-                        if (!this.model.get_field(field)) {
+                        if (!this.model.getField(field)) {
                             continue;
                         }
                         where.push(query.alias + "." + field + ". <= :" + field + "_less_equal");
@@ -152,7 +153,7 @@ class Module {
                 }
                 if (input = query.raw("modulo")) {
                     for (let field in input) {
-                        if (!this.model.get_field(field)) {
+                        if (!this.model.getField(field)) {
                             continue;
                         }
                         where.push(query.alias + "." + field + " % :" + field + "_modulo_mod = :" + field + "_modulo_val");
@@ -160,11 +161,11 @@ class Module {
                         bind[field + "_modulo_val"] = parseInt(input[field]["val"], 10);
                     }
                 }
-                query.add_where(where, bind);
+                query.addWhere(where, bind);
                 resolve();
             });
         });
-        hooks.add_post(result => {
+        hooks.addPost(result => {
         });
     }
 
@@ -172,18 +173,18 @@ class Module {
     }
 
     set(hooks) {
-        hooks.add_pre(query => {
+        hooks.addPre(query => {
             return new Promise((resolve, reject) => {
                 let validate = new Validate, errors = {};
                 
                 for (let field in query.fields) {
-                    if (!this.model.get_field(field).validate) {
+                    if (!this.model.getField(field).validate) {
                         continue;
                     }
-                    if (!this.model.get_field(field).validate.add) {
+                    if (!this.model.getField(field).validate.add) {
                         continue;
                     }
-                    validate.check(this.model.get_field(field).validate.add, errors);
+                    validate.check(this.model.getField(field).validate.add, errors);
                 }
                 if (errors) {
                     return reject(errors);

@@ -10,25 +10,25 @@ class CacheJS {
             max: config.size,
             length: function (n, key) { return 1; },
         };
-        this._cache = LRU(opt);
+        this.cache = LRU(opt);
     }
 
-    get_all() {
+    getAll() {
         let output = {};
-        let keys = this._cache.keys();
+        let keys = this.cache.keys();
         for (let key of keys) {
-            output[key] = this._cache.peek(key);
+            output[key] = this.cache.peek(key);
         }
         return Promise.resolve(output);
     }
     
-    get(db_table, field, keys) {
+    get(dbTable, field, keys) {
         if (!Array.isArray(keys)) {
             keys = [keys];
         }
         let output = {};
         for (let key of keys) {
-            let val = this._cache.get(db_table + ":" + field + ":" + key);
+            let val = this.cache.get(dbTable + ":" + field + ":" + key);
             if (typeof val !== "undefined") {
                 output[key] = val;
             }
@@ -36,25 +36,25 @@ class CacheJS {
         return Promise.resolve(output);
     }
 
-    set(db_table, field, vals) {
+    set(dbTable, field, vals) {
         for (let key in vals) {
-            this._cache.set(db_table + ":" + field + ":" + key, vals[key]);
+            this.cache.set(dbTable + ":" + field + ":" + key, vals[key]);
         }
         return Promise.resolve(vals);
     }
 
-    del(db_table, field, keys) {
+    del(dbTable, field, keys) {
         if (!Array.isArray(keys)) {
             keys = [keys];
         }
         for (let key of keys) {
-            this._cache.del(db_table + ":" + field + ":" + key);
+            this.cache.del(dbTable + ":" + field + ":" + key);
         }
         return Promise.resolve(true);
     }
 
-    del_all() {
-        this._cache.reset();
+    delAll() {
+        this.cache.reset();
         return Promise.resolve(true);
     }
     

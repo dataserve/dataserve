@@ -5,33 +5,33 @@
 class Cache {
 
     constructor(){
-        this._dbs = {};
+        this.dbs = {};
     }
     
-    get_cache(db_name, db_config) {
-        let db_key = db_config.type + ":" + db_name;
-        if (this._dbs[db_key]) {
-            return this._dbs[db_key];
+    getCache(dbName, dbConfig) {
+        let dbKey = dbConfig.type + ":" + dbName;
+        if (this.dbs[dbKey]) {
+            return this.dbs[dbKey];
         }
-        db_config = db_config.cache;
-        if (!db_config || !db_config.type) {
-            throw new Error("missing cache type for: " + db_name + " - " + JSON.stringify(db_config));
+        dbConfig = dbConfig.cache;
+        if (!dbConfig || !dbConfig.type) {
+            throw new Error("missing cache type for: " + dbName + " - " + JSON.stringify(dbConfig));
         }
-        switch (db_config.type) {
+        switch (dbConfig.type) {
         case "js":
             let CacheJS = require("./cache/js");
-            this._dbs[db_key] = new CacheJS(db_config);
+            this.dbs[dbKey] = new CacheJS(dbConfig);
             break;
         case "memcache":
-            this._dbs[db_key] = new Memcache(db_config);
+            this.dbs[dbKey] = new Memcache(dbConfig);
             break;
         case "redis":
-            this._dbs[db_key] = new Redis(db_name, db_config);
+            this.dbs[dbKey] = new Redis(dbName, dbConfig);
             break;
         default:
-            throw new Error("unknown Cache type: " + db_config.type);
+            throw new Error("unknown Cache type: " + dbConfig.type);
         }
-        return this._dbs[db_key];
+        return this.dbs[dbKey];
     }
 
 }

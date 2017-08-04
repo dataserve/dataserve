@@ -2,6 +2,8 @@
 
 const Type = require('type-of-is');
 
+const {camelize} = require("./util");
+
 const ALLOWED_RULES = {
     "email": [
         "String",
@@ -16,13 +18,13 @@ const ALLOWED_RULES = {
         "Number",
         "String",
     ],
-    "ip_address": [
+    "ipAddress": [
         "String",
     ],
-    "ip_address_v4": [
+    "ipAddressV4": [
         "String",
     ],
-    "ip_address_v6": [
+    "ipAddressV6": [
         "String",
     ],
     "min": [
@@ -51,14 +53,14 @@ const PROMISE_RULES = [
 ];
 
 const REASON = {
-    "_invalid_rule": "Invalid rule :rule for field :field",
-    "_invalid_type": "Invalid value type :type for field :field",
+    "_invalidRule": "Invalid rule :rule for field :field",
+    "_invalidType": "Invalid value type :type for field :field",
     "email": ":field must be a valid email address",
     "exists": ":field does not exist",
     "in": ":field must be one of :extra",
-    "ip_address": ":field must be a valid ip address",
-    "ip_address_v4": ":field must be a valid v4 ip address",
-    "ip_address_v6": ":field must be a valid v6 ip address",
+    "ipAddress": ":field must be a valid ip address",
+    "ipAddressV4": ":field must be a valid v4 ip address",
+    "ipAddressV6": ":field must be a valid v6 ip address",
     "min": ":field must be greater than :extra",
     "max": ":field must be less than :extra",
     "required": ":field is required",
@@ -80,31 +82,33 @@ class Validate {
             let [rule, extra] = split.split(":");
             if (rule === "required") {
                 if (typeof val === "undefined" || val === null) {
-                    this.add_error(rule, extra, field, val, null, errors);
+                    this.addError(rule, extra, field, val, null, errors);
                 }
                 continue;
             }
+            rule = camelize(rule);
             if (!ALLOWED_RULES[rule]) {
-                this.add_error("_invalid_rule", rule, field, val, null, errors);
+                this.addError("_invalidRule", rule, field, val, null, errors);
                 continue;
             }
             let type = Type.string(val);
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
-                this.add_error("_invalid_type", rule, field, val, null, errors);
+                this.addError("_invalidType", rule, field, val, null, errors);
                 continue;
             }
+            let handler = "validate" + rule.charAt(0).toUpperCase() + rule.slice(1);
             if (PROMISE_RULES.indexOf(rule) !== -1) {
                 promises.push(this["validate_" + rule](extra, field, val, type, errors));
             } else {
                 if (this["validate_" + rule](extra, field, val, type) === false) {
-                    this.add_error(rule, extra, field, val, type, errors);
+                    this.addError(rule, extra, field, val, type, errors);
                 }
             }
         }
         return promises;
     }
 
-    add_error(rule, extra, field, val, type, errors){
+    addError(rule, extra, field, val, type, errors){
         let reason = REASON[rule];
         if (rule.substr(0, 1) === "_") {
             rule = extra;
@@ -115,32 +119,32 @@ class Validate {
         };
     }
 
-    validate_email(extra, field, val, type) {
+    validateEmail(extra, field, val, type) {
         if (!this.validator.isEmail(val)) {
             return false;
         }
         return true;
     }
 
-    validate_exists(extra, field, val, type, errors) {
+    validateExists(extra, field, val, type, errors) {
         let [table, column] = extra.split(",");
         let input = {
             "=": {
                 [field]: val,
             },
-            output_style: "LOOKUP_RAW",
+            outputStyle: "LOOKUP_RAW",
             page: 1,
             limit: 1
         };
-        return this.model._dataserve.run(table + ":lookup", input)
+        return this.model.dataserve.run(table + ":lookup", input)
             .then(res => {
                 if (!res.result.length) {
-                    this.add_error("exists", extra, field, val, type, errors);
+                    this.addError("exists", extra, field, val, type, errors);
                 }
             });
     }
     
-    validate_in(extra, field, val, type) {
+    validateIn(extra, field, val, type) {
         extra = extra.split(",");
         switch (type) {
         case "Array":
@@ -160,28 +164,28 @@ class Validate {
         return true;
     }
 
-    validate_ip_address(extra, field, val, type) {
+    validateIpAddress(extra, field, val, type) {
         if (!this.ip.isV4Format(val) && !this.ip.isV6Format(val)) {
             return false;
         }
         return true;
     }
 
-    validate_ip_address_v4(extra, field, val, type) {
+    validateIpAddressV4(extra, field, val, type) {
         if (!this.ip.isV4Format(val)) {
             return false;
         }
         return true;
     }
 
-    validate_ip_address(extra, field, val, type) {
+    validateIpAddress(extra, field, val, type) {
         if (!this.ip.isV6Format(val)) {
             return false;
         }
         return true;
     }
 
-    validate_min(extra, field, val, type) {
+    validateMin(extra, field, val, type) {
         switch (type) {
         case "Array":
         case "String":
@@ -203,7 +207,7 @@ class Validate {
         return true;
     }
 
-    validate_max(extra, field, val, type) {
+    validateMax(extra, field, val, type) {
         switch (type) {
         case "Array":
         case "String":
@@ -225,20 +229,20 @@ class Validate {
         return true;
     }
 
-    validate_unique(extra, field, val, type, errors) {
+    validateUnique(extra, field, val, type, errors) {
         let [table, column] = extra.split(",");
         let input = {
             "=": {
                 [field]: val,
             },
-            output_style: "LOOKUP_RAW",
+            outputStyle: "LOOKUP_RAW",
             page: 1,
             limit: 1
         };
-        return this.model._dataserve.run(table + ":lookup", input)
+        return this.model.dataserve.run(table + ":lookup", input)
             .then(res => {
                 if (res.result.length) {
-                    this.add_error("unique", extra, field, val, type, errors);
+                    this.addError("unique", extra, field, val, type, errors);
                 }
             });
     }

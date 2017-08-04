@@ -2,7 +2,13 @@
 
 const _array = require("lodash/array");
 
-module.exports.int_array = function(arr) {
+module.exports.camelize = function(str) {
+    return str.replace(/(?:^\w|[A-Z]|\b\w)/g, function(letter, index) {
+        return index == 0 ? letter.toLowerCase() : letter.toUpperCase();
+    }).replace(/\s+/g, '');
+}
+
+module.exports.intArray = function(arr) {
     if (!arr || !Array.isArray(arr)) {
         return [];
     }
@@ -30,10 +36,10 @@ module.exports.r = function(success, result=null, meta={}){
     };
 }
 
-module.exports.param_f = function(arr, param, def) {
+module.exports.paramF = function(arr, param, def) {
     return arr[param] ? arr[param] : def;
 }
 
-module.exports.param_fo = function(arr, param) {
-    return module.exports.param_f(arr, param, {});
+module.exports.paramFo = function(arr, param) {
+    return module.exports.paramF(arr, param, {});
 }

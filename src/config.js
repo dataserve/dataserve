@@ -1,6 +1,7 @@
 "use strict"
 
 class Config {
+    
     constructor(path) {
         this.config = require(path);
 
@@ -10,35 +11,36 @@ class Config {
         if (process.env.DB_DEFAULT) {
             this.db["_default_"] = process.env.DB_DEFAULT;
         }
-        let db_list = [];
+        let dbList = [];
         if (process.env.DB_LIST) {
-            db_list = process.env.DB_LIST.split(",");
+            dbList = process.env.DB_LIST.split(",");
         }
-        if (db_list.length) {
-            for (let db of db_list) {
+        if (dbList.length) {
+            for (let db of dbList) {
                 if (!process.env["DB_" + db]) {
                     continue;
                 }
-                let db_param = process.env["DB_" + db].split(",");
+                let dbParam = process.env["DB_" + db].split(",");
                 //type
-                if (db_param[0].length) {
-                    this.db[db].db.type = db_param[0];
+                if (dbParam[0].length) {
+                    this.db[db].db.type = dbParam[0];
                 }
                 //hostname
-                if (db_param[1].length) {
-                    this.db[db].db.hostname = db_param[1];
+                if (dbParam[1].length) {
+                    this.db[db].db.hostname = dbParam[1];
                 }
                 //user
-                if (db_param[2].length) {
-                    this.db[db].db.user = db_param[2];
+                if (dbParam[2].length) {
+                    this.db[db].db.user = dbParam[2];
                 }
                 //password
-                if (db_param[3].length) {
-                    this.db[db].db.password = db_param[3];
+                if (dbParam[3].length) {
+                    this.db[db].db.password = dbParam[3];
                 }
             }
         }
     }
+    
 }
 
 module.exports = Config;

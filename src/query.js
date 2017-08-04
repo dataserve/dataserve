@@ -18,15 +18,15 @@ class Query {
             field: null,
             vals: null,
         };
-        this.get_multi = {
+        this.getMulti = {
             field: null,
             vals: null,
         };
-        this.primary_key = null;
+        this.primaryKey = null;
         this.fields = {};
 
         this.join = {};
-        this.inner_join = {};
+        this.innerJoin = {};
         
         this.where = [];
         this.bind = {};
@@ -38,91 +38,91 @@ class Query {
 
         this.fillin = {};
         
-        this.output_style = [];
+        this.outputStyle = [];
 
-        this.single_row_result = false;
+        this.singleRowResult = false;
 
-        this.build(input, command, model);
+        this.build(input, command);
     }
 
-    build(input, command, model) {
-        if (parseInt(input, 10) !== NaN) {
+    build(input, command) {
+        if (!isNaN(parseInt(input, 10))) {
             this.input = input = {
-                [model.get_primary_key()]: parseInt(input, 10),
+                [this.model.getPrimaryKey()]: parseInt(input, 10),
             };
         }
         if (input.alias) {
-            this.set_alias(input.alias);
+            this.setAlias(input.alias);
         } else {
-            this.set_alias(model._table().substring(0, 1));
+            this.setAlias(this.model.getTable().substring(0, 1));
         }
         if (input.fields) {
             for (let field in input.fields) {
-                this.set_field(field, input.fields[field]);
+                this.setField(field, input.fields[field]);
             }
         }
         if (input.join) {
             for (let table in input.join) {
-                this.set_field(table, input.join[table]);
+                this.setField(table, input.join[table]);
             }
         }
-        if (input.inner_join) {
-            for (let table in input.inner_join) {
-                this.set_field(table, input.inner_join[table]);
+        if (input.innerJoin) {
+            for (let table in input.innerJoin) {
+                this.setField(table, input.innerJoin[table]);
             }
         }
         if (input.where) {
-            this.add_where(input.where, input.bind ? input.bind : null);
+            this.addWhere(input.where, input.bind ? input.bind : null);
         }
         if (input.group) {
-            this.add_group(input.group);
+            this.addGroup(input.group);
         }
         if (input.order) {
-            this.add_order(input.order);
+            this.addOrder(input.order);
         }
         if (input.page && input.limit) {
-            this.set_limit(input.page, input.limit);
+            this.setLimit(input.page, input.limit);
         }
         if (input.custom) {
-            this.add_custom(input.custom);
+            this.addCustom(input.custom);
         }
         if (input.fillin) {
             for (let table in input.fillin) {
-                this.set_fillin(table, input.fillin[table]);
+                this.setFillin(table, input.fillin[table]);
             }
         }
-        if (input.output_style) {
-            this.add_output_style(input.output_style);
+        if (input.outputStyle) {
+            this.addOutputStyle(input.outputStyle);
         }
-        if (input[model.get_primary_key()]) {
-            this.set_primary_key(input[model.get_primary_key()]);
+        if (input[this.model.getPrimaryKey()]) {
+            this.setPrimaryKey(input[this.model.getPrimaryKey()]);
         }
 
         switch (command) {
         case "add":
             for (let field in input) {
-                this.set_field(field, input[field]);
+                this.setField(field, input[field]);
             }
             break;
         case "get":
-            if (this.primary_key) {
-                this.set_get(model.get_primary_key(), this.primary_key);
+            if (this.primaryKey) {
+                this.setGet(this.model.getPrimaryKey(), this.primaryKey);
             } else {
                 for (let field in input) {
-                    this.set_get(field, input[field]);
+                    this.setGet(field, input[field]);
                 }
             }
             break;
-        case "get_multi":
+        case "getMulti":
             for (let field in input) {
-                this.set_get_multi(field, input[field]);
+                this.setGetMulti(field, input[field]);
             }
             break;
         case "lookup":
             break;
         case "set":
             for (let field in input) {
-                this.set_field(field, input[field]);
+                this.setField(field, input[field]);
             }
             break;
         }
@@ -132,21 +132,21 @@ class Query {
         return this.input[field];
     }
   
-    set_alias(alias) {
+    setAlias(alias) {
         this.alias = alias;
     }
 
-    set_primary_key(val) {
-        this.primary_key = val;
+    setPrimaryKey(val) {
+        this.primaryKey = val;
     }
     
-    set_get(field, vals) {
-        if (field != this.model.get_primary_key() && !this.model.is_unique(field)) {
+    setGet(field, vals) {
+        if (field != this.model.getPrimaryKey() && !this.model.isUnique(field)) {
             return;
         }
         if (!Array.isArray(vals)) {
             vals = [vals];
-            this.single_row_result = true;
+            this.singleRowResult = true;
         } else if (!vals.length) {
             return;
         }
@@ -154,48 +154,48 @@ class Query {
         this.get.vals = vals;
     }
 
-    has_get() {
+    hasGet() {
         return this.get.field ? true : false;
     }
 
-    set_get_multi(field, vals) {
-        if (!this.model.is_get_multi(field)) {
+    setGetMulti(field, vals) {
+        if (!this.model.isGetMulti(field)) {
             return;
         }
         if (!Array.isArray(vals)) {
             vals = [vals];
-            this.single_row_result = true;
+            this.singleRowResult = true;
         } else if (!vals.length) {
             return;
         }
-        this.get_multi.field = field;
-        this.get_multi.vals = vals;
+        this.getMulti.field = field;
+        this.getMulti.vals = vals;
     }
 
-    has_get_multi() {
-        return this.get_multi.field ? true : false;
+    hasGetMulti() {
+        return this.getMulti.field ? true : false;
     }
     
-    set_field(field, val) {
-        if (!this.model.is_fillable(field)) {
+    setField(field, val) {
+        if (!this.model.isFillable(field)) {
             return;
         }
         this.fields[field] = val;
     }
 
-    has_fields() {
+    hasFields() {
         return Object.keys(this.fields).length ? true: false;
     }
 
-    add_join(table, on) {
+    addJoin(table, on) {
         this.join[table] = on;
     }
 
-    add_inner_join(table, on) {
-        this.inner_join[table] = on;
+    addInnerJoin(table, on) {
+        this.innerJoin[table] = on;
     }
 
-    add_where(where, binds) {
+    addWhere(where, binds) {
         if (!Array.isArray(where)) {
             where = [where];
         } else if (!where.length) {
@@ -207,7 +207,7 @@ class Query {
         }
     }
 
-    add_group(group) {
+    addGroup(group) {
         if (!Array.isArray(group)) {
             group = [group];
         } else if (!group.length) {
@@ -216,7 +216,7 @@ class Query {
         this.group = this.group.concat(group);
     }
 
-    add_order(order) {
+    addOrder(order) {
         if (!Array.isArray(order)) {
             order = [order];
         } else if (!order.length) {
@@ -225,14 +225,14 @@ class Query {
         this.order = this.order.concat(order);
     }
 
-    set_limit(page, limit) {
+    setLimit(page, limit) {
         this.limit = {
             page: page,
             limit: limit,
         };
     }
 
-    add_custom(custom) {
+    addCustom(custom) {
         if (!Array.isArray(custom)) {
             custom = [custom];
         } else if (!custom.length) {
@@ -241,52 +241,52 @@ class Query {
         this.custom = this.custom.concat(custom);
     }
 
-    set_fillin(field, val) {
+    setFillin(field, val) {
         this.fillin[field] = val;
     }
 
-    has_fillin() {
+    hasFillin() {
         return Object.keys(this.fillin).length ? true : false;
     }
     
-    valid_output_style(style) {
+    validOutputStyle(style) {
         if (ALLOWED_OUTPUT_STYLE.indexOf(style) === -1) {
             return false;
         }
         return true;
     }
     
-    add_output_style(style) {
+    addOutputStyle(style) {
         if (!Array.isArray(style)) {
             style = [style];
         } else if (!style.length) {
             return;
         }
         for (let st of style) {
-            if (!this.valid_output_style(st)) {
+            if (!this.validOutputStyle(st)) {
                 continue;
             }
         }
-        this.output_style = this.output_style.concat(style);
+        this.outputStyle = this.outputStyle.concat(style);
     }
 
-    set_output_style(style) {
+    setOutputStyle(style) {
         if (!Array.isArray(style)) {
             style = [style];
         }
         //CAN SET TO EMPTY ARRAY
-        let style_valid = [];
+        let styleValid = [];
         for (let st of style) {
-            if (!this.valid_output_style(st)) {
+            if (!this.validOutputStyle(st)) {
                 continue;
             }
-            style_valid.push(style);
+            styleValid.push(style);
         }
-        this.output_style = style_valid;
+        this.outputStyle = styleValid;
     }
 
-    is_output_style(style) {
-        return this.output_style.indexOf(style) !== -1;
+    isOutputStyle(style) {
+        return this.outputStyle.indexOf(style) !== -1;
     }
 }
 

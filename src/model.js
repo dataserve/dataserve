@@ -3,13 +3,13 @@
 const _object = require("lodash/object");
 const AsyncLock = require('async-lock');
 const Query = require("./query");
-const {r, int_array, param_fo} = require("./util");
+const {camelize, intArray, paramFo, r} = require("./util");
 
 const ALLOWED_COMMANDS = [
     "add",
     "get",
-    "get_count",
-    "get_multi",
+    "getCount",
+    "getMulti",
     "lookup",
     "remove",
     "set",
@@ -17,29 +17,29 @@ const ALLOWED_COMMANDS = [
 
 class Model {
 
-    constructor(dataserve, config, db_container, cache_container, db_table){
-        this._dataserve = dataserve;
-        this._db_container = db_container;
-        this._cache_container = cache_container;
+    constructor(dataserve, config, dbContainer, cacheContainer, dbTable){
+        this.dataserve = dataserve;
+        this.dbContainer = dbContainer;
+        this.cacheContainer = cacheContainer;
 
         this.lock = new AsyncLock();
 
-        this._db_table = db_table;
-        this._db_name = null;
-        this._table_name = null;
-        this._model = null;
-        this._type = null;
-        this._media = null;
+        this.dbTable = dbTable;
+        this.dbName = null;
+        this.tableName = null;
+        this.model = null;
+        this.type = null;
+        this.media = null;
 
-        this._set_insert = null;
-        this._primary_key = null;
-        this._fields = {};
-        this._relationships = {};
-        this._fillable = [];
-        this._unique = [];
-        this._get_multi = [];
+        this.setInsert = null;
+        this.primaryKey = null;
+        this.fields = {};
+        this.relationships = {};
+        this.fillable = [];
+        this.unique = [];
+        this.getMulti = [];
 
-        this._timestamps = {
+        this.timestamps = {
             created: {
                 name: "ctime",
                 type: "timestamp",
@@ -52,80 +52,82 @@ class Model {
             },
         };
 
-        this._parse_config(config);
+        this.parseConfig(config);
         
-        if (!this._model) {
-            this._model = this._table_name;
+        if (!this.model) {
+            this.model = this.tableName;
         }
     }
 
-    _parse_config(config){
-        [this._db_name, this._table_name] = this._db_table.split(".");
-        if (!this._db_name || !this._table_name) {
+    parseConfig(config){
+        [this.dbName, this.tableName] = this.dbTable.split(".");
+        if (!this.dbName || !this.tableName) {
             throw new Error("Missing db/table names");
         }
-        this._db_config = config.db[this._db_name];
-        if (!this._db_config) {
-            throw new Error("Configuration missing for db: " + this._db_name);
+        this.dbConfig = config.db[this.dbName];
+        if (!this.dbConfig) {
+            throw new Error("Configuration missing for db: " + this.dbName);
         }
-        this._table_config = this._db_config.tables[this._table_name];
-        if (!this._table_config) {
-            throw new Error("Missing config information for table: " + this._table_name);
+        this.tableConfig = this.dbConfig.tables[this.tableName];
+        if (!this.tableConfig) {
+            throw new Error("Missing config information for table: " + this.tableName);
         }
         
-        this._db = this._db_container.get_db(this._db_name, this._db_config);
-        if (this._db_config.cache) {
-            this._cache = this._cache_container.get_cache(this._db_name, this._db_config);
+        this.db = this.dbContainer.getDb(this.dbName, this.dbConfig);
+        if (this.dbConfig.cache) {
+            this.cache = this.cacheContainer.getCache(this.dbName, this.dbConfig);
         } else {
-            this._cache = this._cache_container.get_cache(this._db_name, this._table_config);
+            this.cache = this.cacheContainer.getCache(this.dbName, this.tableConfig);
         }
 
-        if (!this._table_config.fields) {
-            throw new Error("Missing fields information for table: " + this._table_name);
+        if (!this.tableConfig.fields) {
+            throw new Error("Missing fields information for table: " + this.tableName);
         }
-        for (let key in this._table_config.fields) {
-            this._add_field(key, this._table_config.fields[key]);
+        for (let key in this.tableConfig.fields) {
+            this.addField(key, this.tableConfig.fields[key]);
         }
-        if (!this._primary_key) {
-            throw new Error("A primary key must be specified for table: " + this._table_name);
+        if (!this.primaryKey) {
+            throw new Error("A primary key must be specified for table: " + this.tableName);
         }
-        if (typeof this._table_config.set_insert !== "undefined") {
-            this._set_insert = this._table_config.set_insert;
-            if (this._set_insert && !this._fields[this._primary_key].fillable) {
-                throw new Error("Primary key must be fillable when `set_insert` is set to true");
+        if (typeof this.tableConfig.setInsert !== "undefined") {
+            this.setInsert = this.tableConfig.setInsert;
+            if (this.setInsert && !this.fields[this.primaryKey].fillable) {
+                throw new Error("Primary key must be fillable when `setInsert` is set to true");
             }
         }
-        if (typeof this._table_config.timestamps !== "undefined") {
-            if (!this._table_config.timestamps) {
-                this._timestamp = null;
+        if (typeof this.tableConfig.timestamps !== "undefined") {
+            if (!this.tableConfig.timestamps) {
+                this.timestamp = null;
             } else {
-                if (typeof this._table_config.timestamps.created !== "undefined") {
-                    this._timestamps.created = this._table_config.timestamps.created;
+                if (typeof this.tableConfig.timestamps.created !== "undefined") {
+                    this.timestamps.created = this.tableConfig.timestamps.created;
                 }
-                if (typeof this._table_config.timestamp.modified !== "undefined") {
-                    this._timestamps.modified = this._table_config.timestamps.modified;
+                if (typeof this.tableConfig.timestamp.modified !== "undefined") {
+                    this.timestamps.modified = this.tableConfig.timestamps.modified;
                 }
             }
         }
-        if (this._table_config.relationships) {
-            for (let type in this._table_config.relationships) {
-                for (let other_table of this._table_config.relationships[type]) {
-                    this._add_relationship(type, other_table);
+        if (this.tableConfig.relationships) {
+            for (let type in this.tableConfig.relationships) {
+                for (let otherTable of this.tableConfig.relationships[type]) {
+                    this.addRelationship(type, otherTable);
                 }
             }
         }
     }
 
-    db_config() {
-        return this._db_config;
+    getDbConfig() {
+        return this.dbConfig;
     }
 
-    table_config() {
-        return this._table_config;
+    getTableConfig() {
+        return this.tableConfig;
     }
 
     run(command, input) {
-        if (command == "output_cache") {
+        command = camelize(command);
+        
+        if (command == "outputCache") {
             return this[command]();
         }
 
@@ -135,129 +137,128 @@ class Model {
         
         let query = new Query(input, command, this), module = null;
         
-        if (module = this.table_config().module) {
+        if (module = this.getTableConfig().module) {
             module = new (require("./module/" + module))(this);
         } else {
             module = new (require("./module"))(this);
         }
                
-        let hooks = module.get_hooks(command);
+        let hooks = module.getHooks(command);
 
         return this[command](query, hooks);
     }
     
-    get_field(field) {
-        if (typeof this._fields[field] === "undefined") {
+    getField(field) {
+        if (typeof this.fields[field] === "undefined") {
             return null;
         }
-        return this._fields[field];
+        return this.fields[field];
     }
     
-    _add_field(field, attributes){
-        this._fields[field] = attributes;
+    addField(field, attributes){
+        this.fields[field] = attributes;
         if (attributes.key) {
             switch (attributes.key) {
             case "primary":
-                this._primary_key = field;
+                this.primaryKey = field;
                 break;
             case "unique":
-                this._add_unique(field);
+                this.addUnique(field);
                 break;
             }
         }
         if (attributes.fillable) {
-            this._add_fillable(field);
+            this.addFillable(field);
         }
         if (attributes.multi) {
-            this._add_multi(field);
+            this.addMulti(field);
         }
     }
 
-    get_primary_key() {
-        return this._primary_key;
+    getPrimaryKey() {
+        return this.primaryKey;
     }
     
-    is_primary_key(field) {
-        return this._primary_key === field;
+    isPrimaryKey(field) {
+        return this.primaryKey === field;
     }
     
-    is_fillable(field) {
-        return this._fillable.indexOf(field) !== -1;
+    isFillable(field) {
+        return this.fillable.indexOf(field) !== -1;
     }
     
-    _add_fillable(arr){
+    addFillable(arr){
         if (!Array.isArray(arr)) {
             arr = [arr];
         }
-        this._fillable = [...new Set(this._fillable.concat(arr))];
+        this.fillable = [...new Set(this.fillable.concat(arr))];
     }
 
-    is_unique(field) {
-        return this._unique.indexOf(field) !== -1;
+    isUnique(field) {
+        return this.unique.indexOf(field) !== -1;
     }
     
-    _add_unique(arr){
+    addUnique(arr){
         if (!Array.isArray(arr)) {
             arr = [arr];
         }
-        this._unique = [...new Set(this._unique.concat(arr))];
+        this.unique = [...new Set(this.unique.concat(arr))];
     }
 
-    is_get_multi(field) {
-        return this._get_multi.indexOf(field) !== -1;
+    isGetMulti(field) {
+        return this.getMulti.indexOf(field) !== -1;
     }
     
-    _add_get_multi(arr){
+    addGetMulti(arr){
         if (!Array.isArray(arr)) {
             arr = [arr];
         }
-        this._get_multi = [...new Set(this._get_multi.concat(arr))];
+        this.getMulti = [...new Set(this.getMulti.concat(arr))];
     }
     
-    _add_relationship(type, table){
-        if (["belongs_to", "has_one"].indexOf(type) == -1) {
+    addRelationship(type, table){
+        if (["belongsTo", "hasOne"].indexOf(type) == -1) {
             return;
         }
-        if (!this._relationships[type]) {
-            this._relationships[type] = {};
+        if (!this.relationships[type]) {
+            this.relationships[type] = {};
         }
-        this._relationships[type][table] = true;
+        this.relationships[type][table] = true;
     }
 
     add(query, hooks){
-        if (!query.has_fields()) {
+        if (!query.hasFields()) {
             return Promise.resolve(r(false, "missing fields"));
         }
-        var primary_key_val = null;
-        return hooks.run_pre(query)
+        var primaryKeyVal = null;
+        return hooks.runPre(query)
             .then(() => {
                 let cols = [], vals = [], bind = [];
                 for (let field in query.fields) {
                     cols.push(field);
-                    if (this.get_field(field).type == "int") {
+                    if (this.getField(field).type == "int") {
                         vals.push(parseInt(query.fields[field], 10));
                     } else {
                         vals.push(":" + field);
                         bind[field] = query.fields[field];
                     }
                 }
-                if (!this.get_field(this._primary_key).autoinc) {
-                    if (typeof query.fields[this._primary_key] === "undefined") {
+                if (!this.getField(this.primaryKey).autoinc) {
+                    if (typeof query.fields[this.primaryKey] === "undefined") {
                         return Promise.reject(r(false, "primary key required"));
                     }
-                    primary_key_val = query.fields[this._primary_key];
+                    primaryKeyVal = query.fields[this.primaryKey];
                 }
-                let sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
+                let sql = "INSERT INTO " + this.getTable() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
                 return this.query(sql, bind);
             })
             .then(res => {
-                if (!primary_key_val) {
-                    primary_key_val = res.insertId;
+                if (!primaryKeyVal) {
+                    primaryKeyVal = res.insertId;
                 }
-                if (this._cache) {
-                    let lock_key = this.lock_key(this._primary_key, primary_key_val);
-                    return this.lock.acquire(lock_key, () => {
-                        return this._cache_delete_primary(primary_key_val)
+                if (this.cache) {
+                    return this.getLock(this.primaryKey, primaryKeyVal, () => {
+                        return this.cacheDeletePrimary(primaryKeyVal)
                             .then (() => {
                                 return res;
                             });
@@ -267,7 +268,7 @@ class Model {
             })
             .then(res => {
                 return this.run("get", {
-                    [this._primary_key]: primary_key_val,
+                    [this.primaryKey]: primaryKeyVal,
                     fillin: query.fillin,
                 });
             })
@@ -280,78 +281,78 @@ class Model {
     }
     
     get(query){
-        if (!query.has_get()) {
+        if (!query.hasGet()) {
             return Promise.resolve(r(false, "missing param:"+JSON.stringify(query.input)));
         }
 
-        var cache_rows = {}, where = [], bind = {}, cache_promise = null;
-        var get_vals = query.get.vals;
+        var cacheRows = {}, where = [], bind = {}, cachePromise = null;
+        var getVals = query.get.vals;
 
         //cacheable
-        if (this._cache && query.get.field == this._primary_key) {
-            cache_promise = this._cache_get_primary(get_vals);
+        if (this.cache && query.get.field == this.primaryKey) {
+            cachePromise = this.cacheGetPrimary(getVals);
         } else {
-            cache_promise = Promise.resolve([{}, get_vals]);
+            cachePromise = Promise.resolve([{}, getVals]);
         }
-        return cache_promise
+        return cachePromise
             .then(result => {
-                [cache_rows, get_vals] = result;
-                if (!get_vals.length) {
-                    return cache_rows;
+                [cacheRows, getVals] = result;
+                if (!getVals.length) {
+                    return cacheRows;
                 }
-                if (!Array.isArray(get_vals)) {
-                    get_vals = [get_vals];
+                if (!Array.isArray(getVals)) {
+                    getVals = [getVals];
                 }
-                if (this.get_field(query.get.field).type == "int") {
-                    get_vals = int_array(get_vals);
-                    where.push(query.get.field + " IN (" + get_vals.join(",") + ")");
+                if (this.getField(query.get.field).type == "int") {
+                    getVals = intArray(getVals);
+                    where.push(query.get.field + " IN (" + getVals.join(",") + ")");
                 } else {
-                    get_vals = [...new Set(get_vals)];
+                    getVals = [...new Set(getVals)];
                     let wh = [], cnt = 1;
-                    for (let index in get_vals) {
+                    for (let index in getVals) {
                         wh.push(":" + query.get.field + cnt);
-                        bind[query.get.field + cnt] = get_vals[index];
+                        bind[query.get.field + cnt] = getVals[index];
                         ++cnt;
                     }
                     where.push(query.get.field + " IN (" + wh.join(",") + ")");
                 }
-                let sql = this._select();
-                sql += this._from();
-                sql += this._where(where);
+                let sql = this.select();
+                sql += this.from();
+                sql += this.where(where);
 
-                return this.get_lock(query.get.field, get_vals, () => {
-                    return this.query(sql, bind, this._primary_key)
+                return this.getLock(query.get.field, getVals, () => {
+                    return this.query(sql, bind, this.primaryKey)
                         .then(rows => {
-                            if (this._cache) {
+                            if (this.cache) {
                                 //set cache to null for vals that didn't exist in DB
-                                let cache = Object.assign(get_vals.reduce((obj, val) => {
+                                let cache = Object.assign(getVals.reduce((obj, val) => {
                                     obj[val] = null;
                                     return obj;
                                 }, {}), rows);
-                                return this._cache_set_primary(cache);
+                                return this.cacheSetPrimary(cache);
                             }
                             return rows;
                         });
                 });
             })
             .then(rows => {
-                return Object.assign(cache_rows, rows);
+                return Object.assign(cacheRows, rows);
             })
             .then(rows => {
-                return this._fillin(query, rows)
+                return this.fillin(query, rows)
             })
             .then(rows => {
                 let extra = {
-                    db_name: this._db_name,
-                    table_name: this._table_name,
+                    dbName: this.dbName,
+                    tableName: this.tableName,
                 };
-                if (query.single_row_result) {
+                if (query.singleRowResult) {
                     for (let id in rows) {
                         return r(true, rows[id], extra);
                     }
                     return r(true, {});
                 }
-                if (query.is_output_style("BY_ID")) {
+                if (query.isOutputStyle("BY_ID")) {
                     return r(true, rows, extra);
                 }
                 return r(true, _object.pick(rows, query.get.vals), extra);
@@ -364,9 +365,9 @@ class Model {
             });
     }
 
-    get_count(query) {
-        query.set_limit(1, 1);
-        query.set_output_style("FOUND_ONLY");
+    getCount(query) {
+        query.setLimit(1, 1);
+        query.setOutputStyle("FOUND_ONLY");
         return this.lookup(query)
             .then(output => output.status ? r(true, output.found) : output)
             .catch(output => {
@@ -377,38 +378,37 @@ class Model {
             });
     }
 
-    get_multi(query){
-        if (!query.has_get_multi()) {
+    getMulti(query){
+        if (!query.hasGetMulti()) {
             return Promise.resolve(r(false, "missing param"));
         }
-        //this._fillin_limit(query);
 
         var queries = [];
-        if (this.get_field(query.get_multi.field) == 'int') {
-            query[query.get_multi.field] = int_array(query.get_multi.vals);
-            for (let id of query.get_multi.vals) {
-                let sql = 'SELECT ' + this._primary_key.name + ' ';
-                sql += this._from();
+        if (this.getField(query.getMulti.field) == 'int') {
+            query[query.getMulti.field] = intArray(query.getMulti.vals);
+            for (let id of query.getMulti.vals) {
+                let sql = 'SELECT ' + this.primaryKey.name + ' ';
+                sql += this.from();
                 sql += 'WHERE ' + field + '=' + id;
                 queries.push(sql);
             }
-        } else if (this.get_field(query.get_multi.field) == 'string') {
+        } else if (this.getField(query.getMulti.field) == 'string') {
             //TODO
         } else {
-            return Promise.resolve(r(false, "invalid field type for multi get:" + this.get_field(query.get_multi.field)));
+            return Promise.resolve(r(false, "invalid field type for multi get:" + this.getField(query.getMulti.field)));
         }
-        return this.query_multi(queries)
+        return this.queryMulti(queries)
             .then(result => {
                 let ids = [];
                 for (let rows of result) {
                     for (let a of rows) {
-                        ids.push(a[this._primary_key.name]);
+                        ids.push(a[this.primaryKey.name]);
                     }
                 }
                 let q = new Query({
                     id: ids,
                     fillin: query.fillin,
-                    output_style: "BY_ID",
+                    outputStyle: "BY_ID",
                 }, "get", this);
                 return this.get(q);
             })
@@ -417,7 +417,7 @@ class Model {
                     return Promise.reject(res);
                 }
                 let output = [];
-                for (let id of query.get_multi.vals) {
+                for (let id of query.getMulti.vals) {
                     let rows = result.shift();
                     let r = [];
                     for (let row of rows) {
@@ -436,29 +436,29 @@ class Model {
     }
 
     inc(query) {
-        if (!query.primary_key) {
+        if (!query.primaryKey) {
             Promise.resolve(r(false, "missing primary field:"+JSON.stringify(query.input)));
         }
-        let vals = query.primary_key;
+        let vals = query.primaryKey;
         if (!Array.isArray(vals)) {
             vals = [vals];
         }
-        vals = int_array(vals);
-        if (!query.has_fields()) {
+        vals = intArray(vals);
+        if (!query.hasFields()) {
             return Promise.resolve(r(false, "missing update fields"));
         }
 
-        sql = "UPDATE " + this._table() + " SET ";
+        sql = "UPDATE " + this.getTable() + " SET ";
         for (let key in query.fields) {
             updates.push(key + "=" + key + " + " + parseInt(query.fields[key], 10));
         }
-        sql += "WHERE " + this._primary_key + " IN (" + vals.join(",") + ")";
+        sql += "WHERE " + this.primaryKey + " IN (" + vals.join(",") + ")";
         
-        return this.get_lock(this._primary_key, query.primary_key, () => {
+        return this.getLock(this.primaryKey, query.primaryKey, () => {
             return this.query(sql)
                 .then(rows => {
-                    if (this._cache) {
-                        return this._cache_delete_primary(vals);
+                    if (this.cache) {
+                        return this.cacheDeletePrimary(vals);
                     }
                     return rows;
                 });
@@ -475,37 +475,37 @@ class Model {
     lookup(query, hooks) {
         var meta = {};
         
-        return hooks.run_pre(query)
+        return hooks.runPre(query)
             .then(() => {
-                let sql_select = "SELECT " + query.alias + "." + this._primary_key + " "
-                let sql = this._from(query.alias);
+                let sqlSelect = "SELECT " + query.alias + "." + this.primaryKey + " "
+                let sql = this.from(query.alias);
                 if (query.join && Array.isArray(query.join) && query.join.length) {
                     for (let table in query.join) {
                         sql += "INNER JOIN " + table + " ON (" + query.join[table] + ") ";
                     }
                 }
-                if (query.left_join && Array.isArray(query.left_join) && query.left_join.length) {
-                    for (let table in query.left_join) {
-                        sql += "LEFT JOIN " + table + " ON (" + query.left_table[table] + ") ";
+                if (query.leftJoin && Array.isArray(query.leftJoin) && query.leftJoin.length) {
+                    for (let table in query.leftJoin) {
+                        sql += "LEFT JOIN " + table + " ON (" + query.leftTable[table] + ") ";
                     }
                 }
                 
-                sql += this._where(query.where);
-                let sql_group = this._group(query.group);
-                sql += sql_group;
-                sql += this._order(query.order);
+                sql += this.where(query.where);
+                let sqlGroup = this.group(query.group);
+                sql += sqlGroup;
+                sql += this.order(query.order);
 
-                let sql_limit = this._limit(query);
+                let sqlLimit = this.limit(query);
                 
-                let sql_rows = sql_select + sql + sql_limit;
+                let sqlRows = sqlSelect + sql + sqlLimit;
 
-                let sql_cnt = "SELECT COUNT(*) AS cnt " + sql;
-                if (sql_group.length) {
-                    sql_cnt = "SELECT COUNT(*) AS cnt FROM (" + sql_select + sql + ") AS t";
+                let sqlCnt = "SELECT COUNT(*) AS cnt " + sql;
+                if (sqlGroup.length) {
+                    sqlCnt = "SELECT COUNT(*) AS cnt FROM (" + sqlSelect + sql + ") AS t";
                 }
 
-                if (query.is_output_style("FOUND_ONLY")) {
-                    return this.query(sql_cnt, query.bind, true).then(found => {
+                if (query.isOutputStyle("FOUND_ONLY")) {
+                    return this.query(sqlCnt, query.bind, true).then(found => {
                         let meta = {
                             pages: query.limit.limit ? Math.ceil(found/query.limit.limit) : null,
                             found: found,
@@ -514,11 +514,11 @@ class Model {
                     });
                 }
                 
-                return this.query(sql_rows, query.bind, this._primary_key)
+                return this.query(sqlRows, query.bind, this.primaryKey)
             })
             .then(rows => {
-                if (query.is_output_style("INCLUDE_FOUND")) {
-                    return this.query(sql_cnt, query.bind, true).then(found => [rows, found["cnt"]]);
+                if (query.isOutputStyle("INCLUDE_FOUND")) {
+                    return this.query(sqlCnt, query.bind, true).then(found => [rows, found["cnt"]]);
                 } else {
                     return [rows, null];
                 }
@@ -531,19 +531,19 @@ class Model {
                 };
                 let ids = rows ? Object.keys(rows) : [];
                 if (!ids.length) {
-                    if (query.is_output_style("BY_ID")) {
+                    if (query.isOutputStyle("BY_ID")) {
                         return Promise.reject(r(true, {}));
                     }
                     return Promise.reject(r(true, []));
                 }
-                if (query.is_output_style("LOOKUP_RAW")) {
-                    if (query.is_output_style("BY_ID")) {
+                if (query.isOutputStyle("LOOKUP_RAW")) {
+                    if (query.isOutputStyle("BY_ID")) {
                         return Promise.reject(r(true, rows));
                     }
                     return Promise.reject(r(true, Object.values(rows)));
                 }
                 return this.run("get", {
-                    [this._primary_key]: ids,
+                    [this.primaryKey]: ids,
                     fillin: query.fillin,
                 });
             })
@@ -551,13 +551,13 @@ class Model {
                 if (!result.status) {
                     return Promise.reject(result);
                 }
-                if (query.is_output_style("BY_ID")) {
+                if (query.isOutputStyle("BY_ID")) {
                     return result.result;
                 }
                 return Object.values(result.result);
             })
             .then(result => {
-                return hooks.run_post(result);
+                return hooks.runPost(result);
             })
             .then(result => r(true, result, meta))
             .catch(output => {
@@ -569,7 +569,7 @@ class Model {
     }
 
     set(query) {
-        if (!query.primary_key) {
+        if (!query.primaryKey) {
             return Promise.resolve(r(false, "missing primary key"));
         }
         if (!query.fields) {
@@ -577,29 +577,29 @@ class Model {
         }
 
         var sql = "", updates = [], bind = {};
-        if (this._primary_key.set_insert) {
-            query.fields[this._primary_key] = query.primary_key;
+        if (this.primaryKey.setInsert) {
+            query.fields[this.primaryKey] = query.primaryKey;
             let cols = [], vals = [];
             for (let field in query.fields) {
                 cols.push(field);
-                if (this.get_field(field).type == "int") {
+                if (this.getField(field).type == "int") {
                     vals.push(parseInt(query.fields[field], 10));
-                    if (field != this._primary_key) {
+                    if (field != this.primaryKey) {
                         updates.push(field + "=" + parseInt(query.fields[field], 10) + " ");
                     }
                 } else {
                     vals.push(":" + field);
-                    if (field != this._primary_key) {
+                    if (field != this.primaryKey) {
                         updates.push(field + "=:" + field + " ");
                     }
                     bind[field] = query.fields[field];
                 }
             }
-            sql = "INSERT INTO " + this._table() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ") ON DUPLICATE KEY UPDATE " + updates.join(",") + " ";
+            sql = "INSERT INTO " + this.getTable() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ") ON DUPLICATE KEY UPDATE " + updates.join(",") + " ";
         } else {
-            sql = "UPDATE " + this._table() + " SET ";
+            sql = "UPDATE " + this.getTable() + " SET ";
             for (let field in query.fields) {
-                if (this.get_field(field).type == "int") {
+                if (this.getField(field).type == "int") {
                     updates.push(field + "=" + parseInt(query.fields[field], 10) + " ");
                 } else {
                     updates.push(field + "=:" + field + " ");
@@ -613,18 +613,18 @@ class Model {
                 }
                 sql += custom.join(",") + " ";
             }
-            if (this.get_field(this._primary_key).type == "int") {
-                sql += "WHERE " + this._primary_key + "=" + parseInt(query.primary_key, 10);
+            if (this.getField(this.primaryKey).type == "int") {
+                sql += "WHERE " + this.primaryKey + "=" + parseInt(query.primaryKey, 10);
             } else {
-                sql += "WHERE " + this._primary_key + "=:" + this._primary_key;
-                bind[this._primary_key] = query.primary_key;
+                sql += "WHERE " + this.primaryKey + "=:" + this.primaryKey;
+                bind[this.primaryKey] = query.primaryKey;
             }
         }
-        return this.get_lock(this._primary_key, query.primary_key, () => {
+        return this.getLock(this.primaryKey, query.primaryKey, () => {
             return this.query(sql, bind)
                 .then(rows => {
-                    if (this._cache) {
-                        return this._cache_delete_primary(query.primary_key);
+                    if (this.cache) {
+                        return this.cacheDeletePrimary(query.primaryKey);
                     }
                     return rows;
                 })
@@ -639,34 +639,34 @@ class Model {
     }
 
     remove(query){
-        if (!query.primary_key) {
+        if (!query.primaryKey) {
             return Promise.resolve(r(false, "primary key value required"));
         }
-        let vals = query.primary_key;
+        let vals = query.primaryKey;
         if (!Array.isArray(vals)) {
             vals = [vals];
         }
         let bind = {};
         let sql = "DELETE ";
-        sql += this._from();
-        if (this.get_field(this._primary_key).type == "int") {
-            vals = int_array(vals);
-            sql += "WHERE " + this._primary_key + " IN (" + vals.join(",") + ")";
+        sql += this.from();
+        if (this.getField(this.primaryKey).type == "int") {
+            vals = intArray(vals);
+            sql += "WHERE " + this.primaryKey + " IN (" + vals.join(",") + ")";
         } else {
             vals = [...new Set(vals)];
             let wh = [], cnt = 1;
             for (let key in vals) {
-                wh.push(":" + this._primary_key + cnt);
-                bind[this._primary_key + cnt] = vals[key];
+                wh.push(":" + this.primaryKey + cnt);
+                bind[this.primaryKey + cnt] = vals[key];
                 ++cnt;
             }
-            sql += "WHERE " + this._primary_key + " IN (" + wh.join(",") + ")";
+            sql += "WHERE " + this.primaryKey + " IN (" + wh.join(",") + ")";
         }
-        return this.get_lock(this._primary_key, query.primary_key, () => {
+        return this.getLock(this.primaryKey, query.primaryKey, () => {
             return this.query(sql, bind)
                 .then(res => {
-                    if (this._cache) {
-                        return this._cache_delete_primary(vals);
+                    if (this.cache) {
+                        return this.cacheDeletePrimary(vals);
                     }
                 })
         })
@@ -679,47 +679,47 @@ class Model {
             });
     }
 
-    _table(){
-        return this._table_name;
+    getTable(){
+        return this.tableName;
     }
 
-    _select(raw=""){
+    select(raw=""){
         if (raw) {
             return "SELECT " + raw + " ";
         }
         return "SELECT "
-            + Object.keys(this._fields).join(",")
-            + (this._timestamps && this._timestamps.created ? ",UNIX_TIMESTAMP(" + this._timestamps.created.name + ") AS " + this._timestamps.created.name : "")
-            + (this._timestamps && this._timestamps.modified ? ",UNIX_TIMESTAMP(" + this._timestamps.modified.name + ") AS " + this._timestamps.modified.name : "")
+            + Object.keys(this.fields).join(",")
+            + (this.timestamps && this.timestamps.created ? ",UNIX_TIMESTAMP(" + this.timestamps.created.name + ") AS " + this.timestamps.created.name : "")
+            + (this.timestamps && this.timestamps.modified ? ",UNIX_TIMESTAMP(" + this.timestamps.modified.name + ") AS " + this.timestamps.modified.name : "")
             + " ";
     }
 
-    _from(alias="") {
-        return "FROM " + this._table() + " " + (alias?alias + " ":"");
+    from(alias="") {
+        return "FROM " + this.getTable() + " " + (alias?alias + " ":"");
     }
 
-    _where(where){
+    where(where){
         if (!where || !Array.isArray(where) || !where.length) {
             return "";
         }
         return "WHERE " + where.join(" AND ") + " ";
     }
 
-    _group(group){
+    group(group){
         if (!group || !Array.isArray(group) || !group.length) {
             return "";
         }
         return "GROUP BY " + group.join(",") + " ";
     }
 
-    _order(order){
+    order(order){
         if (!order || !Array.isArray(order) || !order.length) {
             return "";
         }
         return "ORDER BY " + order.join(",") + " ";
     }
 
-    _limit(query){
+    limit(query){
         if (!query.limit.page || !query.limit.limit) {
             return "";
         }
@@ -729,41 +729,41 @@ class Model {
         return "LIMIT " + offset + "," + limit;
     }
 
-    _fillin(query, rows) {
-        if (!query.has_fillin()) {
+    fillin(query, rows) {
+        if (!query.hasFillin()) {
             return Promise.resolve(rows);
         }
-        if (!this._relationships) {
+        if (!this.relationships) {
             return Promise.resolve(rows);
         }
         let ids = rows ? Object.keys(rows) : [];
 
         let promises = [];
-        let promise_map = {};
-        for (let type in this._relationships) {
-            for (let table in this._relationships[type]) {
+        let promiseMap = {};
+        for (let type in this.relationships) {
+            for (let table in this.relationships[type]) {
                 if (!query.fillin[table]) {
                     continue;
                 }
                 let inp = {
                     fillin: query.fillin,
-                    return_by_id: true,
+                    outputStyle: "BY_ID",
                 };
-                if (this._relationships[type][table] && typeof this._relationships[type][table] == "object") {
+                if (this.relationships[type][table] && typeof this.relationships[type][table] == "object") {
                     inp = Object.assign(opts, inp);
                 }
-                if (type == "has_many") {
-                    inp[this._model + "_id"] = ids;
-                    promises.push(this._dataserve.run(this._db_name + "." + table + ":get_multi", inp));
+                if (type == "hasMany") {
+                    inp[this.model + "_id"] = ids;
+                    promises.push(this.dataserve.run(this.dbName + "." + table + ":getMulti", inp));
                 } else {
-                    if (type == "has_one") {
-                        inp[this._model + "_id"] = ids;
-                    } else if (type == "belongs_to") {
+                    if (type == "hasOne") {
+                        inp[this.model + "_id"] = ids;
+                    } else if (type == "belongsTo") {
                         inp["id"] = Object.keys(rows).map(key => rows[key][table+"_id"]);
                     }
-                    promises.push(this._dataserve.run(this._db_name + "." + table + ":get", inp));
+                    promises.push(this.dataserve.run(this.dbName + "." + table + ":get", inp));
                 }
-                promise_map[table] = type;
+                promiseMap[table] = type;
             }
         }
         if (!promises.length) {
@@ -773,13 +773,13 @@ class Model {
             .then(res => {
                 let fillin = {};
 
-                for (let promise_res of res) {
-                    if (!promise_res.status) {
-                        throw new Error('Fillin call failed: ' + promise_res.error);
+                for (let promiseRes of res) {
+                    if (!promiseRes.status) {
+                        throw new Error('Fillin call failed: ' + promiseRes.error);
                     }
-                    fillin[promise_res.table_name] = {
-                        type: promise_map[promise_res.table_name],
-                        result: promise_res.result,
+                    fillin[promiseRes.tableName] = {
+                        type: promiseMap[promiseRes.tableName],
+                        result: promiseRes.result,
                     };
                 }
                 
@@ -792,10 +792,10 @@ class Model {
                         if (!fillin[table].result) {
                             continue;
                         }
-                        if (["has_one", "has_many"].indexOf(fillin[table].type) !== -1) {
-                            rows[index][table] = param_fo(fillin[table].result, rows[index]["id"]);
-                        } else if (fillin[table].type == "belongs_to") {
-                            rows[index][table] = param_fo(fillin[table].result, rows[index][table + "_id"]);
+                        if (["hasOne", "hasMany"].indexOf(fillin[table].type) !== -1) {
+                            rows[index][table] = paramFo(fillin[table].result, rows[index]["id"]);
+                        } else if (fillin[table].type == "belongsTo") {
+                            rows[index][table] = paramFo(fillin[table].result, rows[index][table + "_id"]);
                         }
                     }
                 }
@@ -803,85 +803,71 @@ class Model {
             });
     }
 
-    output_cache() {
-        return this.cache().get_all()
+    outputCache() {
+        return this.cache().getAll()
             .then(result => r(true, result));
     }
 
-    db() {
-        return this._db;
+    getDb() {
+        return this.db;
     }
 
-    cache() {
-        return this._cache;
+    getCache() {
+        return this.cache;
     }
     
     query(...args) {
-        return this.db().query(...args);
+        return this.getDb().query(...args);
     }
 
-    query_multi(...args) {
-        return this.db().query_multi(...args);
+    queryMulti(...args) {
+        return this.getDb().queryMulti(...args);
     }
 
-    get_lock(field, val, func) {
+    getLock(field, val, func) {
         if (!Array.isArray(val)) {
             val = [val];
         }
-        let lock_key = [];
+        let lockKey = [];
         for (let v of val) {
-            lock_key.push(field + ":" + v);
+            lockKey.push(field + ":" + v);
         }
-        return this.lock.acquire(lock_key, func);
+        return this.lock.acquire(lockKey, func);
     }
     
-    _cache_get_primary(keys) {
-        return this._cache_get(this._primary_key, keys);
+    cacheGetPrimary(keys) {
+        return this.cacheGet(this.primaryKey, keys);
     }
 
-    _cache_get(field, keys) {
+    cacheGet(field, keys) {
         if (!Array.isArray(keys)) {
             keys = [keys];
         }
-        return this._cache.get(this._db_table, field, keys).then(cache_rows => {
+        return this.cache.get(this.dbTable, field, keys).then(cacheRows => {
             let ids = [];
             for (let key of keys) {
-                if (typeof cache_rows[key] === "undefined") {
+                if (typeof cacheRows[key] === "undefined") {
                     ids.push(key);
                 }
             }
-            return [cache_rows, ids];
+            return [cacheRows, ids];
         });
     }
 
-    _cache_set_primary(rows) {
-        return this._cache_set(this._primary_key, rows);
+    cacheSetPrimary(rows) {
+        return this.cacheSet(this.primaryKey, rows);
     }
 
-    _cache_set(field, rows) {
-        return this._cache.set(this._db_table, field, rows);
+    cacheSet(field, rows) {
+        return this.cache.set(this.dbTable, field, rows);
     }
 
-    _cache_delete_primary(keys) {
-        return this._cache_delete(this._primary_key, keys);
+    cacheDeletePrimary(keys) {
+        return this.cacheDelete(this.primaryKey, keys);
     }
 
-    _cache_delete(field, keys) {
-        return this._cache.del(this._db_table, field, keys);
-    }
-
-    _unique_input_field(query) {
-        if (typeof query[this._primary_key] !== "undefined") {
-            return this._primary_key;
-        }
-        var field = null;
-        for (let key in this._unique) {
-            if (typeof query[key] !== "undefined") {
-                field = key;
-                break;
-            }
-        }
-        return field;
+    cacheDelete(field, keys) {
+        return this.cache.del(this.dbTable, field, keys);
     }
 
 }

@@ -9,11 +9,11 @@ class Hooks {
         this.post = [];
     }
     
-    add_pre(func) {
+    addPre(func) {
         this.pre.push(func);
     }
     
-    run_pre(query){
+    runPre(query){
         let promises = [];
         for (let hook of this.pre) {
             promises.push(hook(query));
@@ -24,11 +24,11 @@ class Hooks {
             });
     }
 
-    add_post(func) {
+    addPost(func) {
         this.post.push(func);
     }
 
-    run_post(result, meta){
+    runPost(result, meta){
         let promises = [];
         for (let hook of this.post) {
             promises.push(hook(result));

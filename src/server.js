@@ -17,13 +17,13 @@ class Server {
     constructor(cli) {
         this.cli = cli;
         
-        let config_path = cli.config ? cli.config : __dirname + "/../config/example.json";
-        if (!fs.existsSync(config_path)) {
-            throw new Error("Config file not found: " + config_path);
+        let configPath = cli.config ? cli.config : __dirname + "/../config/example.json";
+        if (!fs.existsSync(configPath)) {
+            throw new Error("Config file not found: " + configPath);
         }
-        let dotenv_path = cli.env ? cli.env : null;
+        let dotenvPath = cli.env ? cli.env : null;
 
-        this.dataserve = new Dataserve(config_path, dotenv_path);
+        this.dataserve = new Dataserve(configPath, dotenvPath);
         this.server = this.createServer();
 
         let listen = cli.port ? cli.port : 6380;
@@ -64,7 +64,7 @@ class Server {
         //console.log("QUERY", input);
 
         const command = input[0].toLowerCase();
-        const time_start = microtime.now();
+        const timeStart = microtime.now();
         
         switch (command) {
         case "ds_add":
@@ -76,20 +76,20 @@ class Server {
         case "ds_remove":
         case "ds_remove_multi":
             {
-                let db_table = input[1], payload = {};
+                let dbTable = input[1], payload = {};
                 try {
                     payload = JSON.parse(input[2]);
                 } catch (error) {}
-                this.dataserve.run(db_table + ":" + command.substr(3), payload)
+                this.dataserve.run(dbTable + ":" + command.substr(3), payload)
                     .then(output => {
-                        let time_run = (microtime.now() - time_start) / 1000000;
+                        let timeRun = (microtime.now() - timeStart) / 1000000;
                         if (output.status) {
                             if (process.env.APP_DEBUG) {
-                                console.log(time_run, "CALL SUCCESS");
+                                console.log(timeRun, "CALL SUCCESS");
                             }
                         } else {
                             if (process.env.APP_DEBUG) {
-                                console.log(time_run, "CALL FAIL:", JSON.stringify(output));//, util.inspect(output, false, null));
+                                console.log(timeRun, "CALL FAIL:", JSON.stringify(output));//, util.inspect(output, false, null));
                             }
                         }
                         response.encode(JSON.stringify(output));

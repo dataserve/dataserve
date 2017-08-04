@@ -2,7 +2,6 @@
 
 const util = require("util");
 
-const {r, int_array} = require("./util");
 const Cache = require("./cache");
 const Config = require("./config");
 const DB = require("./db");
@@ -11,50 +10,49 @@ const Query = require("./query");
 
 class Dataserve {
 
-    constructor(config_path, dotenv_path){
+    constructor(configPath, dotenvPath){
         //required if dotenv file not already loaded
-        if (dotenv_path) {
-            require('dotenv').config({path: dotenv_path});
+        if (dotenvPath) {
+            require('dotenv').config({path: dotenvPath});
         }
         
-        this._model_class = Model;
-        this._db = new DB;
-        this._cache = new Cache;
+        this.modelClass = Model;
+        this.db = new DB;
+        this.cache = new Cache;
 
-        this._config = new Config(config_path);
+        this.config = new Config(configPath);
         
-        this._model = {};
-        this._db_default = null;
-        if (this._config.db._default_) {
-            this._db_default = this._config.db._default_;
+        this.model = {};
+        this.dbDefault = null;
+        if (this.config.db._default_) {
+            this.dbDefault = this.config.db._default_;
         }
     }
 
-    db_table(db_table) {
-        if (db_table.split(".").length == 1) {
-            if (!this._db_default) {
-                throw new Error("No DB specified & config missing default DB");
+    dbTable(dbTable) {
+        if (dbTable.split(".").length == 1) {
+            if (!this.dbDefault) {
+                throw new Error("No DB specified & config missing default DB, check environment variables or specify .env path");
             }
-            return this._db_default + "." + db_table;
+            return this.dbDefault + "." + dbTable;
         }
-        return db_table;
+        return dbTable;
     }
     
-    get_model(db_table) {
-        if (!this._model[db_table]) {
-            this._model[db_table] = new this._model_class(this, this._config, this._db, this._cache, db_table);
+    getModel(dbTable) {
+        if (!this.model[dbTable]) {
+            this.model[dbTable] = new this.modelClass(this, this.config, this.db, this.cache, dbTable);
             if (process.env.APP_DEBUG) {
-                console.log("CREATED", db_table);
+                console.log("CREATED", dbTable);
             }
         }
-        return this._model[db_table];
+        return this.model[dbTable];
     }
     
-    run(db_table_command, input){
-        let [db_table, command] = db_table_command.split(":");
-        db_table = this.db_table(db_table);
-               
-        return this.get_model(db_table).run(command, input);
+    run(dbTableCommand, input){
+        let [dbTable, command] = dbTableCommand.split(":");
+        dbTable = this.dbTable(dbTable);
+        return this.getModel(dbTable).run(command, input);
     }
     
 }

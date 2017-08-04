@@ -6,18 +6,18 @@ const microtime = require('microtime');
 
 class MySql {
     
-    constructor(db_name, config){
+    constructor(dbName, config){
         this.debug = process.env.APP_DEBUG;
         
         if (!config.connectionLimit) {
             config.connectionLimit = 10;
         }
-        this._pool = mysql.createPool({
+        this.pool = mysql.createPool({
             connectionLimit: config.connectionLimit,
             host: config.host,
             user: config.user,
             password: config.password,
-            database: db_name,
+            database: dbName,
             multipleStatements: true,
         });
         this._query("SHOW VARIABLES LIKE 'max_connections'")
@@ -28,61 +28,61 @@ class MySql {
             });
     }
 
-    query(sql, bind={}, ret_type=null) {
-        var force_master = false;
-        if (this._master) {
-            force_master = true;
-            this._master = false;
+    query(sql, bind={}, retType=null) {
+        var forceMaster = false;
+        if (this.master) {
+            forceMaster = true;
+            this.master = false;
         }
         
-        var query_type = sql.substring(0, 8).toUpperCase();
-        if (query_type.indexOf("SELECT") == 0) {
-            query_type = "SELECT";
-        } else if (query_type.indexOf("UPDATE") == 0) {
-            query_type = "UPDATE";
-        } else if (query_type.indexOf("INSERT") == 0) {
-            query_type = "INSERT";
-        } else if (query_type.indexOf("REPLACE") == 0) {
-            query_type = "REPLACE";
-        } else if (query_type.indexOf("DELETE") == 0
-                   || query_type.indexOf("TRUNCATE") == 0) {
-            query_type = "DELETE";
+        var queryType = sql.substring(0, 8).toUpperCase();
+        if (queryType.indexOf("SELECT") == 0) {
+            queryType = "SELECT";
+        } else if (queryType.indexOf("UPDATE") == 0) {
+            queryType = "UPDATE";
+        } else if (queryType.indexOf("INSERT") == 0) {
+            queryType = "INSERT";
+        } else if (queryType.indexOf("REPLACE") == 0) {
+            queryType = "REPLACE";
+        } else if (queryType.indexOf("DELETE") == 0
+                   || queryType.indexOf("TRUNCATE") == 0) {
+            queryType = "DELETE";
         } else {
-            query_type = null;
+            queryType = null;
         }
 
-        return this._query(sql, bind, force_master)
+        return this._query(sql, bind, forceMaster)
             .then(rows => {
-                if (query_type == "SELECT") {
-                    if (typeof(ret_type) === "boolean" && ret_type) {
+                if (queryType == "SELECT") {
+                    if (typeof(retType) === "boolean" && retType) {
                         if (!rows.length) {
                             return {};
                         }
                         return rows[0];
                     }
-                    if (typeof(ret_type) === "string") {
+                    if (typeof(retType) === "string") {
                         if (!rows.length) {
                             return {};
                         }
                         let res = {};
                         for (let row in rows) {
-                            res[rows[row][ret_type]] = rows[row];
+                            res[rows[row][retType]] = rows[row];
                         }
                         return res;
                     }
                     return rows;
                 }
-                if (query_type == "INSERT") {
+                if (queryType == "INSERT") {
                     return {
                         insertId: rows.insertId,
                     };
                 }
-                if (query_type == "DELETE") {
+                if (queryType == "DELETE") {
                     return {
                         affectedRows: rows.affectedRows,
                     };
                 }
-                if (query_type == "UPDATE" || query_type == "REPLACE") {
+                if (queryType == "UPDATE" || queryType == "REPLACE") {
                     return {
                         affectedRows: rows.affectedRows,
                         changedRows: rows.changedRows,
@@ -92,46 +92,46 @@ class MySql {
             });
     }
 
-    query_multi(input) {
-        var force_master = false;
-        if (this._master) {
-            force_master = true;
-            this._master = false;
+    queryMulti(input) {
+        var forceMaster = false;
+        if (this.master) {
+            forceMaster = true;
+            this.master = false;
         }
 
-        let queries = [], sql_concat = [];
+        let queries = [], sqlConcat = [];
         for (let sql of input) {
             let query = {};
-            let query_type = sql.substring(0, 8).toUpperCase();
-            if (query_type.indexOf("SELECT") == 0) {
-                query_type = "SELECT";
-            } else if (query_type.indexOf("UPDATE") == 0) {
-                query_type = "UPDATE";
-            } else if (query_type.indexOf("INSERT") == 0) {
-                query_type = "INSERT";
-            } else if (query_type.indexOf("REPLACE") == 0) {
-                query_type = "REPLACE";
-            } else if (query_type.indexOf("DELETE") == 0
-                       || query_type.indexOf("TRUNCATE") == 0) {
-                query_type = "DELETE";
+            let queryType = sql.substring(0, 8).toUpperCase();
+            if (queryType.indexOf("SELECT") == 0) {
+                queryType = "SELECT";
+            } else if (queryType.indexOf("UPDATE") == 0) {
+                queryType = "UPDATE";
+            } else if (queryType.indexOf("INSERT") == 0) {
+                queryType = "INSERT";
+            } else if (queryType.indexOf("REPLACE") == 0) {
+                queryType = "REPLACE";
+            } else if (queryType.indexOf("DELETE") == 0
+                       || queryType.indexOf("TRUNCATE") == 0) {
+                queryType = "DELETE";
             } else {
-                query_type = null;
+                queryType = null;
             }
             query = {
                 sql: sql,
-                type: query_type
+                type: queryType
             };
             queries.push(query);
-            sql_concat.push(sql);
+            sqlConcat.push(sql);
         }
-        return this._query(sql_concat.join(";"))
+        return this._query(sqlConcat.join(";"))
             .then(results => {
                 var output = [];
                 for (let index in results) {
                     let query = queries[index];
                     let rows = results[index];
                     if (query.type == "SELECT") {
-                        if (typeof(ret_type) === "boolean" && ret_type) {
+                        if (typeof(retType) === "boolean" && retType) {
                             if (rows.length) {
                                 output.push(rows[0]);
                             } else {
@@ -139,13 +139,13 @@ class MySql {
                             }
                             continue;
                         }
-                        if (typeof(ret_type) === "string") {
+                        if (typeof(retType) === "string") {
                             if (!rows.length) {
                                 output.push({});
                             } else {
                                 let res = {};
                                 for (let row in rows) {
-                                    res[rows[row][ret_type]] = rows[row];
+                                    res[rows[row][retType]] = rows[row];
                                 }
                                 output.push(res);
                             }
@@ -180,9 +180,9 @@ class MySql {
             });
     }
     
-    _query(sql, bind, force_master, db_override){
+    _query(sql, bind, forceMaster, dbOverride){
         return new Promise((resolve, reject) => {
-            this._pool.getConnection((err, connection) => {
+            this.pool.getConnection((err, connection) => {
                 if (err) {
                     return reject(err);
                 }
@@ -198,14 +198,14 @@ class MySql {
                     });
                 };
 
-                var time_start = null;
+                var timeStart = null;
                 if (this.debug) {
-                    time_start = microtime.now();
+                    timeStart = microtime.now();
                 }
 
                 connection.query(sql, bind, (error, results, fields) => {
                     if (this.debug) {
-                        console.log((microtime.now() - time_start) / 1000000, sql, bind);
+                        console.log((microtime.now() - timeStart) / 1000000, sql, bind);
                     }
                     connection.release();
 
