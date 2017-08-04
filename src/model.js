@@ -217,6 +217,7 @@ class Model {
     }
     
     addRelationship(type, table){
+        type = camelize(type);
         if (["belongsTo", "hasOne"].indexOf(type) == -1) {
             return;
         }
