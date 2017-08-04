@@ -7,9 +7,10 @@ const net = require('net');
 const Parser = require('redis-parser');
 const util = require("util");
 
-const {r} = require("./util");
 const Dataserve = require("./dataserve");
+const {version} = require('../package.json');
 const {Response} = require('./server/encoder');
+const {r} = require("./util");
 
 class Server {
     
@@ -130,7 +131,7 @@ class Server {
     }
 }
 
-cli.version('0.0.2')
+cli.version(version)
     .option('-c, --config <path>', 'Config File path')
     .option('-e, --env <path>', 'Load .env path')
     .option('-p, --port <n>', 'Port', parseInt)
