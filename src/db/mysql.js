@@ -12,14 +12,18 @@ class MySql {
         if (!config.connectionLimit) {
             config.connectionLimit = 10;
         }
-        this.pool = mysql.createPool({
+        let opt = {
             connectionLimit: config.connectionLimit,
             host: config.host,
             user: config.user,
             password: config.password,
             database: dbName,
             multipleStatements: true,
-        });
+        };
+        if (config.port) {
+            opt.port = config.port;
+        }
+        this.pool = mysql.createPool(opt);
         this._query("SHOW VARIABLES LIKE 'max_connections'")
             .then(rows => {
                 if (rows[0].Value < config.connectionLimit) {
@@ -28,13 +32,7 @@ class MySql {
             });
     }
 
-    query(sql, bind={}, retType=null) {
-        var forceMaster = false;
-        if (this.master) {
-            forceMaster = true;
-            this.master = false;
-        }
-        
+    query(sql, bind={}, retType=null, forceMaster=false) {
         var queryType = sql.substring(0, 8).toUpperCase();
         if (queryType.indexOf("SELECT") == 0) {
             queryType = "SELECT";
@@ -92,13 +90,7 @@ class MySql {
             });
     }
 
-    queryMulti(input) {
-        var forceMaster = false;
-        if (this.master) {
-            forceMaster = true;
-            this.master = false;
-        }
-
+    queryMulti(input, forceMaster=false) {
         let queries = [], sqlConcat = [];
         for (let sql of input) {
             let query = {};
@@ -180,7 +172,7 @@ class MySql {
             });
     }
     
-    _query(sql, bind, forceMaster, dbOverride){
+    _query(sql, bind, forceMaster){
         return new Promise((resolve, reject) => {
             this.pool.getConnection((err, connection) => {
                 if (err) {

@@ -5,9 +5,10 @@
             "db": {
                 "type": null,
                 "host": null,
+                "port": null,
                 "user": null,
                 "password": null,
-                "connectionLimit": 150
+                "connectionLimit": null,
             },
             "cache": {
                 "type": "js",

@@ -27,7 +27,11 @@ class Config {
                 }
                 //hostname
                 if (dbParam[1].length) {
-                    this.db[db].db.hostname = dbParam[1];
+                    let [host, port] = dbParam[1].split(":");
+                    this.db[db].db.host = host;
+                    if (port) {
+                        this.db[db].db.port = parseInt(port, 10);
+                    }
                 }
                 //user
                 if (dbParam[2].length) {
@@ -36,6 +40,10 @@ class Config {
                 //password
                 if (dbParam[3].length) {
                     this.db[db].db.password = dbParam[3];
+                }
+                //connection limit
+                if (dbParam[4].length) {
+                    this.db[db].db.connectionLimit = parseInt(dbParam[4], 10);
                 }
             }
         }
