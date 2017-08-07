@@ -22,11 +22,11 @@ class Config {
                 }
                 let dbParam = process.env["DB_" + db].split(",");
                 //type
-                if (dbParam[0].length) {
+                if (dbParam[0] && dbParam[0].length) {
                     this.db[db].db.type = dbParam[0];
                 }
                 //hostname
-                if (dbParam[1].length) {
+                if (dbParam[1] && dbParam[1].length) {
                     let [host, port] = dbParam[1].split(":");
                     this.db[db].db.host = host;
                     if (port) {
@@ -34,15 +34,15 @@ class Config {
                     }
                 }
                 //user
-                if (dbParam[2].length) {
+                if (dbParam[2] && dbParam[2].length) {
                     this.db[db].db.user = dbParam[2];
                 }
                 //password
-                if (dbParam[3].length) {
+                if (dbParam[3] && dbParam[3].length) {
                     this.db[db].db.password = dbParam[3];
                 }
                 //connection limit
-                if (dbParam[4].length) {
+                if (dbParam[4] && dbParam[4].length) {
                     this.db[db].db.connectionLimit = parseInt(dbParam[4], 10);
                 }
             }
