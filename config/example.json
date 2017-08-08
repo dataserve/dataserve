@@ -94,7 +94,7 @@
                     }
                 },
                 "user_stat": {
-                    "set_insert": true,
+                    "setInsert": true,
                     "timestamps": null,
                     "fields": {
                         "user_id": {
