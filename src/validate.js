@@ -1,5 +1,6 @@
 "use strict"
 
+const Promise = require("bluebird");
 const Type = require('type-of-is');
 
 const {camelize} = require("./util");

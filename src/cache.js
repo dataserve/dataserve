@@ -1,8 +1,9 @@
-'use strict'
+"use strict"
 
 class Cache {
 
-    constructor(){
+    constructor(log) {
+        this.log = log;
         this.dbs = {};
     }
     
@@ -18,15 +19,16 @@ class Cache {
         switch (dbConfig.type) {
         case "js":
             let CacheJS = require("./cache/js");
-            this.dbs[dbKey] = new CacheJS(dbConfig);
+            this.dbs[dbKey] = new CacheJS(dbConfig, this.log);
             break;
         case "memcache":
+        case "memcached":
             let CacheMemcache = require("./cache/memcache");
-            this.dbs[dbKey] = new CacheMemcache(dbConfig);
+            this.dbs[dbKey] = new CacheMemcache(dbConfig, this.log);
             break;
         case "redis":
             let CacheRedis = require("./cache/redis");
-            this.dbs[dbKey] = new CacheRedis(dbConfig);
+            this.dbs[dbKey] = new CacheRedis(dbConfig, this.log);
             break;
         default:
             throw new Error("unknown Cache type: " + dbConfig.type);

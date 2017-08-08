@@ -11,7 +11,7 @@
                 "connectionLimit": null
             },
             "cache": {
-                "type": "redis"
+                "type": "memcache"
             },
             "tables": {
                 "user": {

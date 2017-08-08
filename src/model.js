@@ -1,6 +1,7 @@
 "use strict"
 
-const AsyncLock = require('async-lock');
+const AsyncLock = require("async-lock");
+const Promise = require("bluebird");
 const _object = require("lodash/object");
 
 const Query = require("./query");
@@ -18,10 +19,11 @@ const ALLOWED_COMMANDS = [
 
 class Model {
 
-    constructor(dataserve, config, dbContainer, cacheContainer, dbTable){
+    constructor(dataserve, config, dbContainer, cacheContainer, dbTable, log){
         this.dataserve = dataserve;
         this.dbContainer = dbContainer;
         this.cacheContainer = cacheContainer;
+        this.log = log;
 
         this.lock = new AsyncLock();
 
@@ -240,7 +242,9 @@ class Model {
         var primaryKeyVal = null;
         return hooks.runPre(query)
             .then(() => {
-                return this.getDb().add(this, query);
+                return this.log.add("db,db:add", () => {
+                    return this.getDb().add(this, query);
+                });
             })
             .then(primaryKeyValTmp => {
                 primaryKeyVal = primaryKeyValTmp;

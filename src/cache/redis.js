@@ -8,7 +8,8 @@ bluebird.promisifyAll(redis.Multi.prototype);
 
 class CacheRedis {
 
-    constructor(config) {
+    constructor(config, log) {
+        this.log = log;
         this.cache = redis.createClient(config);
     }
 
@@ -18,7 +19,9 @@ class CacheRedis {
     
     getAll() {
         let output = {};
-        return this.cache.keysAsync("*")
+        return this.log.add("cache,cache:getAll", () => {
+            return this.cache.keysAsync("*");
+        })
             .then(cacheKeys => {
                 if (!cacheKeys.length) {
                     return [];
@@ -40,7 +43,9 @@ class CacheRedis {
             }
         }
         let output = {};
-        return this.cache.mgetAsync(cacheKeys)
+        return this.log.add("cache,cache:get", () => {
+            return this.cache.mgetAsync(cacheKeys)
+        })
             .then(res => {
                 let output = {};
                 for (let key of keys) {
@@ -61,7 +66,9 @@ class CacheRedis {
             input.push(this.key(dbTable, field, key));
             input.push(val);
         }
-        return this.cache.msetAsync(input)
+        return this.log.add("cache,cache:set", () => {
+            return this.cache.msetAsync(input);
+        })
             .then(res => {
                 return vals;
             });
@@ -75,11 +82,15 @@ class CacheRedis {
         for (let key of keys) {
             cacheKeys.push(this.key(dbTable, field, key));
         }
-        return this.cache.delAsync(cacheKeys);
+        return this.log.add("cache,cache:del", () => {
+            return this.cache.delAsync(cacheKeys);
+        });
     }
 
     delAll() {
-        return this.cache.flushdbAsync();
+        return this.log.add("cache,cache:delAll", () => {
+            this.cache.flushdbAsync();
+        });
     }
     
 }

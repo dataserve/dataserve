@@ -1,5 +1,6 @@
 'use strict'
 
+const Promise = require("bluebird");
 const microtime = require('microtime');
 const mysql = require('mysql');
 const Type = require('type-of-is');
@@ -9,8 +10,9 @@ const {intArray, r} = require("../util");
 
 class MySql {
     
-    constructor(dbName, config){
+    constructor(dbName, config, log){
         this.debug = require("debug")("dataserve:mysql");
+        this.log = log;
         this.replicated = false;
 
         if (config.write && config.read) {
@@ -112,7 +114,9 @@ class MySql {
             primaryKeyVal = query.fields[model.primaryKey];
         }
         let sql = "INSERT INTO " + model.getTable() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
-        return this.query(sql, bind)
+        return this.log.add("db,db:add", () => {
+            return this.query(sql, bind);
+        })
             .then(res => {
                 if (!primaryKeyVal) {
                     primaryKeyVal = res.insertId;
@@ -139,8 +143,9 @@ class MySql {
         let sql = this.select(model);
         sql += this.from(model);
         sql += this.where(where);
-        console.log("PRIMARY", model.primaryKey);
-        return this.query(sql, bind, model.primaryKey, "write")
+        return this.log.add("db,db:get", () => {
+            return this.query(sql, bind, model.primaryKey, "write")
+        });
     }
 
     getMulti(model, query) {
@@ -158,7 +163,9 @@ class MySql {
         } else {
             return Promise.resolve(r(false, "invalid field type for multi get:" + model.getField(query.getMulti.field)));
         }
-        return this.queryMulti(queries);
+        return this.log.add("db,db:getMulti", () => {
+            return this.queryMulti(queries);
+        });
     }
 
     inc(model, query) {
@@ -174,9 +181,11 @@ class MySql {
         let sql = "UPDATE " + model.getTable() + " SET ";
         sql += updates.join(",");
         sql += "WHERE " + this.primaryKey + " IN (" + vals.join(",") + ")";
-        return this.query(sql);
+        return this.log.add("db,db:inc", () => {
+            return this.query(sql);
+        });
     }
-
+    
     lookup(model, query) {
         let sqlSelect = "SELECT " + query.alias + "." + model.primaryKey + " "
         let sql = this.from(model, query.alias);
@@ -206,19 +215,26 @@ class MySql {
         }
 
         if (query.isOutputStyle("FOUND_ONLY")) {
-            return this.query(sqlCnt, query.bind, true).then(row => {
-                let meta = {
-                    pages: query.limit.limit ? Math.ceil(row.cnt/query.limit.limit) : null,
-                    found: row.cnt,
-                };
-                return Promise.reject(r(true, [], meta));
+            return this.log.add("db,db:lookup:found", () => {
+                return this.query(sqlCnt, query.bind, true);
+            })
+                .then(row => {
+                    let meta = {
+                        pages: query.limit.limit ? Math.ceil(row.cnt/query.limit.limit) : null,
+                        found: row.cnt,
+                    };
+                    return Promise.reject(r(true, [], meta));
             });
         }
         
-        return this.query(sqlRows, query.bind, model.primaryKey)
+        return this.log.add("db,db:lookup", () => {
+            return this.query(sqlRows, query.bind, model.primaryKey)
+        })
             .then(rows => {
                 if (query.isOutputStyle("INCLUDE_FOUND")) {
-                    return this.query(sqlCnt, query.bind, true).then(found => [rows, found["cnt"]]);
+                    return this.log.add("db,db:lookup:found", () => {
+                        return this.query(sqlCnt, query.bind, true).then(found => [rows, found["cnt"]]);
+                    });
                 } else {
                     return [rows, null];
                 }
@@ -270,7 +286,9 @@ class MySql {
                 bind[model.primaryKey] = query.primaryKey;
             }
         }
-        return this.query(sql, bind);
+        return this.log.add("db,db:set", () => {
+            return this.query(sql, bind);
+        });
     }
 
     remove(model, query) {
@@ -294,7 +312,9 @@ class MySql {
             }
             sql += "WHERE " + model.primaryKey + " IN (" + wh.join(",") + ")";
         }
-        return this.query(sql, bind);
+        return this.log.add("db,db:remove", () => {
+            return this.query(sql, bind);
+        });
     }
 
     select(model, raw=""){

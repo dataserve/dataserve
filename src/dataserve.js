@@ -5,6 +5,7 @@ const util = require("util");
 const Cache = require("./cache");
 const Config = require("./config");
 const DB = require("./db");
+const Log = require("./log");
 const Model = require("./model");
 const Query = require("./query");
 
@@ -17,8 +18,10 @@ class Dataserve {
         }
         
         this.modelClass = Model;
-        this.db = new DB;
-        this.cache = new Cache;
+        this.log = new Log;
+        
+        this.db = new DB(this.log);
+        this.cache = new Cache(this.log);
 
         this.config = new Config(configPath);
         
@@ -41,7 +44,7 @@ class Dataserve {
     
     getModel(dbTable) {
         if (!this.model[dbTable]) {
-            this.model[dbTable] = new this.modelClass(this, this.config, this.db, this.cache, dbTable);
+            this.model[dbTable] = new this.modelClass(this, this.config, this.db, this.cache, dbTable, this.log);
             if (process.env.APP_DEBUG) {
                 console.log("CREATED", dbTable);
             }

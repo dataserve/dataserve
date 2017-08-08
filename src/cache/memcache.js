@@ -1,10 +1,12 @@
 "use strict"
 
-const Memcache = require('memcached-promisify');
+const Promise = require("bluebird");
+const Memcache = require("memcached");
 
 class CacheMemcache {
 
-    constructor(config) {
+    constructor(config, log) {
+        this.log = log;
         //ignore "type" key
         if (1 < Object.keys(config)) {
             if (!config.hosts) {
@@ -14,6 +16,12 @@ class CacheMemcache {
         } else {
             this.cache = new Memcache();
         }
+        this.promisify = {
+            getMulti: Promise.promisify(this.cache.getMulti, {context: this.cache}),
+            set: Promise.promisify(this.cache.set, {context: this.cache}),
+            del: Promise.promisify(this.cache.del, {context: this.cache}),
+            flush: Promise.promisify(this.cache.flush, {context: this.cache}),
+        };
     }
 
     key(dbTable, field, key) {
@@ -34,7 +42,9 @@ class CacheMemcache {
             lookup[key] = this.key(dbTable, field, key);
         }
         let output = {};
-        return this.cache.getMulti(cacheKeys)
+        return this.log.add("cache,cache:get", () => {
+            return this.promisify.getMulti(cacheKeys);
+        })
             .then(res => {
                 let output = {};
                 for (let key of keys) {
@@ -52,9 +62,11 @@ class CacheMemcache {
         let promises = [];
         for (let key in vals) {
             let val = JSON.stringify(vals[key]);
-            promises.push(this.cache.set(this.key(dbTable, field, key), val, 0));
+            promises.push(this.promisify.set(this.key(dbTable, field, key), val, 0));
         }
-        return Promise.all(promises);
+        return this.log.add("cache,cache:set", () => {
+            return Promise.all(promises);
+        });
     }
 
     del(dbTable, field, keys) {
@@ -63,16 +75,16 @@ class CacheMemcache {
         }
         let promises = [];
         for (let key of keys) {
-            promises.push(this.cache.del(this.key(dbTable, field, key)));
+            promises.push(this.promisify.del(this.key(dbTable, field, key)));
         }
-        return Promise.all(promises);
+        return this.log.add("cache,cache:del", () => {
+            return Promise.all(promises);
+        });
     }
 
     delAll() {
-        return new Promise((resolve, reject) => {
-            this.cache._cache.flush(() => {
-                resolve();
-            });
+        return this.log.add("cache,cache:delAll", () => {
+            return this.promisify.flush();
         });
     }
     

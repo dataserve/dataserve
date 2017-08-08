@@ -91,14 +91,18 @@ class Server {
                         if (output.status) {
                             this.debug(timeRun, "CALL SUCCESS");
                         } else {
-                            this.debug(timeRun, "CALL FAIL:", JSON.stringify(output));//, util.inspect(output, false, null));
+                            this.debug(timeRun, "CALL FAIL", JSON.stringify(output));//, util.inspect(output, false, null));
                         }
                         response.encode(JSON.stringify(output));
                     })
-                    .catch(() => {
+                    .catch((err) => {
+                        this.debug("CALL FAIL:", err);
                         response.encode(JSON.stringify(r(false, "Unknown error")));
                     });
             }
+            break;
+        case "ds_log":
+            response.encode(JSON.stringify(r(true, this.dataserve.log.getAll())));
             break;
         case "command":
             {

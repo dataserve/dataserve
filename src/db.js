@@ -2,7 +2,8 @@
 
 class DB {
 
-    constructor(){
+    constructor(log){
+        this.log = log;
         this.dbs = {};
     }
     
@@ -18,7 +19,7 @@ class DB {
         switch (dbConfig.type) {
         case "mysql":
             let MySql = require("./db/mysql");
-            this.dbs[dbKey] = new MySql(dbName, dbConfig);
+            this.dbs[dbKey] = new MySql(dbName, dbConfig, this.log);
             break;
         default:
             throw new Error("unknown DB type: " + dbConfig.type);

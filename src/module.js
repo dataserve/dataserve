@@ -1,5 +1,7 @@
 "use strict"
 
+const Promise = require("bluebird");
+
 const Hooks = require("./hooks");
 const Validate = require("./validate");
 const {intArray} = require("./util");
