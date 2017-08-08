@@ -250,18 +250,18 @@ class MySql {
             sql = "UPDATE " + model.getTable() + " SET ";
             for (let field in query.fields) {
                 if (model.getField(field).type == "int") {
-                    updates.push(field + "=" + parseInt(query.fields[field], 10) + " ");
+                    updates.push(field + "=" + parseInt(query.fields[field], 10));
                 } else {
-                    updates.push(field + "=:" + field + " ");
+                    updates.push(field + "=:" + field);
                     bind[field] = query.fields[field];
                 }
             }
             sql += updates.join(",") + " ";
-            if (query.custom) {
-                if (updates) {
+            if (query.custom.length) {
+                if (updates.length) {
                     sql += ",";
                 }
-                sql += custom.join(",") + " ";
+                sql += query.custom.join(",") + " ";
             }
             if (model.getField(model.primaryKey).type == "int") {
                 sql += "WHERE " + model.primaryKey + "=" + parseInt(query.primaryKey, 10);

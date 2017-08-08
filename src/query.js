@@ -1,6 +1,7 @@
 "use strict"
 
 const ALLOWED_OUTPUT_STYLE = [
+    "RETURN_ADD",
     "BY_ID",
     "INCLUDE_FOUND",
     "FOUND_ONLY",

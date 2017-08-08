@@ -251,10 +251,13 @@ class Model {
                 }
             })
             .then(res => {
-                return this.run("get", {
-                    [this.primaryKey]: primaryKeyVal,
-                    fillin: query.fillin,
-                });
+                if (query.isOutputStyle("RETURN_ADD")) {
+                    return this.run("get", {
+                        [this.primaryKey]: primaryKeyVal,
+                        fillin: query.fillin,
+                    });
+                }
+                return null;
             })
             .catch(this.catchDefault);
     }
