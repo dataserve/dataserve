@@ -62,7 +62,7 @@ class Module {
     lookup(hooks) {
         hooks.addPre(query => {
             return new Promise((resolve, reject) => {
-                let tableConfig = this.model.tableConfig();
+                let tableConfig = this.model.getTableConfig();
                 let where = [], bind = {}, input = null;
                 if (input = query.raw('=')) {
                     for (let field in input) {

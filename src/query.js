@@ -280,7 +280,7 @@ class Query {
             if (!this.validOutputStyle(st)) {
                 continue;
             }
-            styleValid.push(style);
+            styleValid.push(st);
         }
         this.outputStyle = styleValid;
     }

@@ -73,6 +73,7 @@ class Server {
         case "ds_add":
         case "ds_flush_cache":
         case "ds_get":
+        case "ds_get_count":
         case "ds_get_multi":
         case "ds_lookup":
         case "ds_output_cache":

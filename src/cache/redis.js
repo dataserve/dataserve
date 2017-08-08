@@ -73,9 +73,9 @@ class CacheRedis {
         }
         let cacheKeys = [];
         for (let key of keys) {
-            cacheKeys.push(this.cacheKey(dbTable, field, key));
+            cacheKeys.push(this.key(dbTable, field, key));
         }
-        return this.cache.delAsync(input);
+        return this.cache.delAsync(cacheKeys);
     }
 
     delAll() {

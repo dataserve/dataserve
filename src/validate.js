@@ -98,9 +98,9 @@ class Validate {
             }
             let handler = "validate" + rule.charAt(0).toUpperCase() + rule.slice(1);
             if (PROMISE_RULES.indexOf(rule) !== -1) {
-                promises.push(this["validate_" + rule](extra, field, val, type, errors));
+                promises.push(this[handler](extra, field, val, type, errors));
             } else {
-                if (this["validate_" + rule](extra, field, val, type) === false) {
+                if (this[handler](extra, field, val, type) === false) {
                     this.addError(rule, extra, field, val, type, errors);
                 }
             }

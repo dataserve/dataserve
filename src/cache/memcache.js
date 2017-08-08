@@ -63,7 +63,7 @@ class CacheMemcache {
         }
         let promises = [];
         for (let key of keys) {
-            promises.push(this.cache.del(this.cacheKey(dbTable, field, key)));
+            promises.push(this.cache.del(this.key(dbTable, field, key)));
         }
         return Promise.all(promises);
     }
