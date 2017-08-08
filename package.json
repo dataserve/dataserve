@@ -9,6 +9,7 @@
   "description": "backend data service - proof of concept",
   "dependencies": {
     "async-lock": "^1.0.0",
+    "bluebird": "^3.5.0",
     "commander": "^2.11.0",
     "debug": "^2.6.8",
     "dotenv": "^4.0.0",

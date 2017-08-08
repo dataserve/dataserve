@@ -42,12 +42,7 @@ class CacheMemcache {
                     if (typeof val === "undefined") {
                         continue;
                     }
-                    if (val === "<null>") {
-                        val = null;
-                    } else {
-                        val = JSON.parse(val);
-                    }
-                    output[key] = val;
+                    output[key] = JSON.parse(val);
                 }
                 return output;
             });
@@ -56,12 +51,7 @@ class CacheMemcache {
     set(dbTable, field, vals) {
         let promises = [];
         for (let key in vals) {
-            let val = vals[key];
-            if (val === null) {
-                val = "<null>";
-            } else {
-                val = JSON.stringify(val);
-            }
+            let val = JSON.stringify(vals[key]);
             promises.push(this.cache.set(this.key(dbTable, field, key), val, 0));
         }
         return Promise.all(promises);

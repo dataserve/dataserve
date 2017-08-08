@@ -48,12 +48,7 @@ class CacheRedis {
                     if (val === null) {
                         continue;
                     }
-                    if (val === "<null>") {
-                        val = null;
-                    } else {
-                        val = JSON.parse(val);
-                    }
-                    output[key] = val;
+                    output[key] = JSON.parse(val);
                 }
                 return output;
             });
@@ -62,12 +57,7 @@ class CacheRedis {
     set(dbTable, field, vals) {
         let input = [];
         for (let key in vals) {
-            let val = vals[key];
-            if (val === null) {
-                val = "<null>";
-            } else {
-                val = JSON.stringify(val);
-            }
+            let val = JSON.stringify(vals[key]);
             input.push(this.key(dbTable, field, key));
             input.push(val);
         }

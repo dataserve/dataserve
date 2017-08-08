@@ -323,7 +323,7 @@ class Model {
                 sql += this.where(where);
 
                 return this.getLock(query.get.field, getVals, () => {
-                    return this.query(sql, bind, this.primaryKey, "read")
+                    return this.query(sql, bind, this.primaryKey, "write")
                         .then(rows => {
                             if (this.cache) {
                                 //set cache to null for vals that didn't exist in DB
@@ -339,6 +339,7 @@ class Model {
                 });
             })
             .then(rows => {
+                Object.keys(cacheRows).forEach((key) => (cacheRows[key] === null) && delete cacheRows[key]);
                 return Object.assign(cacheRows, rows);
             })
             .then(rows => {
