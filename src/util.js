@@ -3,10 +3,10 @@
 const _array = require("lodash/array");
 
 module.exports.camelize = function(str) {
-    return str.replace(/(?:^\w|[A-Z]|\b\w)/g, function(letter, index) {
-        return index == 0 ? letter.toLowerCase() : letter.toUpperCase();
-    }).replace(/\s+/g, '');
-}
+    return str.replace(/[_.-](\w|$)/g, function (_,x) {
+        return x.toUpperCase();
+    });
+};
 
 module.exports.intArray = function(arr) {
     if (!arr || !Array.isArray(arr)) {

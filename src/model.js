@@ -1,7 +1,8 @@
 "use strict"
 
-const _object = require("lodash/object");
 const AsyncLock = require('async-lock');
+const _object = require("lodash/object");
+
 const Query = require("./query");
 const {camelize, intArray, paramFo, r} = require("./util");
 
@@ -64,7 +65,7 @@ class Model {
         if (!this.dbName || !this.tableName) {
             throw new Error("Missing db/table names");
         }
-        this.dbConfig = config.db[this.dbName];
+        this.dbConfig = config.dbs[this.dbName];
         if (!this.dbConfig) {
             throw new Error("Configuration missing for db: " + this.dbName);
         }
@@ -127,7 +128,7 @@ class Model {
     run(command, input) {
         command = camelize(command);
         
-        if (command == "outputCache") {
+        if (["flushCache", "outputCache"].indexOf(command) !== -1) {
             return this[command]();
         }
 
@@ -322,7 +323,7 @@ class Model {
                 sql += this.where(where);
 
                 return this.getLock(query.get.field, getVals, () => {
-                    return this.query(sql, bind, this.primaryKey)
+                    return this.query(sql, bind, this.primaryKey, "read")
                         .then(rows => {
                             if (this.cache) {
                                 //set cache to null for vals that didn't exist in DB
@@ -330,7 +331,8 @@ class Model {
                                     obj[val] = null;
                                     return obj;
                                 }, {}), rows);
-                                return this.cacheSetPrimary(cache);
+                                return this.cacheSetPrimary(cache)
+                                    .then(() => rows);
                             }
                             return rows;
                         });
@@ -804,8 +806,13 @@ class Model {
             });
     }
 
+    flushCache() {
+        return this.cache.delAll()
+            .then(result => r(true, result));
+    }
+
     outputCache() {
-        return this.cache().getAll()
+        return this.cache.getAll()
             .then(result => r(true, result));
     }
 

@@ -1,6 +1,6 @@
 {
-    "db": {
-        "_default_": null,
+    "dbDefaut": null,
+    "dbs": {
         "dataserve": {
             "db": {
                 "type": null,
@@ -11,8 +11,7 @@
                 "connectionLimit": null
             },
             "cache": {
-                "type": "js",
-                "size": 1000
+                "type": "memcache"
             },
             "tables": {
                 "user": {

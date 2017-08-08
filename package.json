@@ -10,14 +10,17 @@
   "dependencies": {
     "async-lock": "^1.0.0",
     "commander": "^2.11.0",
+    "debug": "^2.6.8",
     "dotenv": "^4.0.0",
     "ip": "^1.1.5",
     "lodash": "^4.17.4",
     "lru-cache": "^4.1.1",
     "memcached": "^2.2.2",
+    "memcached-promisify": "^2.0.0",
     "microtime": "^2.1.6",
     "mysql": "^2.13.0",
     "redis": "^2.7.1",
+    "redis-clustr": "^1.5.2",
     "redis-parser": "^3.0.0",
     "type-of-is": "^3.5.1",
     "validator": "^8.0.0"

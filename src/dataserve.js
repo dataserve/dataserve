@@ -24,8 +24,8 @@ class Dataserve {
         
         this.model = {};
         this.dbDefault = null;
-        if (this.config.db._default_) {
-            this.dbDefault = this.config.db._default_;
+        if (this.config.dbDefault) {
+            this.dbDefault = this.config.dbDefault
         }
     }
 

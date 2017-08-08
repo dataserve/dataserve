@@ -1,7 +1,5 @@
 'use strict'
 
-//const MySql = require("./mysql");
-
 class Cache {
 
     constructor(){
@@ -23,10 +21,12 @@ class Cache {
             this.dbs[dbKey] = new CacheJS(dbConfig);
             break;
         case "memcache":
-            this.dbs[dbKey] = new Memcache(dbConfig);
+            let CacheMemcache = require("./cache/memcache");
+            this.dbs[dbKey] = new CacheMemcache(dbConfig);
             break;
         case "redis":
-            this.dbs[dbKey] = new Redis(dbName, dbConfig);
+            let CacheRedis = require("./cache/redis");
+            this.dbs[dbKey] = new CacheRedis(dbConfig);
             break;
         default:
             throw new Error("unknown Cache type: " + dbConfig.type);

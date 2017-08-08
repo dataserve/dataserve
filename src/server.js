@@ -24,6 +24,9 @@ class Server {
         let dotenvPath = cli.env ? cli.env : null;
 
         this.dataserve = new Dataserve(configPath, dotenvPath);
+
+        this.debug = require("debug")("dataserve");
+        
         this.server = this.createServer();
 
         let listen = cli.port ? cli.port : 6380;
@@ -37,7 +40,7 @@ class Server {
             if (this.cli.socket) {
                 fs.chmodSync(this.cli.socket, '777');
             }
-            console.log("Redis protocol listening on " + listen);
+            this.debug("Redis protocol listening on " + listen);
         });
     }
 
@@ -61,13 +64,14 @@ class Server {
     }
 
     handleCommand(input, response) {
-        //console.log("QUERY", input);
+        //this.debug("QUERY", input);
 
         const command = input[0].toLowerCase();
         const timeStart = microtime.now();
         
         switch (command) {
         case "ds_add":
+        case "ds_flush_cache":
         case "ds_get":
         case "ds_get_multi":
         case "ds_lookup":
@@ -84,13 +88,9 @@ class Server {
                     .then(output => {
                         let timeRun = (microtime.now() - timeStart) / 1000000;
                         if (output.status) {
-                            if (process.env.APP_DEBUG) {
-                                console.log(timeRun, "CALL SUCCESS");
-                            }
+                            this.debug(timeRun, "CALL SUCCESS");
                         } else {
-                            if (process.env.APP_DEBUG) {
-                                console.log(timeRun, "CALL FAIL:", JSON.stringify(output));//, util.inspect(output, false, null));
-                            }
+                            this.debug(timeRun, "CALL FAIL:", JSON.stringify(output));//, util.inspect(output, false, null));
                         }
                         response.encode(JSON.stringify(output));
                     })
@@ -124,7 +124,7 @@ class Server {
             }
             return;
         default:
-            console.log("Command not understood: " + command);
+            this.debug("Command not understood: " + command);
             response.encode(JSON.stringify(r(false, "Command not understood: " + command)));
             break;
         }

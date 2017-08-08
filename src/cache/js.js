@@ -1,6 +1,5 @@
 "use strict"
 
-const _object = require("lodash/object");
 var LRU = require("lru-cache");
 
 class CacheJS {
@@ -13,6 +12,10 @@ class CacheJS {
         this.cache = LRU(opt);
     }
 
+    key(dbTable, field, key) {
+        return dbTable + ":" + field + ":" + key
+    }
+    
     getAll() {
         let output = {};
         let keys = this.cache.keys();
@@ -28,7 +31,7 @@ class CacheJS {
         }
         let output = {};
         for (let key of keys) {
-            let val = this.cache.get(dbTable + ":" + field + ":" + key);
+            let val = this.cache.get(this.key(dbTable, field, key));
             if (typeof val !== "undefined") {
                 output[key] = val;
             }
@@ -38,7 +41,7 @@ class CacheJS {
 
     set(dbTable, field, vals) {
         for (let key in vals) {
-            this.cache.set(dbTable + ":" + field + ":" + key, vals[key]);
+            this.cache.set(this.key(dbTable, field, key), vals[key]);
         }
         return Promise.resolve(vals);
     }
@@ -48,7 +51,7 @@ class CacheJS {
             keys = [keys];
         }
         for (let key of keys) {
-            this.cache.del(dbTable + ":" + field + ":" + key);
+            this.cache.del(this.key(dbTable, field, key));
         }
         return Promise.resolve(true);
     }
