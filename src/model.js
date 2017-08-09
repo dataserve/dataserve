@@ -142,9 +142,14 @@ class Model {
         if (input instanceof Query) {
             query = input;
         } else {
-            query = new Query(input, command, this), module = null;
+            try {
+                query = new Query(input, command, this);
+            } catch (error) {
+                return Promise.resolve(r(false, error.toString()));
+            }
         }
-        
+
+        let module = null;
         if (module = this.getTableConfig().module) {
             module = new (require("./module/" + module))(this);
         } else {

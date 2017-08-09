@@ -1,5 +1,7 @@
 "use strict"
 
+const Type = require('type-of-is');
+
 const ALLOWED_OUTPUT_STYLE = [
     "RETURN_ADD",
     "BY_ID",
@@ -27,7 +29,7 @@ class Query {
         this.fields = {};
 
         this.join = {};
-        this.innerJoin = {};
+        this.leftJoin = {};
         
         this.where = [];
         this.bind = {};
@@ -52,6 +54,9 @@ class Query {
                 [this.model.getPrimaryKey()]: parseInt(input, 10),
             };
         }
+        if (!Type.is(input, Object)) {
+            throw new Error("Invalid input, must be an object or primaryKey value, received: " + JSON.stringify(input));
+        }
         if (input.alias) {
             this.setAlias(input.alias);
         } else {
@@ -67,9 +72,9 @@ class Query {
                 this.setField(table, input.join[table]);
             }
         }
-        if (input.innerJoin) {
-            for (let table in input.innerJoin) {
-                this.setField(table, input.innerJoin[table]);
+        if (input.leftJoin) {
+            for (let table in input.leftJoin) {
+                this.setField(table, input.leftJoin[table]);
             }
         }
         if (input.where) {
@@ -192,8 +197,8 @@ class Query {
         this.join[table] = on;
     }
 
-    addInnerJoin(table, on) {
-        this.innerJoin[table] = on;
+    addLeftJoin(table, on) {
+        this.leftJoin[table] = on;
     }
 
     addWhere(where, binds) {
