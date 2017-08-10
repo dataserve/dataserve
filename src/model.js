@@ -127,11 +127,17 @@ class Model {
         return this.tableConfig;
     }
 
-    run(command, input) {
-        command = camelize(command);
-        
+    run(command, input) {        
         if (["flushCache", "outputCache"].indexOf(command) !== -1) {
             return this[command]();
+        }
+
+        if (command === "outputDbSchema") {
+            return this.getDb().outputDbSchema(this.dbName, this.dbConfig);
+        }
+
+        if (command == "outputTableSchema") {
+            return this.getDb().outputTableSchema(this.tableName, this.tableConfig);
         }
 
         if (ALLOWED_COMMANDS.indexOf(command) === -1) {

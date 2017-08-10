@@ -16,7 +16,7 @@ class Server {
     
     constructor(cli) {
         this.cli = cli;
-        
+
         let configPath = cli.config ? cli.config : __dirname + "/../config/example.json";
         if (!fs.existsSync(configPath)) {
             throw new Error("Config file not found: " + configPath);
@@ -77,6 +77,8 @@ class Server {
         case "ds_get_multi":
         case "ds_lookup":
         case "ds_output_cache":
+        case "ds_output_db_schema":
+        case "ds_output_table_schema":
         case "ds_set":
         case "ds_remove":
         case "ds_remove_multi":

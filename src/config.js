@@ -1,13 +1,23 @@
 "use strict"
 
+const _array = require("lodash/array");
+const _object = require("lodash/object");
+const path = require("path");
+const Type = require('type-of-is');
+
 class Config {
     
-    constructor(path) {
-        this.config = require(path);
+    constructor(configPath) {
+        this.configDir = path.dirname(configPath);
+        this.config = require(configPath);
 
-        if (this.config.dbs) {
-            this.dbs = this.config.dbs;
+        if (!this.config.dbs || !Object.keys(this.config.dbs).length) {
+            throw new Error("Missing dbs in config: " + configPath);
         }
+        
+        this.dbs = this.config.dbs;
+        this.requires = {};
+        
         if (process.env.DB_DEFAULT) {
             this.dbDefault = process.env.DB_DEFAULT;
         }
@@ -27,6 +37,12 @@ class Config {
                     this.configReplicated(db);
                     continue;
                 }
+            }
+        }
+        for (let dbName in this.dbs) {
+            if (this.dbs[dbName].requires && Object.keys(this.dbs[dbName].requires).length) {
+                this.buildRequires(dbName, this.dbs[dbName].requires);
+                this.configRequires(dbName);
             }
         }
     }
@@ -118,7 +134,111 @@ class Config {
         } else if (this.dbs[db].db.connectionLimit) {
             this.dbs[db].db.read.connectionLimit = this.dbs[db].db.connectionLimit;
         }
+    }
+
+    buildRequires(dbName, requires) {
+        this.mergeRequires(dbName, requires);
+        
+        for (let module in requires) {
+            let tableName = module.split(":");
             
+            let parentModule = tableName[0];
+            
+            let modulePath = this.configDir + "/module" + parentModule.charAt(0).toUpperCase() + parentModule.slice(1);
+            
+            let moduleContents = require(modulePath);
+
+            if (!moduleContents.requires || !Object.keys(moduleContents.requires).length) {
+                continue;
+            }
+
+            this.buildRequires(dbName, moduleContents.requires);
+        }
+    }
+
+    mergeRequires(dbName, requires) {
+        if (!this.requires[dbName]) {
+            this.requires[dbName] = {};
+        }
+        for (let req in requires) {
+            if (this.requires[dbName][req]) {
+                this.requires[dbName][req] = _object.mergeWith(this.requires[dbName][req], requires[req], this.mergeRequiresObj);
+            } else {
+                this.requires[dbName][req] = requires[req];
+            }
+        }
+    }
+
+    mergeRequiresObj(objValue, srcValue) {
+        if (typeof objValue !== "undefined" && !Type.is(objValue, Object) && !Array.isArray(objValue)) {
+            objValue = [objValue];
+        }
+        if (typeof srcValue !== "undefined" && !Type.is(srcValue, Object) && !Array.isArray(srcValue)) {
+            srcValue = [srcValue];
+        }
+        if (Array.isArray(objValue)) {
+            if (!Array.isArray(srcValue)) {
+                srcValue = [srcValue];
+            }
+            return _array.uniq(objValue.concat(srcValue));
+        }
+    }
+
+    configRequires(dbName) {
+        let tables = {};
+        for (let module in this.requires[dbName]) {
+            let opt = this.requires[dbName][module];
+            let enable = [];
+            let extendTables = {};
+            if (opt) {
+                if (opt.enable) {
+                    if (!Array.isArray(opt.enable)) {
+                        enable = [opt.enable];
+                    } else {
+                        enable = opt.enable;
+                    }
+                }
+                if (opt.tables) {
+                    extendTables = opt.tables;
+                }
+            }
+            let tableName = module.split(":");
+            let parentModule = tableName[0];
+            
+            if (1 < tableName.length) {
+                tableName = tableName.slice(1).join("_") + "_" + tableName[0];
+            } else {
+                tableName = tableName[0];
+            }
+
+            let modulePath = this.configDir + "/module" + parentModule.charAt(0).toUpperCase() + parentModule.slice(1);
+            let moduleContents = require(modulePath);
+
+            if (!moduleContents.tables || !Object.keys(moduleContents.tables).length) {
+                continue;
+            }
+
+            if (extendTables) {
+                moduleContents.tables = _object.mergeWith(moduleContents.tables, extendTables, this.mergeRequiresObj);
+            }
+
+            for (let table in moduleContents.tables) {
+                if (typeof moduleContents.tables[table].enabled !== "undefined"
+                    && !moduleContents.tables[table].enabled
+                    && enable.indexOf(table) === -1) {
+                    continue;
+                }
+                tables[tableName] = moduleContents.tables[table];
+            }
+        }
+
+        if (Object.keys(tables).length) {
+            if (!this.dbs[dbName].tables) {
+                this.dbs[dbName].tables = {};
+            }
+
+            this.dbs[dbName].tables = _object.mergeWith(this.dbs[dbName].tables, tables, this.mergeRequiresObj);
+        }
     }
     
 }

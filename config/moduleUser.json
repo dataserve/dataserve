@@ -1,0 +1,141 @@
+{
+    "tables": {
+        "user": {
+            "enabled": true,
+            "fields": {
+                "id": {
+                    "type": "int",
+                    "key": "primary",
+                    "autoinc": true
+                },
+                "name": {
+                    "type": "string",
+                    "validate": {
+                        "add": "required|min:3|max:255",
+                        "set": "min:3|max:255"
+                    },
+                    "fillable": true
+                },
+                "email": {
+                    "type": "string",
+                    "validate": {
+                        "add": "required|email|unique:user",
+                        "set": "email"
+                    },
+                    "key": "unique",
+                    "fillable": true
+                },
+                "password": {
+                    "type": "string",
+                    "validate": {
+                        "add": "required|min:5|max:255",
+                        "set": "min:5|max:255"
+                    },
+                    "fillable": true
+                }
+            },
+            "relationships": {
+                "hasOne": [
+                    "user_admin",
+                    "user_stat"
+                ]
+            }
+        },
+        "user_login": {
+            "enabled": false,
+            "fields": {
+                "id": {
+                    "type": "int",
+                    "key": "primary",
+                    "autoinc": true
+                },
+                "user_id": {
+                    "type": "int",
+                    "validate": {
+                        "add": "required"
+                    },
+                    "multi": true,
+                    "fillable": true
+                },
+                "ip_addr": {
+                    "type": "string",
+                    "validate": {
+                        "add": "ip_address",
+                        "set": "ip_address"
+                    },
+                    "fillable": true
+                },
+                "source": {
+                    "type": "string",
+                    "validate": {
+                        "add": "in:API,MOBILE,WEB",
+                        "set": "in:API,MOBILE,WEB"
+                    },
+                    "fillable": true
+                }
+            },
+            "relationships": {
+                "belongsTo": [
+                    "user"
+                ]
+            }
+        },
+        "user_stat": {
+            "enabled": false,
+            "setInsert": true,
+            "timestamps": null,
+            "fields": {
+                "user_id": {
+                    "type": "int",
+                    "key": "primary",
+                    "fillable": true
+                },
+                "active_last": {
+                    "type": "timestamp",
+                    "validate": {
+                        "add": "",
+                        "set": ""
+                    },
+                    "fillable": true
+                },
+                "login_cnt": {
+                    "type": "int",
+                    "validate": {
+                        "add": "",
+                        "set": ""
+                    },
+                    "fillable": true
+                },
+                "login_last": {
+                    "type": "timestamp",
+                    "validate": {
+                        "add": "",
+                        "set": ""
+                    },
+                    "fillable": true
+                },
+                "login_last_ip": {
+                    "type": "string",
+                    "validate": {
+                        "add": "ip_address",
+                        "set": "ip_address"
+                    },
+                    "fillable": true
+                },
+                "join_ip": {
+                    "type": "string",
+                    "validate": {
+                        "add": "ip_address",
+                        "set": "ip_address"
+                    },
+                    "fillable": true
+                }
+            },
+            "relationships": {
+                "belongsTo": [
+                    "user"
+                ]
+            }
+        }
+    }
+}

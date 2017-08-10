@@ -1,0 +1,81 @@
+{
+    "requires": {
+        "media:comment": null,
+        "media:user_profile": null,
+        "user": {
+            "enable": "admin"
+        }
+    },
+    "tables": {
+        "comment": {
+            "enabled": true,
+            "fields": {
+                "id": {
+                    "type": "int",
+                    "key": "primary",
+                    "autoinc": true
+                },
+                "user_id": {
+                    "type": "int",
+                    "fillable": true
+                },
+                "guest_id": {
+                    "type": "int",
+                    "fillable": true
+                },
+                "reference_id": {
+                    "type": "int",
+                    "fillable": true
+                },
+                "path": {
+                    "type": "string",
+                    "fillable": true
+                },
+                "root_id": {
+                    "type": "int",
+                    "fillable": true
+                },
+                "parent_id": {
+                    "type": "int",
+                    "fillable": true
+                },
+                "level": {
+                    "type": "int",
+                    "fillable": true
+                },
+                "child_cnt": {
+                    "type": "int",
+                    "fillable": true
+                },
+                "comment": {
+                    "type": "string",
+                    "fillable": true
+                }
+            },
+            "relationships": {
+                "belongsTo": [
+                    "user",
+                    "comment_guest"
+                ]
+            }
+        },
+        "comment_guest": {
+            "enabled": false,
+            "fields": {
+                "id": {
+                    "type": "int",
+                    "key": "primary",
+                    "autoinc": true
+                },
+                "name": {
+                    "type": "string",
+                    "fillable": true
+                },
+                "url": {
+                    "type": "string",
+                    "fillable": true
+                }
+            }
+        }
+    }
+}

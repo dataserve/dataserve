@@ -1,0 +1,33 @@
+{
+    "tables": {
+        "media": {
+            "fields": {
+                "id": {
+                    "type": "int",
+                    "key": "primary",
+                    "autoinc": true
+                },
+                "type": {
+                    "type": "string:64",
+                    "fillable": true
+                },
+                "filename": {
+                    "type": "string:256",
+                    "fillable": true
+                },
+                "mime": {
+                    "type": "string:256",
+                    "fillable": true
+                },
+                "dimension": {
+                    "type": "string:64",
+                    "fillable": true
+                },
+                "duration": {
+                    "type": "int",
+                    "fillable": true
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,138 @@
+{
+    "requires": {
+        "category:blog": {
+            "tables": {
+                "category": {
+                    "fields": {
+                        "blog_id": {
+                            "type": "int",
+                            "fillable": true
+                        }
+                    },
+                    "relationships": {
+                        "belongsTo": [
+                            "blog"
+                        ]
+                    }
+                }
+            }
+        },
+        "comment:blog": {
+            "tables": {
+                "comment": {
+                    "fields": {
+                        "blog_id": {
+                            "type": "int",
+                            "fillable": true
+                        }
+                    },
+                    "relationships": {
+                        "belongsTo": [
+                            "blog"
+                        ]
+                    }
+                }
+            }
+        },
+        "media:blog": {
+            "tables": {
+                "media": {
+                    "fields": {
+                        "blog_id": {
+                            "type": "int",
+                            "fillable": true
+                        }
+                    },
+                    "relationships": {
+                        "belongsTo": [
+                            "blog"
+                        ]
+                    }
+                }
+            }
+        },
+        "media:user_profile": {
+            "tables": {
+                "media": {
+                    "fields": {
+                        "user_id": {
+                            "type": "int",
+                            "fillable": true
+                        }
+                    },
+                    "relationships": {
+                        "belongsTo": [
+                            "user"
+                        ]
+                    }
+                }
+            }
+        },
+        "user": {
+            "enable": "admin",
+            "tables": {
+                "user": {
+                    "fields": {
+                        "user_profile_media_id": {
+                            "type": "int",
+                            "fillable": true
+                        }
+                    },
+                    "relationships": {
+                        "hasOne": [
+                            "user_profile_media"
+                        ],
+                        "hasMany": [
+                            "blog"
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "tables": {
+        "blog": {
+            "fields": {
+                "id": {
+                    "type": "int",
+                    "key": "primary",
+                    "autoinc": true
+                },
+                "user_id": {
+                    "type": "int",
+                    "fillable": true
+                },
+                "title": {
+                    "type": "string:256",
+                    "fillable": true
+                },
+                "post": {
+                    "type": "string:4096",
+                    "fillable": true
+                },
+                "slug": {
+                    "type": "string:256",
+                    "fillable": true
+                },
+                "blog_media_id": {
+                    "type": "int",
+                    "fillable": true
+                },
+                "blog_comment_cnt": {
+                    "type": "int",
+                    "fillable": true
+                }
+            },
+            "relationships": {
+                "belongsTo": [
+                    "user"
+                ],
+                "hasMany": [
+                    "blog_comment",
+                    "blog_category",
+                    "blog_media"
+                ]
+            }
+        }
+    }
+}

@@ -571,6 +571,101 @@ class MySql {
         });
     }
 
+    outputDbSchema(dbName, dbConfig) {
+        let dbSchema = this.getDbSchema(dbName, dbConfig);
+        return Promise.resolve(r(true, dbSchema));
+    }
+
+    outputTableSchema(tableName, tableConfig) {
+        let tableSchema = this.getTableSchema(tableName, tableConfig);
+        return Promise.resolve(r(true, tableSchema));
+    }
+
+    getDbSchema(dbName, dbConfig) {
+        let tables = dbConfig.tables;
+        let tablesSorted = Object.keys(tables).sort();
+        let res = [];
+        for (let table of tablesSorted) {
+            res.push(this.getTableSchema(table, tables[table]));
+        }
+        return res.join("\n\n");
+    }
+    
+    getTableSchema(tableName, tableConfig) {
+        let fields = tableConfig.fields;
+        
+        let res = [];
+        res.push("CREATE TABLE `" + tableName + "` (");
+        
+        let defs = [];
+        for (let field in fields) {
+            defs.push("  " + this.outputFieldSchema(field, fields[field]));
+        }
+        for (let field in fields) {
+            let keySchema = this.outputKeySchema(field, fields[field]);
+            if (keySchema) {
+                defs.push("  " + keySchema);
+            }
+        }
+        let len = defs.length, cnt = 0;
+        for (let i in defs) {
+            let comma = ",";
+            if (cnt == (len - 1)) {
+                comma = "";
+            }
+            defs[i] += comma;
+            ++cnt;
+        }
+        res = res.concat(defs);
+        res.push(") ENGINE=InnoDB DEFAULT CHARSET=utf8");
+        return res.join("\n")
+    }
+
+    outputFieldSchema(field, config) {
+        let res = ["`" + field + "`"];
+        let [type, length] = config.type.split(":");
+        switch (type) {
+        case "int":
+        case "bigint":
+        case "mediumint":
+        case "smallint":
+        case "tinyint":
+            res.push(type);
+            if (config.unsigned) {
+                res.push("unsigned");
+            }
+            break;
+        case "string":
+            if (!length) {
+                length = 255;
+            }
+            res.push("varchar(" + length + ")");
+            break;
+        case "timestamp":
+            res.push("timestamp");
+            break;
+        }
+        if (!config.nullable) {
+            res.push("NOT NULL");
+        }
+        if (config.autoinc) {
+            res.push("AUTO_INCREMENT");
+        }
+        return res.join(" ");
+    }
+
+    outputKeySchema(field, config) {
+        if (!config.key) {
+            return;
+        }
+        switch (config.key) {
+        case "primary":
+            return "PRIMARY KEY (`" + field + "`)";
+        case "unique":
+            return "UNIQUE KEY `" + field + "` (`" + field + "`)";
+        }
+        return "KEY `" + field + "` (`" + field + "`)";
+    }
 }
 
 module.exports = MySql;

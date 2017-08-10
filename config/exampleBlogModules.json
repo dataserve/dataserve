@@ -1,0 +1,24 @@
+{
+    "dbDefaut": null,
+    "dbs": {
+        "dataserve": {
+            "db": {
+                "type": null,
+                "host": null,
+                "port": null,
+                "user": null,
+                "password": null,
+                "connectionLimit": null
+            },
+            "cache": {
+                "type": "memcache"
+            },
+            "requires": {
+                "blog": null,
+                "user": {
+                    "enable": ["login", "stat"]
+                }
+            }
+        }
+    }
+}

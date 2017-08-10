@@ -8,6 +8,7 @@ const DB = require("./db");
 const Log = require("./log");
 const Model = require("./model");
 const Query = require("./query");
+const {camelize} = require("./util");
 
 class Dataserve {
 
@@ -54,6 +55,7 @@ class Dataserve {
     
     run(dbTableCommand, input){
         let [dbTable, command] = dbTableCommand.split(":");
+        command = camelize(command);
         dbTable = this.dbTable(dbTable);
         return this.getModel(dbTable).run(command, input);
     }

@@ -8,11 +8,14 @@ module.exports.camelize = function(str) {
     });
 };
 
-module.exports.intArray = function(arr) {
+module.exports.intArray = function(arr, allowZero=true) {
     if (!arr || !Array.isArray(arr)) {
         return [];
     }
     arr = arr.map(val => parseInt(val, 10));
+    if (!allowZero) {
+        arr = arr.filter(val => val !== 0);
+    }
     return _array.uniq(arr);
 }
 
