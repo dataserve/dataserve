@@ -2,11 +2,21 @@
     "requires": {
         "category:blog": {
             "tables": {
-                "category": {
+                "category_ref": {
                     "fields": {
                         "blog_id": {
                             "type": "int",
-                            "fillable": true
+                            "fillable": true,
+                            "key": true
+                        }
+                    },
+                    "keys": {
+                        "ref_id": {
+                            "type": "unique",
+                            "fields": [
+                                "category_id",
+                                "blog_id"
+                            ]
                         }
                     },
                     "relationships": {
@@ -23,7 +33,8 @@
                     "fields": {
                         "blog_id": {
                             "type": "int",
-                            "fillable": true
+                            "fillable": true,
+                            "key": true
                         }
                     },
                     "relationships": {
@@ -40,7 +51,8 @@
                     "fields": {
                         "blog_id": {
                             "type": "int",
-                            "fillable": true
+                            "fillable": true,
+                            "key": true
                         }
                     },
                     "relationships": {
@@ -57,7 +69,8 @@
                     "fields": {
                         "user_id": {
                             "type": "int",
-                            "fillable": true
+                            "fillable": true,
+                            "key": true
                         }
                     },
                     "relationships": {
@@ -69,7 +82,7 @@
             }
         },
         "user": {
-            "enable": "admin",
+            "enable": "user_admin",
             "tables": {
                 "user": {
                     "fields": {
@@ -100,7 +113,8 @@
                 },
                 "user_id": {
                     "type": "int",
-                    "fillable": true
+                    "fillable": true,
+                    "key": true
                 },
                 "title": {
                     "type": "string:256",

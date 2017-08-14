@@ -41,6 +41,26 @@
                 ]
             }
         },
+        "user_admin": {
+            "enabled": false,
+            "setInsert": true,
+            "fields": {
+                "user_id": {
+                    "type": "int",
+                    "key": "primary",
+                    "fillable": true
+                },
+                "role": {
+                    "type": "string",
+                    "fillable": true
+                }
+            },
+            "relationships": {
+                "belongsTo": [
+                    "user"
+                ]
+            }
+        },
         "user_login": {
             "enabled": false,
             "fields": {
@@ -55,7 +75,8 @@
                         "add": "required"
                     },
                     "multi": true,
-                    "fillable": true
+                    "fillable": true,
+                    "key": true
                 },
                 "ip_addr": {
                     "type": "string",

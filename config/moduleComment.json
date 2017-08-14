@@ -1,9 +1,26 @@
 {
     "requires": {
-        "media:comment": null,
+        "media:comment": {
+            "tables": {
+                "media": {
+                    "fields": {
+                        "comment_id": {
+                            "type": "int",
+                            "fillable": true,
+                            "key": true
+                        }
+                    },
+                    "relationships": {
+                        "belongsTo": [
+                            "comment"
+                        ]
+                    }
+                }
+            }
+        },
         "media:user_profile": null,
         "user": {
-            "enable": "admin"
+            "enable": "user_admin"
         }
     },
     "tables": {

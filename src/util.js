@@ -46,3 +46,7 @@ module.exports.paramF = function(arr, param, def) {
 module.exports.paramFo = function(arr, param) {
     return module.exports.paramF(arr, param, {});
 }
+
+module.exports.loadJson = function(path) {
+    return JSON.parse(JSON.stringify(require(path)));
+}

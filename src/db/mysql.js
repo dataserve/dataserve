@@ -593,6 +593,7 @@ class MySql {
     
     getTableSchema(tableName, tableConfig) {
         let fields = tableConfig.fields;
+        let keys = tableConfig.keys;
         
         let res = [];
         res.push("CREATE TABLE `" + tableName + "` (");
@@ -607,6 +608,14 @@ class MySql {
                 defs.push("  " + keySchema);
             }
         }
+        if (keys) {
+            for (let key in keys) {
+                let keySchema = this.outputMultiKeySchema(key, keys[key]);
+                if (keySchema) {
+                    defs.push("  " + keySchema);
+                }
+            }
+        }
         let len = defs.length, cnt = 0;
         for (let i in defs) {
             let comma = ",";
@@ -617,7 +626,7 @@ class MySql {
             ++cnt;
         }
         res = res.concat(defs);
-        res.push(") ENGINE=InnoDB DEFAULT CHARSET=utf8");
+        res.push(") ENGINE=InnoDB DEFAULT CHARSET=utf8;");
         return res.join("\n")
     }
 
@@ -665,6 +674,21 @@ class MySql {
             return "UNIQUE KEY `" + field + "` (`" + field + "`)";
         }
         return "KEY `" + field + "` (`" + field + "`)";
+    }
+
+    outputMultiKeySchema(name, config) {
+        let {type, fields} = config;
+        if (!type || !fields) {
+            return;
+        }
+        if (!Array.isArray(fields)) {
+            fields = [fields];
+        }
+        switch (type) {
+        case "unique":
+            return "UNIQUE KEY `" + name + "` (`" + fields.join("`,`") + "`)";
+        }
+        return "KEY `" + name + "` (`" + fields.join("`,`") + "`)";
     }
 }
 

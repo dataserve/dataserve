@@ -11,7 +11,8 @@
                     "type": "string:256"
                 },
                 "slug": {
-                    "type": "string:256"
+                    "type": "string:256",
+                    "key": true
                 }
             }
         },

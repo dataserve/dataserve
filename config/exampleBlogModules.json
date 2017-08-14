@@ -16,7 +16,7 @@
             "requires": {
                 "blog": null,
                 "user": {
-                    "enable": ["login", "stat"]
+                    "enable": ["user_login", "user_stat"]
                 }
             }
         }

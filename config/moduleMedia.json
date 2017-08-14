@@ -1,4 +1,33 @@
 {
+    "requires": {
+        "category:media": {
+            "tables": {
+                "category_ref": {
+                    "fields": {
+                        "media_id": {
+                            "type": "int",
+                            "fillable": true,
+                            "key": true
+                        }
+                    },
+                    "keys": {
+                        "ref_id": {
+                            "type": "unique",
+                            "fields": [
+                                "category_id",
+                                "media_id"
+                            ]
+                        }
+                    },
+                    "relationships": {
+                        "belongsTo": [
+                            "media"
+                        ]
+                    }
+                }
+            }
+        }
+    },
     "tables": {
         "media": {
             "fields": {
