@@ -1,10 +1,10 @@
 {
-    "requires": {
+    "extends": {
         "media:comment": {
             "tables": {
                 "media": {
                     "fields": {
-                        "comment_id": {
+                        "^comment_id": {
                             "type": "int",
                             "fillable": true,
                             "key": true
@@ -12,13 +12,14 @@
                     },
                     "relationships": {
                         "belongsTo": [
-                            "comment"
+                            "^comment"
                         ]
                     }
                 }
             }
-        },
-        "media:user_profile": null,
+        }
+    },
+    "requires": {
         "user": {
             "enable": "user_admin"
         }
@@ -36,11 +37,7 @@
                     "type": "int",
                     "fillable": true
                 },
-                "guest_id": {
-                    "type": "int",
-                    "fillable": true
-                },
-                "reference_id": {
+                "=comment_guest_id": {
                     "type": "int",
                     "fillable": true
                 },
@@ -72,7 +69,7 @@
             "relationships": {
                 "belongsTo": [
                     "user",
-                    "comment_guest"
+                    "=comment_guest"
                 ]
             }
         },

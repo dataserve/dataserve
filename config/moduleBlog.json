@@ -1,10 +1,10 @@
 {
-    "requires": {
+    "extends": {
         "category:blog": {
             "tables": {
                 "category_ref": {
                     "fields": {
-                        "blog_id": {
+                        "^blog_id": {
                             "type": "int",
                             "fillable": true,
                             "key": true
@@ -14,14 +14,14 @@
                         "ref_id": {
                             "type": "unique",
                             "fields": [
-                                "category_id",
-                                "blog_id"
+                                "=category_id",
+                                "^blog_id"
                             ]
                         }
                     },
                     "relationships": {
                         "belongsTo": [
-                            "blog"
+                            "^blog"
                         ]
                     }
                 }
@@ -31,7 +31,7 @@
             "tables": {
                 "comment": {
                     "fields": {
-                        "blog_id": {
+                        "^blog_id": {
                             "type": "int",
                             "fillable": true,
                             "key": true
@@ -39,7 +39,7 @@
                     },
                     "relationships": {
                         "belongsTo": [
-                            "blog"
+                            "^blog"
                         ]
                     }
                 }
@@ -49,7 +49,7 @@
             "tables": {
                 "media": {
                     "fields": {
-                        "blog_id": {
+                        "^blog_id": {
                             "type": "int",
                             "fillable": true,
                             "key": true
@@ -57,30 +57,14 @@
                     },
                     "relationships": {
                         "belongsTo": [
-                            "blog"
+                            "^blog"
                         ]
                     }
                 }
             }
-        },
-        "media:user_profile": {
-            "tables": {
-                "media": {
-                    "fields": {
-                        "user_id": {
-                            "type": "int",
-                            "fillable": true,
-                            "key": true
-                        }
-                    },
-                    "relationships": {
-                        "belongsTo": [
-                            "user"
-                        ]
-                    }
-                }
-            }
-        },
+        }
+    },
+    "requires": {
         "user": {
             "enable": "user_admin",
             "tables": {

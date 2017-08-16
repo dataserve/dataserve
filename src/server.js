@@ -97,7 +97,7 @@ class Server {
                         }
                         response.encode(JSON.stringify(output));
                     })
-                    .catch((err) => {
+                    .catch(err => {
                         this.debug("CALL FAIL:", err);
                         response.encode(JSON.stringify(r(false, "Unknown error")));
                     });

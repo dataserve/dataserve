@@ -47,9 +47,11 @@ class Config {
                 this.requires[dbName] = {};
             }
             if (this.dbs[dbName].requires && Object.keys(this.dbs[dbName].requires).length) {
-                this.buildRequires(dbName, this.dbs[dbName].requires);
-                this.configRequires(dbName);
+                this.buildModuleExtends(dbName, this.dbs[dbName].extends);
+                this.buildModuleRequires(dbName, this.dbs[dbName].requires);
+                this.buildModules(dbName);
             }
+            //console.log(util.inspect(this.requires[dbName], false, null));
         }
     }
 
@@ -142,16 +144,19 @@ class Config {
         }
     }
 
-    buildRequires(dbName, requires, prevModule, prevTableNamePrepend) {
+    buildModuleExtends(dbName, configExtends, prevModule, prevTableNamePrepend) {
+        if (!configExtends) {
+            return;
+        }
         let prevParentModule, prevTableName;
         if (prevModule) {
             let prevModuleName = prevModule.split(":");
             prevParentModule = prevModuleName[0];
             prevTableName = prevModuleName[1];
         }
-        for (let module in requires) {
-            if (!requires[module]) {
-                requires[module] = {};
+        for (let module in configExtends) {
+            if (!configExtends[module]) {
+                configExtends[module] = {};
             }
             let tmpPrevTableNamePrepend = prevTableNamePrepend;
             let moduleName = module.split(":"), modulePrepended = null;
@@ -163,60 +168,218 @@ class Config {
                 tmpPrevTableNamePrepend = prevTableName;
             }
             if (tmpPrevTableNamePrepend) {
-                modulePrepended = parentModule + ":" + tmpPrevTableNamePrepend + "_" + tableName;
-                if (requires[module].tables) {
-                    this.extendRequiresTables(requires[module].tables);
-                }
+                tmpPrevTableNamePrepend += "_" + tableName;
+                modulePrepended = parentModule + ":" + tmpPrevTableNamePrepend;
             } else {
                 modulePrepended = module;
             }
             if (this.requires[dbName][modulePrepended]) {
-                this.requires[dbName][modulePrepended] = _object.merge(this.requires[dbName][modulePrepended], requires[module]);
+                this.requires[dbName][modulePrepended] = _object.merge(this.requires[dbName][modulePrepended], [configExtends[module], {parent: prevModule}]);
             } else {
-                this.requires[dbName][modulePrepended] = requires[module];
+                this.requires[dbName][modulePrepended] = _object.merge(configExtends[module], {parent: prevModule});
             }
 
             let modulePath = this.configDir + "/module" + parentModule.charAt(0).toUpperCase() + parentModule.slice(1);
 
             let moduleContents = loadJson(modulePath);
 
-            if (!moduleContents.requires || !Object.keys(moduleContents.requires).length) {
+            if (moduleContents.extends && Object.keys(moduleContents.extends).length) {
+                this.buildModuleExtends(dbName, moduleContents.extends, modulePrepended, tmpPrevTableNamePrepend);
+            }
+
+            if (moduleContents.requires && Object.keys(moduleContents.requires).length) {
+                this.buildModuleRequires(dbName, moduleContents.requires);
+            }
+        }
+    }
+    
+    buildModuleRequires(dbName, configRequires) {
+        if (!configRequires) {
+            return;
+        }
+        for (let module in configRequires) {
+            if (!configRequires[module]) {
+                configRequires[module] = {};
+            }
+            let moduleName = module.split(":");
+            let parentModule = moduleName[0];
+
+            if (this.requires[dbName][module]) {
+                this.requires[dbName][module] = _object.merge(this.requires[dbName][module], configRequires[module]);
+            } else {
+                this.requires[dbName][module] = configRequires[module];
+            }
+
+            let modulePath = this.configDir + "/module" + parentModule.charAt(0).toUpperCase() + parentModule.slice(1);
+
+            let moduleContents = loadJson(modulePath);
+
+            if (moduleContents.extends && Object.keys(moduleContents.extends).length) {
+                this.buildModuleExtends(dbName, moduleContents.extends, parentModule);
+            }
+
+            if (moduleContents.requires && Object.keys(moduleContents.requires).length) {
+                this.buildModuleRequires(dbName, moduleContents.requires);
+            }
+        }
+    }
+    
+    buildModules(dbName) {
+        let tables = {}, tableToParents = {}, tableToSiblings = {}, moduleToTable = {}, adjustTables = [];
+        console.log(util.inspect(this.requires[dbName], false, null));
+        for (let module in this.requires[dbName]) {
+            let opt = this.requires[dbName][module];
+            let enable = [];
+            let extendTables = {};
+            let parent = null;
+            if (opt) {
+                if (opt.enable) {
+                    if (!Array.isArray(opt.enable)) {
+                        enable = [opt.enable];
+                    } else {
+                        enable = opt.enable;
+                    }
+                }
+                if (opt.tables) {
+                    extendTables = opt.tables;
+                }
+                if (opt.parent) {
+                    parent = opt.parent
+                }
+            }
+            let moduleName = module.split(":");
+            let parentModule = moduleName[0];
+            let tableNamePrepend = moduleName[1];
+            
+            let modulePath = this.configDir + "/module" + parentModule.charAt(0).toUpperCase() + parentModule.slice(1);
+            let moduleContents = loadJson(modulePath);
+            
+            if (!moduleContents.tables || !Object.keys(moduleContents.tables).length) {
                 continue;
             }
-            this.buildRequires(dbName, moduleContents.requires, modulePrepended, tmpPrevTableNamePrepend);
+  
+            if (extendTables) {
+                moduleContents.tables = _object.mergeWith(moduleContents.tables, extendTables, this.mergeConfig);
+            }
+
+            let siblings = {}, moduleTables = [];
+            moduleToTable[module] = [];
+            for (let table in moduleContents.tables) {
+                if (typeof moduleContents.tables[table].enabled !== "undefined"
+                    && !moduleContents.tables[table].enabled
+                    && enable.indexOf(table) === -1) {
+                    continue;
+                }
+                let tableName = table;
+                if (tableNamePrepend) {
+                    tableName = tableNamePrepend + "_" + tableName;
+                }
+                if (tableName !== table) {
+                    adjustTables.push(tableName);
+                }
+                tables[tableName] = moduleContents.tables[table];
+                tableToParents[tableName] = parent;
+                moduleToTable[module].push({[table]: tableName});
+                siblings[table] = tableName;
+                moduleTables.push(tableName);
+            }
+            for (let table in moduleTables) {
+                tableToSiblings[table] = siblings;
+            }
+        }
+        for (let table of adjustTables) {
+            let parentTables = [], siblingTables = [];
+            if (tableToParents[table]) {
+                parentTables = moduleToTable[tableToParents[table]];
+                console.log("TABLE", table, "PARENTS", parentTables);
+            }
+            if (tableToSiblings[table]) {
+                siblingTables = tableToSiblings[table];
+                console.log("TABLE", table, "SIBLINGS", siblingTables);
+            }
+            /*
+              let tablesParent = [];
+              if (parent && this.requires[dbName][parent]) {
+              let tables = this.requires[dbName][parent].tables;
+              let moduleName = parent.split(":");
+              let tableNamePrependParent = moduleName[1];
+              if (tables && tableNamePrependParent) {
+              let tablesParent = {};
+              Object.keys(tables).forEach(tbl => {
+              tablesParent[tbl] = tableNamePrependParent + "_" + tbl;
+              });
+              console.log("tablesParent", tablesParent);
+              }
+              //console.log("PARENT", util.inspect(parent, false, null));
+              }
+              
+              console.log("MODULE: " + module, "EXTEND: " + table, "PARENT: " + parent, "TABLE: ", util.inspect(moduleContents.tables, false, null));
+              this.extendTable(moduleContents.tables, table, parent);
+            */
+        }
+        //console.log(util.inspect(tables, false, null));
+        //console.log(parents);
+        if (Object.keys(tables).length) {
+            if (!this.dbs[dbName].tables) {
+                this.dbs[dbName].tables = {};
+            }
+
+            this.dbs[dbName].tables = _object.mergeWith(this.dbs[dbName].tables, tables, this.mergeConfig);
         }
     }
 
-    extendRequiresTables(tables) {
-        for (let table in tables) {
-            let fields = tables[table].fields;
-            if (!fields) {
-                continue;
-            }
-            let keys = tables[table].keys;
-            if (keys) {
-                for (let field in keys) {
-                    if (!keys[field].fields) {
-                        continue;
-                    }
-                    keys[field].fields = keys[field].fields.map(fld => {
-                        if (!fields[fld]) {
-                            return fld;
-                        }
-                        return tmpPrevTableNamePrepend + "_" + fld;
-                    });
+    extendTable(tables, table, tablesParent) {
+        let tablesSelf = Object.keys(tables);
+        console.log("TABLES", tablesSelf);
+        let fields = table.fields, fieldChange = {};
+        if (fields && fields[parentModule + "_id"]) {
+            fieldChange[parentModule + "_id"] = tableNamePrepend + "_" + parentModule + "_id";
+        }
+        let keys = table.keys;
+        if (keys) {
+            for (let field in keys) {
+                if (!keys[field].fields) {
+                    continue;
                 }
-            }
-            let relationships = tables[table].relationships;
-            if (relationships && relationships.belongsTo) {
-                relationships.belongsTo = relationships.belongsTo.map(field => {
-                    if (!fields[field + "_id"]) {
-                        return field;
+                keys[field].fields = keys[field].fields.forEach((fld, index) => {
+                    if (fld !== parentModule + "_id") {
+                        return;
                     }
-                    fields[tmpPrevTableNamePrepend + "_" + field + "_id"] = fields[field + "_id"];
-                    delete fields[field + "_id"];
-                    return tmpPrevTableNamePrepend + "_" + field;
+                    keys[field].fields[index] = tableNamePrepend + "_" + fld;
                 });
+            }
+        }
+        let relationships = table.relationships;
+        if (relationships && relationships.belongsTo) {
+            relationships.belongsTo.forEach((tbl, index) => {
+                if (!fields[tbl + "_id"]) {
+                    return;
+                }
+                fieldChange[tbl + "_id"] = tableNamePrepend + "_" + tbl + "_id";
+                relationships.belongsTo[index] = tableNamePrepend + "_" + tbl;
+            });
+        }
+        if (relationships && relationships.hasOne) {
+            relationships.hasOne.forEach((tbl, index) => {
+                if (!fields[tbl + "_id"]) {
+                    return;
+                }
+                fieldChange[tbl + "_id"] = tableNamePrepend + "_" + tbl + "_id";
+            });
+        }
+        if (relationships && relationships.hasMany) {
+            relationships.hasMany.forEach((tbl, index) => {
+                if (!fields[tbl + "_id"]) {
+                    return;
+                }
+                fieldChange[tbl + "_id"] = tableNamePrepend + "_" + tbl + "_id";
+            });
+        }
+        if (Object.keys(fieldChange).length) {
+            for (let fld in fieldChange) {
+                console.log("CHANGE", fld, fieldChange[fld]);
+                fields[fieldChange[fld]] = fields[fld];
+                delete fields[fld];
             }
         }
     }
@@ -235,84 +398,6 @@ class Config {
             return _array.uniq(objValue.concat(srcValue));
         }
     }
-
-    configRequires(dbName) {
-        let tables = {};
-        for (let module in this.requires[dbName]) {
-            let opt = this.requires[dbName][module];
-            let enable = [];
-            let extendTables = {};
-            if (opt) {
-                if (opt.enable) {
-                    if (!Array.isArray(opt.enable)) {
-                        enable = [opt.enable];
-                    } else {
-                        enable = opt.enable;
-                    }
-                }
-                if (opt.tables) {
-                    extendTables = opt.tables;
-                }
-            }
-            let moduleName = module.split(":");
-            let parentModule = moduleName[0];
-            let tableNamePrepend = moduleName[1];
-            
-            let modulePath = this.configDir + "/module" + parentModule.charAt(0).toUpperCase() + parentModule.slice(1);
-            let moduleContents = loadJson(modulePath);
-            
-            if (!moduleContents.tables || !Object.keys(moduleContents.tables).length) {
-                continue;
-            }
-  
-            if (extendTables) {
-                moduleContents.tables = _object.mergeWith(moduleContents.tables, extendTables, this.mergeConfig);
-            }
-
-            for (let table in moduleContents.tables) {
-                if (typeof moduleContents.tables[table].enabled !== "undefined"
-                    && !moduleContents.tables[table].enabled
-                    && enable.indexOf(table) === -1) {
-                    continue;
-                }
-                let tableName = table;
-                if (tableNamePrepend) {
-                    tableName = tableNamePrepend + "_" + tableName;
-                }
-                if (tableName !== table) {
-                    let fields = moduleContents.tables[table].fields;
-                    if (fields && fields[parentModule + "_id"]) {
-                        fields[tableNamePrepend + "_" + parentModule + "_id"] = fields[parentModule + "_id"];
-                        delete fields[parentModule + "_id"];
-                    }
-                    let keys = moduleContents.tables[table].keys;
-                    if (keys) {
-                        for (let field in keys) {
-                            if (!keys[field].fields) {
-                                continue;
-                            }
-                            keys[field].fields = keys[field].fields.map(fld => {
-                                if (fld !== parentModule + "_id") {
-                                    return fld;
-                                }
-                                return tableNamePrepend + "_" + fld;
-                            });
-                        }
-                    }
-                }
-                tables[tableName] = moduleContents.tables[table];
-            }
-        }
-
-        if (Object.keys(tables).length) {
-            if (!this.dbs[dbName].tables) {
-                this.dbs[dbName].tables = {};
-            }
-
-            this.dbs[dbName].tables = _object.mergeWith(this.dbs[dbName].tables, tables, this.mergeConfig);
-        }
-    }
-    
 }
 
 module.exports = Config;

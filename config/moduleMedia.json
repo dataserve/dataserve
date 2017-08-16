@@ -1,10 +1,10 @@
 {
-    "requires": {
+    "extends": {
         "category:media": {
             "tables": {
                 "category_ref": {
                     "fields": {
-                        "media_id": {
+                        "^media_id": {
                             "type": "int",
                             "fillable": true,
                             "key": true
@@ -14,14 +14,14 @@
                         "ref_id": {
                             "type": "unique",
                             "fields": [
-                                "category_id",
-                                "media_id"
+                                "=category_id",
+                                "^media_id"
                             ]
                         }
                     },
                     "relationships": {
                         "belongsTo": [
-                            "media"
+                            "^media"
                         ]
                     }
                 }
