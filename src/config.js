@@ -51,7 +51,6 @@ class Config {
                 this.buildModuleRequires(dbName, this.dbs[dbName].requires);
                 this.buildModules(dbName);
             }
-            //console.log(util.inspect(this.requires[dbName], false, null));
         }
     }
 
@@ -174,9 +173,9 @@ class Config {
                 modulePrepended = module;
             }
             if (this.requires[dbName][modulePrepended]) {
-                this.requires[dbName][modulePrepended] = _object.merge(this.requires[dbName][modulePrepended], [configExtends[module], {parent: prevModule}]);
+                this.requires[dbName][modulePrepended] = _object.merge(this.requires[dbName][modulePrepended], [configExtends[module], {parentModule: prevModule}]);
             } else {
-                this.requires[dbName][modulePrepended] = _object.merge(configExtends[module], {parent: prevModule});
+                this.requires[dbName][modulePrepended] = _object.merge(configExtends[module], {parentModule: prevModule});
             }
 
             let modulePath = this.configDir + "/module" + parentModule.charAt(0).toUpperCase() + parentModule.slice(1);
@@ -225,13 +224,12 @@ class Config {
     }
     
     buildModules(dbName) {
-        let tables = {}, tableToParents = {}, tableToSiblings = {}, moduleToTable = {}, adjustTables = [];
-        console.log(util.inspect(this.requires[dbName], false, null));
+        let tables = {}, moduleInfo = {}, tableInfo = {};
         for (let module in this.requires[dbName]) {
             let opt = this.requires[dbName][module];
             let enable = [];
             let extendTables = {};
-            let parent = null;
+            let parentModule = null;
             if (opt) {
                 if (opt.enable) {
                     if (!Array.isArray(opt.enable)) {
@@ -243,15 +241,13 @@ class Config {
                 if (opt.tables) {
                     extendTables = opt.tables;
                 }
-                if (opt.parent) {
-                    parent = opt.parent
+                if (opt.parentModule) {
+                    parentModule = opt.parentModule;
                 }
             }
-            let moduleName = module.split(":");
-            let parentModule = moduleName[0];
-            let tableNamePrepend = moduleName[1];
+            let [moduleName, tableNamePrepend] = module.split(":");
             
-            let modulePath = this.configDir + "/module" + parentModule.charAt(0).toUpperCase() + parentModule.slice(1);
+            let modulePath = this.configDir + "/module" + moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
             let moduleContents = loadJson(modulePath);
             
             if (!moduleContents.tables || !Object.keys(moduleContents.tables).length) {
@@ -262,8 +258,11 @@ class Config {
                 moduleContents.tables = _object.mergeWith(moduleContents.tables, extendTables, this.mergeConfig);
             }
 
-            let siblings = {}, moduleTables = [];
-            moduleToTable[module] = [];
+            let siblingsAssoc = {}, moduleTables = [];
+            moduleInfo[module] = {
+                tables: [],
+                assoc: {}
+            };
             for (let table in moduleContents.tables) {
                 if (typeof moduleContents.tables[table].enabled !== "undefined"
                     && !moduleContents.tables[table].enabled
@@ -274,51 +273,32 @@ class Config {
                 if (tableNamePrepend) {
                     tableName = tableNamePrepend + "_" + tableName;
                 }
-                if (tableName !== table) {
-                    adjustTables.push(tableName);
+                if (!tableInfo[tableName]) {
+                    tableInfo[tableName] = {
+                        parentModule: parentModule,
+                        siblingsAssoc: {},
+                    };
                 }
                 tables[tableName] = moduleContents.tables[table];
-                tableToParents[tableName] = parent;
-                moduleToTable[module].push({[table]: tableName});
-                siblings[table] = tableName;
+                moduleInfo[module].assoc[table] = tableName;
+                moduleInfo[module].tables.push(tableName);
+                siblingsAssoc[table] = tableName;
                 moduleTables.push(tableName);
             }
-            for (let table in moduleTables) {
-                tableToSiblings[table] = siblings;
+            for (let tableName of moduleTables) {
+                tableInfo[tableName].siblingsAssoc = siblingsAssoc;
             }
         }
-        for (let table of adjustTables) {
+        for (let tableName in tables) {
             let parentTables = [], siblingTables = [];
-            if (tableToParents[table]) {
-                parentTables = moduleToTable[tableToParents[table]];
-                console.log("TABLE", table, "PARENTS", parentTables);
+            if (tableInfo[tableName].parentModule && moduleInfo[tableInfo[tableName].parentModule]) {
+                parentTables = moduleInfo[tableInfo[tableName].parentModule].assoc;
             }
-            if (tableToSiblings[table]) {
-                siblingTables = tableToSiblings[table];
-                console.log("TABLE", table, "SIBLINGS", siblingTables);
+            if (tableInfo[tableName] && tableInfo[tableName].siblingsAssoc) {
+                siblingTables = tableInfo[tableName].siblingsAssoc;
             }
-            /*
-              let tablesParent = [];
-              if (parent && this.requires[dbName][parent]) {
-              let tables = this.requires[dbName][parent].tables;
-              let moduleName = parent.split(":");
-              let tableNamePrependParent = moduleName[1];
-              if (tables && tableNamePrependParent) {
-              let tablesParent = {};
-              Object.keys(tables).forEach(tbl => {
-              tablesParent[tbl] = tableNamePrependParent + "_" + tbl;
-              });
-              console.log("tablesParent", tablesParent);
-              }
-              //console.log("PARENT", util.inspect(parent, false, null));
-              }
-              
-              console.log("MODULE: " + module, "EXTEND: " + table, "PARENT: " + parent, "TABLE: ", util.inspect(moduleContents.tables, false, null));
-              this.extendTable(moduleContents.tables, table, parent);
-            */
+            this.extendTable(tables, tableName, parentTables, siblingTables);
         }
-        //console.log(util.inspect(tables, false, null));
-        //console.log(parents);
         if (Object.keys(tables).length) {
             if (!this.dbs[dbName].tables) {
                 this.dbs[dbName].tables = {};
@@ -328,60 +308,72 @@ class Config {
         }
     }
 
-    extendTable(tables, table, tablesParent) {
-        let tablesSelf = Object.keys(tables);
-        console.log("TABLES", tablesSelf);
-        let fields = table.fields, fieldChange = {};
-        if (fields && fields[parentModule + "_id"]) {
-            fieldChange[parentModule + "_id"] = tableNamePrepend + "_" + parentModule + "_id";
+    extendTable(tables, tableName, parentTables, siblingTables) {
+        let tmpParentTables = {};
+        for (let table in parentTables) {
+            tmpParentTables["^" + table] = parentTables[table];
+        };
+        parentTables = tmpParentTables;
+
+        let tmpSiblingTables = {};
+        for (let table in siblingTables) {
+            tmpSiblingTables["$" + table] = siblingTables[table];
+        }
+        siblingTables = tmpSiblingTables;
+        
+        let table = tables[tableName];
+        let fields = table.fields;
+        if (fields) {
+            Object.keys(fields).forEach(field => {
+                let fieldAssoc = this.associateTable(field, parentTables, siblingTables);
+                if (fieldAssoc === field) {
+                    return;
+                }
+                fields[fieldAssoc] = fields[field];
+                delete fields[field];
+            });
         }
         let keys = table.keys;
         if (keys) {
-            for (let field in keys) {
-                if (!keys[field].fields) {
+            for (let keyName in keys) {
+                if (!keys[keyName].fields) {
                     continue;
                 }
-                keys[field].fields = keys[field].fields.forEach((fld, index) => {
-                    if (fld !== parentModule + "_id") {
+                keys[keyName].fields.forEach((field, index) => {
+                    let fieldAssoc = this.associateTable(field, parentTables, siblingTables);
+                    if (fieldAssoc === field) {
                         return;
                     }
-                    keys[field].fields[index] = tableNamePrepend + "_" + fld;
+                    keys[keyName].fields[index] = fieldAssoc;
                 });
             }
         }
         let relationships = table.relationships;
-        if (relationships && relationships.belongsTo) {
-            relationships.belongsTo.forEach((tbl, index) => {
-                if (!fields[tbl + "_id"]) {
-                    return;
-                }
-                fieldChange[tbl + "_id"] = tableNamePrepend + "_" + tbl + "_id";
-                relationships.belongsTo[index] = tableNamePrepend + "_" + tbl;
+        if (relationships) {
+            Object.keys(table.relationships).forEach(rel => {
+                table.relationships[rel].forEach((tbl, index) => {
+                    let tblAssoc = this.associateTable(tbl, parentTables, siblingTables);
+                    if (tblAssoc === tbl) {
+                        return;
+                    }
+                    relationships[rel][index] = tblAssoc;
+                });
             });
         }
-        if (relationships && relationships.hasOne) {
-            relationships.hasOne.forEach((tbl, index) => {
-                if (!fields[tbl + "_id"]) {
-                    return;
-                }
-                fieldChange[tbl + "_id"] = tableNamePrepend + "_" + tbl + "_id";
+    }
+
+    associateTable(str, parentTables, siblingTables) {
+        if (parentTables) {
+            Object.keys(parentTables).sort().forEach(table => {
+                str = str.replace(table, parentTables[table]);
             });
         }
-        if (relationships && relationships.hasMany) {
-            relationships.hasMany.forEach((tbl, index) => {
-                if (!fields[tbl + "_id"]) {
-                    return;
-                }
-                fieldChange[tbl + "_id"] = tableNamePrepend + "_" + tbl + "_id";
+        if (siblingTables) {
+            Object.keys(siblingTables).sort().forEach(table => {
+                str = str.replace(table, siblingTables[table]);
             });
         }
-        if (Object.keys(fieldChange).length) {
-            for (let fld in fieldChange) {
-                console.log("CHANGE", fld, fieldChange[fld]);
-                fields[fieldChange[fld]] = fields[fld];
-                delete fields[fld];
-            }
-        }
+        return str;
     }
     
     mergeConfig(objValue, srcValue) {

@@ -14,7 +14,7 @@
                         "ref_id": {
                             "type": "unique",
                             "fields": [
-                                "=category_id",
+                                "$category_id",
                                 "^media_id"
                             ]
                         }

@@ -17,7 +17,7 @@
             },
             "relationships": {
                 "hasMany": [
-                    "=category_ref"
+                    "$category_ref"
                 ]
             }
         },
@@ -28,14 +28,14 @@
                     "key": "primary",
                     "autoinc": true
                 },
-                "=category_id": {
+                "$category_id": {
                     "type": "int",
                     "fillable": true
                 }
             },
             "relationships": {
                 "belongsTo": [
-                    "=category"
+                    "$category"
                 ]
             }
         }
