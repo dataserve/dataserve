@@ -47,11 +47,14 @@ class Model {
                 name: "ctime",
                 type: "timestamp",
                 fillable: false,
+                autoSetTimestamp: true
             },
             modified: {
                 name: "mtime",
                 type: "timestamp",
                 fillable: false,
+                autoSetTimestamp: true,
+                autoUpdateTimestamp: true
             },
         };
 
@@ -100,7 +103,7 @@ class Model {
         }
         if (typeof this.tableConfig.timestamps !== "undefined") {
             if (!this.tableConfig.timestamps) {
-                this.timestamp = null;
+                this.timestamps = null;
             } else {
                 if (typeof this.tableConfig.timestamps.created !== "undefined") {
                     this.timestamps.created = this.tableConfig.timestamps.created;
@@ -133,11 +136,11 @@ class Model {
         }
 
         if (command === "outputDbSchema") {
-            return this.getDb().outputDbSchema(this.dbName, this.dbConfig);
+            return this.getDb().outputDbSchema(this.dbName, this.dbConfig, this.dataserve);
         }
 
         if (command == "outputTableSchema") {
-            return this.getDb().outputTableSchema(this.tableName, this.tableConfig);
+            return this.getDb().outputTableSchema(this.tableName, this.tableConfig, this.timestamps);
         }
 
         if (ALLOWED_COMMANDS.indexOf(command) === -1) {

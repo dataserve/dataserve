@@ -25,6 +25,8 @@ class Dataserve {
         this.cache = new Cache(this.log);
 
         this.config = new Config(configPath);
+
+        this.debug = require("debug")("dataserve");
         
         this.model = {};
         this.dbDefault = null;
@@ -46,9 +48,7 @@ class Dataserve {
     getModel(dbTable) {
         if (!this.model[dbTable]) {
             this.model[dbTable] = new this.modelClass(this, this.config, this.db, this.cache, dbTable, this.log);
-            if (process.env.APP_DEBUG) {
-                console.log("CREATED", dbTable);
-            }
+            this.debug("Created model " + dbTable);
         }
         return this.model[dbTable];
     }

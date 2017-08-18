@@ -571,27 +571,28 @@ class MySql {
         });
     }
 
-    outputDbSchema(dbName, dbConfig) {
-        let dbSchema = this.getDbSchema(dbName, dbConfig);
+    outputDbSchema(dbName, dbConfig, dataserve) {
+        let dbSchema = this.getDbSchema(dbName, dbConfig, dataserve);
         return Promise.resolve(r(true, dbSchema));
     }
 
-    outputTableSchema(tableName, tableConfig) {
-        let tableSchema = this.getTableSchema(tableName, tableConfig);
+    outputTableSchema(tableName, tableConfig, timestamps) {
+        let tableSchema = this.getTableSchema(tableName, tableConfig, timestamps);
         return Promise.resolve(r(true, tableSchema));
     }
 
-    getDbSchema(dbName, dbConfig) {
+    getDbSchema(dbName, dbConfig, dataserve) {
         let tables = dbConfig.tables;
         let tablesSorted = Object.keys(tables).sort();
         let res = [];
-        for (let table of tablesSorted) {
-            res.push(this.getTableSchema(table, tables[table]));
+        for (let tableName of tablesSorted) {
+            let timestamps = dataserve.getModel(dbName + "." + tableName).timestamps;
+            res.push(this.getTableSchema(tableName, tables[tableName], timestamps));
         }
         return res.join("\n\n");
     }
     
-    getTableSchema(tableName, tableConfig) {
+    getTableSchema(tableName, tableConfig, timestamps) {
         let fields = tableConfig.fields;
         let keys = tableConfig.keys;
         
@@ -601,6 +602,11 @@ class MySql {
         let defs = [];
         for (let field in fields) {
             defs.push("  " + this.outputFieldSchema(field, fields[field]));
+        }
+        if (timestamps) {
+            for (let field in timestamps) {
+                defs.push("  " + this.outputFieldSchema(timestamps[field].name, timestamps[field]));
+            }
         }
         for (let field in fields) {
             let keySchema = this.outputKeySchema(field, fields[field]);
@@ -657,8 +663,14 @@ class MySql {
         if (!config.nullable) {
             res.push("NOT NULL");
         }
-        if (config.autoinc) {
+        if (config.autoInc) {
             res.push("AUTO_INCREMENT");
+        }
+        if (config.autoSetTimestamp) {
+            res.push("DEFAULT CURRENT_TIMESTAMP");
+        }
+        if (config.autoUpdateTimestamp) {
+            res.push("ON UPDATE CURRENT_TIMESTAMP");
         }
         return res.join(" ");
     }
