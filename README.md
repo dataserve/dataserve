@@ -10,6 +10,109 @@ Several environment variables need to be specified in order for dataserve to kno
 ## DB Configuration JSON Files
 There are two types of configuration styles. One defines all your tables directly, the other uses modules to extend common functionality via "sub-systems". If you are running dataserve via [src/server.js](https://github.com/dataserve/dataserve/blob/master/src/server.js), I recommend you pass in the config file via `node src/server.js --config <path to config json file>`
 
+### Syntax
+
+#### Top Level
+```javascript
+{
+  dbDefault: <string>,
+  dbs: <dbs object>
+}
+```
+#### `<dbs object>`
+```javascript
+{
+  "dbName1": <db object>,
+  "dbName2": <db object>,
+  ...
+}
+```
+
+#### `<db object>`
+```javascript
+{
+  "cache": <cache object>,
+  "extends": <extends object>,
+  "requires": <requires object>,
+  "tables": <tables object>
+}
+```
+
+#### `<cache object>`
+```javascript
+{
+  "type": <"redis"|"memcache"|"js">
+}
+```
+
+#### `<extends object>`
+```javascript
+{
+  "<moduleName>:<optionalPrependName>": <tables object>
+}
+```
+
+#### `<requires object>`
+```javascript
+{
+  "<moduleName>": {
+    "enableModules": <array of sub modules>
+    "enableTables": <array of sub tables>
+  }
+}
+```
+
+#### `<tables object>`
+```javascript
+{
+  "<tableName1>": <table object>,
+  "<tableName2>": <table object>,
+  ...
+}
+```
+
+#### `<table object>`
+```javascript
+{
+  "enabled": <true|false|default:true>,
+  "timestamp": <undefined for default or define custom <timestamp object> or null to disable timestamps for table>,
+  "fields": <fields object>,
+  "keys": <keys object>,
+  "relationships": <relationships object>
+}
+```
+
+#### default `<timestamp object>`
+```javascript
+{
+  created: {
+    name: "ctime",
+    type: "timestamp",
+    fillable: false,
+    autoSetTimestamp: true
+  },
+  modified:{
+    name: "mtime",
+    type: "timestamp",
+    fillable: false,
+    autoSetTimestamp: true,
+    autoUpdateTimestamp: true
+  }
+}
+```
+
+#### `<fields object>`
+```javascript
+```
+
+#### `<keys object>`
+```javascript
+```
+
+### `<relationships object>`
+```javascript
+```
+
 ### Define tables directly
 View the example [config/example.json](https://github.com/dataserve/dataserve/blob/master/config/example.json) file for reference.
 
