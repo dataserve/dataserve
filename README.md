@@ -57,9 +57,7 @@ There are two types of configuration styles. One defines all your tables directl
   "<parentModuleName>:<optionalPrependName|default:currentModuleName>": 
     "enableModules": [array of sub modules],
     "enableTables": [array of sub tables],
-    "tables": {
-      <tables object>
-    }
+    "tables": <tables object>
 }
 ```
 
