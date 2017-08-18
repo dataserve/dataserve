@@ -112,11 +112,11 @@
                     "type": "string:256",
                     "fillable": true
                 },
-                "blog_media_id": {
+                ">media_id": {
                     "type": "int",
                     "fillable": true
                 },
-                "blog_comment_cnt": {
+                ">comment_cnt": {
                     "type": "int",
                     "fillable": true
                 }

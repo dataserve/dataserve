@@ -143,53 +143,63 @@ class Config {
         }
     }
 
-    buildModuleExtends(dbName, configExtends, prevModule, prevTableNamePrepend) {
+    buildModuleExtends(dbName, configExtends, parentModule, parentTableNamePrepend) {
         if (!configExtends) {
             return;
         }
-        let prevParentModule, prevTableName;
-        if (prevModule) {
-            let prevModuleName = prevModule.split(":");
-            prevParentModule = prevModuleName[0];
-            prevTableName = prevModuleName[1];
+        let parentModuleName, parentTableName;
+        if (parentModule) {
+            let parentModuleSplit = parentModule.split(":");
+            parentModuleName = parentModuleSplit[0];
+            parentTableName = parentModuleSplit[1];
         }
+        let retChildrenModules = [];
         for (let module in configExtends) {
             if (!configExtends[module]) {
                 configExtends[module] = {};
             }
-            let tmpPrevTableNamePrepend = prevTableNamePrepend;
-            let moduleName = module.split(":"), modulePrepended = null;
-            let parentModule = moduleName[0], tableName = moduleName[1];
-            if (!tmpPrevTableNamePrepend
-                && prevParentModule
-                && prevTableName
-                && prevParentModule == tableName) {
-                tmpPrevTableNamePrepend = prevTableName;
+            let tmpParentTableNamePrepend = parentTableNamePrepend;
+            let moduleSplit = module.split(":"), modulePrepended = null;
+            let moduleName = moduleSplit[0], tableName = moduleSplit[1];
+            if (!tmpParentTableNamePrepend
+                && parentModuleName
+                && parentTableName
+                && parentModuleName == tableName) {
+                tmpParentTableNamePrepend = parentTableName;
             }
-            if (tmpPrevTableNamePrepend) {
-                tmpPrevTableNamePrepend += "_" + tableName;
-                modulePrepended = parentModule + ":" + tmpPrevTableNamePrepend;
+            if (tmpParentTableNamePrepend) {
+                tmpParentTableNamePrepend += "_" + tableName;
+                modulePrepended = moduleName + ":" + tmpParentTableNamePrepend;
             } else {
                 modulePrepended = module;
             }
+            
             if (this.requires[dbName][modulePrepended]) {
-                this.requires[dbName][modulePrepended] = _object.merge(this.requires[dbName][modulePrepended], [configExtends[module], {parentModule: prevModule}]);
+                this.requires[dbName][modulePrepended] = _object.merge(this.requires[dbName][modulePrepended], [configExtends[module], {parentModule: parentModule}]);
             } else {
-                this.requires[dbName][modulePrepended] = _object.merge(configExtends[module], {parentModule: prevModule});
+                this.requires[dbName][modulePrepended] = _object.merge(configExtends[module], {parentModule: parentModule});
             }
 
-            let modulePath = this.configDir + "/module" + parentModule.charAt(0).toUpperCase() + parentModule.slice(1);
+            let modulePath = this.configDir + "/module" + moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
 
-            let moduleContents = loadJson(modulePath);
+            let moduleContents = loadJson(modulePath), childrenModules = [];
 
             if (moduleContents.extends && Object.keys(moduleContents.extends).length) {
-                this.buildModuleExtends(dbName, moduleContents.extends, modulePrepended, tmpPrevTableNamePrepend);
+                childrenModules = this.buildModuleExtends(dbName, moduleContents.extends, modulePrepended, tmpParentTableNamePrepend);
+            }
+
+            if (childrenModules.length) {
+                this.requires[dbName][modulePrepended] = _object.merge(this.requires[dbName][modulePrepended], {childrenModules: childrenModules});
             }
 
             if (moduleContents.requires && Object.keys(moduleContents.requires).length) {
                 this.buildModuleRequires(dbName, moduleContents.requires);
             }
+
+            retChildrenModules.push(modulePrepended);
         }
+
+        return retChildrenModules;
     }
     
     buildModuleRequires(dbName, configRequires) {
@@ -200,8 +210,8 @@ class Config {
             if (!configRequires[module]) {
                 configRequires[module] = {};
             }
-            let moduleName = module.split(":");
-            let parentModule = moduleName[0];
+            let moduleSplit = module.split(":");
+            let moduleName = moduleSplit[0];
 
             if (this.requires[dbName][module]) {
                 this.requires[dbName][module] = _object.merge(this.requires[dbName][module], configRequires[module]);
@@ -209,12 +219,12 @@ class Config {
                 this.requires[dbName][module] = configRequires[module];
             }
 
-            let modulePath = this.configDir + "/module" + parentModule.charAt(0).toUpperCase() + parentModule.slice(1);
+            let modulePath = this.configDir + "/module" + moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
 
             let moduleContents = loadJson(modulePath);
 
             if (moduleContents.extends && Object.keys(moduleContents.extends).length) {
-                this.buildModuleExtends(dbName, moduleContents.extends, parentModule);
+                this.buildModuleExtends(dbName, moduleContents.extends, moduleName);
             }
 
             if (moduleContents.requires && Object.keys(moduleContents.requires).length) {
@@ -227,9 +237,7 @@ class Config {
         let tables = {}, moduleInfo = {}, tableInfo = {};
         for (let module in this.requires[dbName]) {
             let opt = this.requires[dbName][module];
-            let enable = [];
-            let extendTables = {};
-            let parentModule = null;
+            let enable = [], extendTables = {}, parentModule = null, childrenModules = null;
             if (opt) {
                 if (opt.enable) {
                     if (!Array.isArray(opt.enable)) {
@@ -243,6 +251,9 @@ class Config {
                 }
                 if (opt.parentModule) {
                     parentModule = opt.parentModule;
+                }
+                if (opt.childrenModules) {
+                    childrenModules = opt.childrenModules;
                 }
             }
             let [moduleName, tableNamePrepend] = module.split(":");
@@ -276,6 +287,7 @@ class Config {
                 if (!tableInfo[tableName]) {
                     tableInfo[tableName] = {
                         parentModule: parentModule,
+                        childrenModules: childrenModules,
                         siblingsAssoc: {},
                     };
                 }
@@ -290,14 +302,21 @@ class Config {
             }
         }
         for (let tableName in tables) {
-            let parentTables = [], siblingTables = [];
+            let parentTables = {}, siblingTables = {}, childrenTables = {};
             if (tableInfo[tableName].parentModule && moduleInfo[tableInfo[tableName].parentModule]) {
                 parentTables = moduleInfo[tableInfo[tableName].parentModule].assoc;
+            }
+            if (tableInfo[tableName].childrenModules) {
+                for (let childrenModule of tableInfo[tableName].childrenModules) {
+                    if (moduleInfo[childrenModule]) {
+                        childrenTables = Object.assign(childrenTables, moduleInfo[childrenModule].assoc);
+                    }
+                }
             }
             if (tableInfo[tableName] && tableInfo[tableName].siblingsAssoc) {
                 siblingTables = tableInfo[tableName].siblingsAssoc;
             }
-            this.extendTable(tables, tableName, parentTables, siblingTables);
+            this.extendTable(tables, tableName, parentTables, siblingTables, childrenTables);
         }
         if (Object.keys(tables).length) {
             if (!this.dbs[dbName].tables) {
@@ -308,7 +327,7 @@ class Config {
         }
     }
 
-    extendTable(tables, tableName, parentTables, siblingTables) {
+    extendTable(tables, tableName, parentTables, siblingTables, childrenTables) {
         let tmpParentTables = {};
         for (let table in parentTables) {
             tmpParentTables["^" + table] = parentTables[table];
@@ -320,12 +339,18 @@ class Config {
             tmpSiblingTables["$" + table] = siblingTables[table];
         }
         siblingTables = tmpSiblingTables;
+
+        let tmpChildrenTables = {};
+        for (let table in childrenTables) {
+            tmpChildrenTables[">" + table] = childrenTables[table];
+        }
+        childrenTables = tmpChildrenTables;
         
         let table = tables[tableName];
         let fields = table.fields;
         if (fields) {
             Object.keys(fields).forEach(field => {
-                let fieldAssoc = this.associateTable(field, parentTables, siblingTables);
+                let fieldAssoc = this.associateTable(field, parentTables, siblingTables, childrenTables);
                 if (fieldAssoc === field) {
                     return;
                 }
@@ -340,7 +365,7 @@ class Config {
                     continue;
                 }
                 keys[keyName].fields.forEach((field, index) => {
-                    let fieldAssoc = this.associateTable(field, parentTables, siblingTables);
+                    let fieldAssoc = this.associateTable(field, parentTables, siblingTables, childrenTables);
                     if (fieldAssoc === field) {
                         return;
                     }
@@ -352,7 +377,7 @@ class Config {
         if (relationships) {
             Object.keys(table.relationships).forEach(rel => {
                 table.relationships[rel].forEach((tbl, index) => {
-                    let tblAssoc = this.associateTable(tbl, parentTables, siblingTables);
+                    let tblAssoc = this.associateTable(tbl, parentTables, siblingTables, childrenTables);
                     if (tblAssoc === tbl) {
                         return;
                     }
@@ -362,7 +387,7 @@ class Config {
         }
     }
 
-    associateTable(str, parentTables, siblingTables) {
+    associateTable(str, parentTables, siblingTables, childrenTables) {
         if (parentTables) {
             Object.keys(parentTables).sort().forEach(table => {
                 str = str.replace(table, parentTables[table]);
@@ -371,6 +396,11 @@ class Config {
         if (siblingTables) {
             Object.keys(siblingTables).sort().forEach(table => {
                 str = str.replace(table, siblingTables[table]);
+            });
+        }
+        if (childrenTables) {
+            Object.keys(childrenTables).sort().forEach(table => {
+                str = str.replace(table, childrenTables[table]);
             });
         }
         return str;
