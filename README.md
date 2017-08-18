@@ -84,7 +84,7 @@ There are two types of configuration styles. One defines all your tables directl
 ```javascript
 {
   "enabled": <true|false|default:true>,
-  "timestamp": <undefined for default or define custom <timestamp object> or null to disable timestamps for table>,
+  "timestamp": <undefined for default|define custom <timestamp object>|null to disable timestamps for table>,
   "fields": <fields object>,
   "keys": <keys object>,
   "relationships": <relationships object>
