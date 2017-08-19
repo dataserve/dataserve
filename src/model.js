@@ -12,6 +12,7 @@ const ALLOWED_COMMANDS = [
     "get",
     "getCount",
     "getMulti",
+    "inc",
     "lookup",
     "remove",
     "set",

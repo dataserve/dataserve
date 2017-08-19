@@ -12,6 +12,16 @@ Redis: `DS_ADD (dbName.)tableName {jsonified <add object>}`
 
 Insert a row into a specified DB table.
 
+Returns:
+
+```javascript
+{
+  status: <true|false>,
+  result: <get output if <add object> contains {outputStyle:"RETURN_ADD"}>,
+  meta: null
+}
+```
+
 ## Get
 
 Internal: `(dbName.)tableName:get <get input>`
@@ -20,49 +30,116 @@ Redis: `DS_GET (dbName.)tableName {jsonified <get input>)`
 
 Get row(s) from a specified DB table queried off the primary key of the DB table. **Results from this command are always cached when caching is enabled**
 
-Returns: <get output>
+Returns:
+
+```javascript
+{
+  "status": <true|false>,
+  "result": <get output>,
+  "meta": null
+}
+```
 
 ## Get Count
 
 Internal: `(dbName.)tableName:getCount <lookup object>`
 
-Redis: DS_GET_COUNT (dbName.)tableName {jsonified <lookup object>}`
+Redis: `DS_GET_COUNT (dbName.)tableName {jsonified <lookup object>}`
 
 Get the count of rows which match the specified input parameters.
 
-Returns: 
+Returns:
+
+```javascript
+{
+  "status": <true|false>,
+  "result": <# found>,
+  "meta": null
+}
+```
 
 ## Get Multi
 
 Internal: `(dbName.)tableName:getMulti <getMulti object>`
 
-Redis: DS_GET_MULTI (dbName.)tableName {jsonified <getMulti object>}`
+Redis: `DS_GET_MULTI (dbName.)tableName {jsonified <getMulti object>}`
 
 Return arrays of rows which are pivoted off of the unique key values passed in.
+
+```javascript
+{
+  "status": <true|false>,
+  "result": <getMulti object>,
+  "meta": null
+}
+```
+
+## Increment
+
+Internal: `(dbName.)tableName:inc <inc object>`
+
+Redis: `DS_INC (dbName.)tableName {jsonified <inc object>}`
+
+Increment/decrement the value of a primary key id on a DB table.
+
+```javascript
+{
+  "status": <true|false>,
+  "result": null,
+  "meta": null
+}
+```
 
 ## Lookup
 
 Internal: `(dbName.)tableName:lookup <lookup object>`
 
-Redis: DS_LOOKUP (dbName.)tableName {jsonified <lookup object>}`
+Redis: `DS_LOOKUP (dbName.)tableName {jsonified <lookup object>}`
 
 Return rows based upon the specified input parameters.
+
+```javascript
+{
+  "status": <true|false>,
+  "result": <get output>,
+  "meta": {
+    "pages": <pages found>,
+    "found": <# found>
+  }
+}
+```
 
 ## Remove
 
 Internal: `(dbName.)tableName:remove <remove input>`
 
-Redis, DS_REMOVE (dbName.)tableName {jsonified <remove input>}`
+Redis, `DS_REMOVE (dbName.)tableName {jsonified <remove input>}`
 
 Remove row(s) from a DB table queried off the primary key of the DB table.
+
+```javascript
+{
+  "status": <true|false>,
+  "result": null,
+  "meta": null
+}
+```
 
 ## Set
 
 Internal: `(dbName.)tableName:set <set object>`
 
-Redis: DS_SET (dbName.)tableName {jsonified <set object>}`
+Redis: `DS_SET (dbName.)tableName {jsonified <set object>}`
 
 Set row(s) on a DB table queried off the primary key of the DB table.
+
+```javascript
+{
+  "status": <true|false>,
+  "result": null,
+  "meta": null
+}
+```
 
 ## **Commands Input**
 
@@ -78,10 +155,18 @@ Set row(s) on a DB table queried off the primary key of the DB table.
 
 ### `<get input>`
 
+```
 [<primary key value array>], ex: [1, 22, 57]
 <primary key value integer>, ex: 1
+```
 
 ### `<getMulti object>`
+
+```javascript
+{
+  "<getMultiField>": <getMultiFieldVal|[getMultiFieldVals]>
+}
+```
 
 ### `<lookup object>`
 
@@ -139,14 +224,20 @@ All are optional, and `<lookup object>` can be extended via the [module.js](http
       "val": <field2Val % [mod] = [val]>
     },
     ...
+  },
+  "limit": {
+    "page": <page #>,
+    "limit": <# per page>
   }
 }
 ```
 
 ### `<remove input>`
 
+```
 [<primary key value array>], ex: [1, 22, 57]
 <primary key value integer>, ex: 1
+```
 
 ### `<set object>`
 

@@ -75,6 +75,7 @@ class Server {
         case "ds_get":
         case "ds_get_count":
         case "ds_get_multi":
+        case "ds_inc":
         case "ds_lookup":
         case "ds_output_cache":
         case "ds_output_db_schema":
