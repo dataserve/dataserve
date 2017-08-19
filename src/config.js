@@ -29,15 +29,21 @@ class Config {
             dbList = process.env.DB_LIST.split(",");
         }
         if (dbList.length) {
-            for (let db of dbList) {
-                if (process.env["DB_" + db]) {
-                    this.configSingle(db);
+            for (let dbName of dbList) {
+                if (process.env["DB_" + dbName + "_CACHE"]) {
+                    try {
+                        let cacheConfig = JSON.parse(process.env["DB_" + dbName + "_CACHE"]);
+                        this.dbs[dbName].cache = Object.assign(this.dbs[dbName].cache, cacheConfig);
+                    } catch(error) {};
+                }
+                if (process.env["DB_" + dbName]) {
+                    this.configSingle(dbName);
                     continue;
                 }
-                if (process.env["DB_" + db + "_TYPE"]
-                    && process.env["DB_" + db + "_WRITE"]
-                    && process.env["DB_" + db + "_READ"]) {
-                    this.configReplicated(db);
+                if (process.env["DB_" + dbName + "_TYPE"]
+                    && process.env["DB_" + dbName + "_WRITE"]
+                    && process.env["DB_" + dbName + "_READ"]) {
+                    this.configReplicated(dbName);
                     continue;
                 }
             }
@@ -54,92 +60,92 @@ class Config {
         }
     }
 
-    configSingle(db) {
-        let dbParam = process.env["DB_" + db].split(",");
+    configSingle(dbName) {
+        let dbParam = process.env["DB_" + dbName].split(",");
         //type
         if (dbParam[0] && dbParam[0].length) {
-            this.dbs[db].db.type = dbParam[0];
+            this.dbs[dbName].db.type = dbParam[0];
         }
         //hostname
         if (dbParam[1] && dbParam[1].length) {
             let [host, port] = dbParam[1].split(":");
-            this.dbs[db].db.host = host;
+            this.dbs[dbName].db.host = host;
             if (port) {
-                this.dbs[db].db.port = parseInt(port, 10);
+                this.dbs[dbName].db.port = parseInt(port, 10);
             }
         }
         //user
         if (dbParam[2] && dbParam[2].length) {
-            this.dbs[db].db.user = dbParam[2];
+            this.dbs[dbName].db.user = dbParam[2];
         }
         //password
         if (dbParam[3] && dbParam[3].length) {
-            this.dbs[db].db.password = dbParam[3];
+            this.dbs[dbName].db.password = dbParam[3];
         }
         //connection limit
         if (dbParam[4] && dbParam[4].length) {
-            this.dbs[db].db.connectionLimit = parseInt(dbParam[4], 10);
+            this.dbs[dbName].db.connectionLimit = parseInt(dbParam[4], 10);
         }
     }
 
-    configReplicated(db) {
+    configReplicated(dbName) {
         //type
-        if (process.env["DB_" + db + "_TYPE"]) {
-            this.dbs[db].db.type = process.env["DB_" + db + "_TYPE"];
+        if (process.env["DB_" + dbName + "_TYPE"]) {
+            this.dbs[dbName].db.type = process.env["DB_" + dbName + "_TYPE"];
         }
 
-        let dbWriteParam = process.env["DB_" + db + "_WRITE"].split(",");
-        this.dbs[db].db.write = {
-            type: this.dbs[db].db.type,
+        let dbWriteParam = process.env["DB_" + dbName + "_WRITE"].split(",");
+        this.dbs[dbName].db.write = {
+            type: this.dbs[dbName].db.type,
         };
         //hostname
         if (dbWriteParam[0] && dbWriteParam[0].length) {
             let [host, port] = dbWriteParam[0].split(":");
-            this.dbs[db].db.write.host = host;
+            this.dbs[dbName].db.write.host = host;
             if (port) {
-                this.dbs[db].db.write.port = parseInt(port, 10);
+                this.dbs[dbName].db.write.port = parseInt(port, 10);
             }
         }
         //user
         if (dbWriteParam[1] && dbWriteParam[1].length) {
-            this.dbs[db].db.write.user = dbWriteParam[1];
+            this.dbs[dbName].db.write.user = dbWriteParam[1];
         }
         //password
         if (dbWriteParam[2] && dbWriteParam[2].length) {
-            this.dbs[db].db.write.password = dbWriteParam[2];
+            this.dbs[dbName].db.write.password = dbWriteParam[2];
         }
         //connection limit
         if (dbWriteParam[3] && dbWriteParam[3].length) {
-            this.dbs[db].db.write.connectionLimit = parseInt(dbWriteParam[3], 10);
-        } else if (this.dbs[db].db.connectionLimit) {
-            this.dbs[db].db.write.connectionLimit = this.dbs[db].db.connectionLimit;
+            this.dbs[dbName].db.write.connectionLimit = parseInt(dbWriteParam[3], 10);
+        } else if (this.dbs[dbName].db.connectionLimit) {
+            this.dbs[dbName].db.write.connectionLimit = this.dbs[dbName].db.connectionLimit;
         }
 
-        let dbReadParam = process.env["DB_" + db + "_READ"].split(",");
-        this.dbs[db].db.read = {
-            type: this.dbs[db].db.type,
+        let dbReadParam = process.env["DB_" + dbName + "_READ"].split(",");
+        this.dbs[dbName].db.read = {
+            type: this.dbs[dbName].db.type,
         };
         //hostname
         if (dbReadParam[0] && dbReadParam[0].length) {
             let [host, port] = dbReadParam[0].split(":");
-            this.dbs[db].db.read.host = host;
+            this.dbs[dbName].db.read.host = host;
             if (port) {
-                this.dbs[db].db.read.port = parseInt(port, 10);
+                this.dbs[dbName].db.read.port = parseInt(port, 10);
             }
         }
         //user
         if (dbReadParam[1] && dbReadParam[1].length) {
-            this.dbs[db].db.read.user = dbReadParam[1];
+            this.dbs[dbName].db.read.user = dbReadParam[1];
         }
         //password
         if (dbReadParam[2] && dbReadParam[2].length) {
-            this.dbs[db].db.read.password = dbReadParam[2];
+            this.dbs[dbName].db.read.password = dbReadParam[2];
         }
         //connection limit
         if (dbReadParam[3] && dbReadParam[3].length) {
-            this.dbs[db].db.read.connectionLimit = parseInt(dbReadParam[3], 10);
-        } else if (this.dbs[db].db.connectionLimit) {
-            this.dbs[db].db.read.connectionLimit = this.dbs[db].db.connectionLimit;
+            this.dbs[dbName].db.read.connectionLimit = parseInt(dbReadParam[3], 10);
+        } else if (this.dbs[dbName].db.connectionLimit) {
+            this.dbs[dbName].db.read.connectionLimit = this.dbs[dbName].db.connectionLimit;
         }
     }
 
