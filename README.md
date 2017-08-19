@@ -2,7 +2,62 @@ Dataserve is a fast and consistent interface to your data layer. It can be run a
 
 With caching built in, you can quickly setup apps for whatever the use case. Currently supports MySql with Redis, Memcache, or in-memory caching out of the box.
 
-# Getting Started
+# Commands
+
+## Add
+
+Internal: `(dbName.)tableName:add <add object>`
+Redis: `DS_ADD (dbName.)tableName {jsonified <add object>}`
+
+Insert a row into a specified DB table.
+
+## Get
+
+Internal: `(dbName.)tableName:get <get object>`
+Redis: `DS_GET (dbName.)tableName {jsonified <get object>)`
+
+Get a row from a specified DB table. **Results from this command are always cached when caching is enabled**
+
+## Get Count
+
+Internal: `(dbName.)tableName:getCount <lookup object>`
+Redis: DS_GET_COUNT (dbName.)tableName {jsonified <lookup object>}`
+
+## Get Multi
+
+Internal: `(dbName.)tableName:getMulti <getMulti object>`
+Redis: DS_GET_MULTI (dbName.)tableName {jsonified <getMulti object>}`
+
+## Lookup
+
+Internal: `(dbName.)tableName:lookup <lookup object>`
+Redis: DS_LOOKUP (dbName.)tableName {jsonified <lookup object>}`
+
+## Remove
+
+Internal: `(dbName.)tableName:remove <remove object>`
+Redis, DS_REMOVE (dbName.)tableName {jsonified <remove object>}`
+
+## Set
+
+Internal: `(dbName.)tableName:set <set object>`
+Redis: DS_SET (dbName.)tableName {jsonified <set object>}`
+
+## **Commands Input**
+
+### `<add object>`
+
+### `<get object>`
+
+### `<getMulti object>`
+
+### `<lookup object>`
+
+### `<remove object>`
+
+### `<set object>`
+
+# Running Dataserve
 
 ## Environment Variables
 Several environment variables need to be specified in order for dataserve to know which DBs you intend to communicate with. If you are running dataserve via [src/server.js](https://github.com/dataserve/dataserve/blob/master/src/server.js), I recommend you pass in a .env file via `node src/server.js --env <path to .env file>`. View the example [.env file](https://github.com/dataserve/dataserve/blob/master/.env) for reference
