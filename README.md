@@ -7,55 +7,157 @@ With caching built in, you can quickly setup apps for whatever the use case. Cur
 ## Add
 
 Internal: `(dbName.)tableName:add <add object>`
+
 Redis: `DS_ADD (dbName.)tableName {jsonified <add object>}`
 
 Insert a row into a specified DB table.
 
 ## Get
 
-Internal: `(dbName.)tableName:get <get object>`
-Redis: `DS_GET (dbName.)tableName {jsonified <get object>)`
+Internal: `(dbName.)tableName:get <get input>`
 
-Get a row from a specified DB table. **Results from this command are always cached when caching is enabled**
+Redis: `DS_GET (dbName.)tableName {jsonified <get input>)`
+
+Get row(s) from a specified DB table queried off the primary key of the DB table. **Results from this command are always cached when caching is enabled**
+
+Returns: <get output>
 
 ## Get Count
 
 Internal: `(dbName.)tableName:getCount <lookup object>`
+
 Redis: DS_GET_COUNT (dbName.)tableName {jsonified <lookup object>}`
+
+Get the count of rows which match the specified input parameters.
+
+Returns: 
 
 ## Get Multi
 
 Internal: `(dbName.)tableName:getMulti <getMulti object>`
+
 Redis: DS_GET_MULTI (dbName.)tableName {jsonified <getMulti object>}`
+
+Return arrays of rows which are pivoted off of the unique key values passed in.
 
 ## Lookup
 
 Internal: `(dbName.)tableName:lookup <lookup object>`
+
 Redis: DS_LOOKUP (dbName.)tableName {jsonified <lookup object>}`
+
+Return rows based upon the specified input parameters.
 
 ## Remove
 
-Internal: `(dbName.)tableName:remove <remove object>`
-Redis, DS_REMOVE (dbName.)tableName {jsonified <remove object>}`
+Internal: `(dbName.)tableName:remove <remove input>`
+
+Redis, DS_REMOVE (dbName.)tableName {jsonified <remove input>}`
+
+Remove row(s) from a DB table queried off the primary key of the DB table.
 
 ## Set
 
 Internal: `(dbName.)tableName:set <set object>`
+
 Redis: DS_SET (dbName.)tableName {jsonified <set object>}`
+
+Set row(s) on a DB table queried off the primary key of the DB table.
 
 ## **Commands Input**
 
 ### `<add object>`
 
-### `<get object>`
+```javascript
+{
+  "<fillableField1>": <field1Val>,
+  "<fillableField2>": <field2Val>,
+  ...
+}
+```
+
+### `<get input>`
+
+[<primary key value array>], ex: [1, 22, 57]
+<primary key value integer>, ex: 1
 
 ### `<getMulti object>`
 
 ### `<lookup object>`
 
-### `<remove object>`
+All are optional, and `<lookup object>` can be extended via the [module.js](https://github.com/dataserve/dataserve/blob/master/src/module.js) class.
+
+```javascript
+{
+  "=": {
+    "<field1>": <field1Val|[field1Vals]>,
+    "<field2>": <field2Val|[field2Vals]>,
+    ...
+  },
+  "%search": {
+    "<field1>": <field1Val|[field1Vals]>,
+    "<field2>": <field2Val|[field2Vals]>,
+    ...
+  },
+  "search%": {
+    "<field1>": <field1Val|[field1Vals]>,
+    "<field2>": <field2Val|[field2Vals]>,
+    ...
+  },
+  "%search%": {
+    "<field1>": <field1Val|[field1Vals]>,
+    "<field2>": <field2Val|[field2Vals]>,
+    ...
+  },
+  ">": {
+    "<field1>": <field1Val|[field1Vals]>,
+    "<field2>": <field2Val|[field2Vals]>,
+    ...
+  },
+  "<": {
+    "<field1>": <field1Val|[field1Vals]>,
+    "<field2>": <field2Val|[field2Vals]>,
+    ...
+  },
+  ">=": {
+    "<field1>": <field1Val|[field1Vals]>,
+    "<field2>": <field2Val|[field2Vals]>,
+    ...
+  },
+  "<=": {
+    "<field1>": <field1Val|[field1Vals]>,
+    "<field2>": <field2Val|[field2Vals]>,
+    ...
+  },
+  "modulo": {
+    "<field1>": {
+      "mod": <field1Val % [mod] = [val]>,
+      "val": <field1Val % [mod] = [val]>
+    },
+    "<field2>": {
+      "mod": <field2Val % [mod] = [val]>,
+      "val": <field2Val % [mod] = [val]>
+    },
+    ...
+  }
+}
+```
+
+### `<remove input>`
+
+[<primary key value array>], ex: [1, 22, 57]
+<primary key value integer>, ex: 1
 
 ### `<set object>`
+
+```javascript
+{
+  "<primaryKey>": <primaryKeyVal>,
+  "<fillableField1>": <field1Val>,
+  "<fillableField2>": <field2Val>,
+  ...
+}
+```
 
 # Running Dataserve
 
