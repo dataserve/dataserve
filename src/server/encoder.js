@@ -6,16 +6,21 @@ var Response = function(writer) {
 
 Response.prototype.bulk = function(value) {
     var b = new Buffer(value.toString());
+    
     this.writer.write('$' + b.length + '\r\n');
+    
     this.writer.write(b);
+    
     this.writer.write('\r\n');
 };
 
 // Automatic encoding. Binary safe.
 Response.prototype.encode = function(value) {
     var that = this;
+    
     if (Array.isArray(value)) {
         this.writer.write('*' + value.length + '\r\n');
+        
         value.forEach(function(v) {
             that.encode(v);
             //that.bulk(v);

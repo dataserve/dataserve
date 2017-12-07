@@ -6,10 +6,10 @@
   "bugs": {
     "url": "https://github.com/dataserve/dataserve/issues"
   },
-  "description": "backend data service - proof of concept",
+  "description": "Dataserve is a fast and consistent interface to your data layer, run as a service via TCP or UNIX sockets",
   "dependencies": {
-    "async-lock": "^1.0.0",
     "bluebird": "^3.5.0",
+    "cluster-readwrite-lock": "0.0.1",
     "commander": "^2.11.0",
     "debug": "^2.6.8",
     "dotenv": "^4.0.0",
@@ -19,6 +19,7 @@
     "memcached": "^2.2.2",
     "microtime": "^2.1.6",
     "mysql": "^2.13.0",
+    "readwrite-lock": "^1.0.4",
     "redis": "^2.7.1",
     "redis-clustr": "^1.5.2",
     "redis-parser": "^3.0.0",

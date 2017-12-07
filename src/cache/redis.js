@@ -10,6 +10,7 @@ class CacheRedis {
 
     constructor(config, log) {
         this.log = log;
+        
         this.cache = redis.createClient(config);
     }
 
@@ -19,22 +20,25 @@ class CacheRedis {
     
     getAll() {
         let output = {};
+        
         return this.log.add("cache,cache:getAll", () => {
             return this.cache.keysAsync("*");
-        })
-            .then(cacheKeys => {
-                if (!cacheKeys.length) {
-                    return [];
-                }
-                return this.get(null, null, cacheKeys, true);
-            });
+        }).then(cacheKeys => {
+            if (!cacheKeys.length) {
+                return [];
+            }
+            
+            return this.get(null, null, cacheKeys, true);
+        });
     }
     
     get(dbTable, field, keys, keysRaw=false) {
         if (!Array.isArray(keys)) {
             keys = [keys];
         }
+        
         let cacheKeys = [];
+        
         if (keysRaw) {
             cacheKeys = keys;
         } else {
@@ -42,46 +46,57 @@ class CacheRedis {
                 cacheKeys.push(this.key(dbTable, field, key));
             }
         }
+        
         let output = {};
+        
         return this.log.add("cache,cache:get", () => {
             return this.cache.mgetAsync(cacheKeys)
-        })
-            .then(res => {
-                let output = {};
-                for (let key of keys) {
-                    let val = res.shift();
-                    if (val === null) {
-                        continue;
-                    }
-                    output[key] = JSON.parse(val);
+        }).then(res => {
+            let output = {};
+
+            for (let key of keys) {
+                let val = res.shift();
+                
+                if (val === null) {
+                    continue;
                 }
-                return output;
-            });
+                
+                output[key] = JSON.parse(val);
+            }
+            
+            return output;
+        });
     }
 
     set(dbTable, field, vals) {
         let input = [];
+        
         for (let key in vals) {
             let val = JSON.stringify(vals[key]);
+            
             input.push(this.key(dbTable, field, key));
+            
             input.push(val);
         }
+        
         return this.log.add("cache,cache:set", () => {
             return this.cache.msetAsync(input);
-        })
-            .then(res => {
-                return vals;
-            });
+        }).then(res => {
+            return vals;
+        });
     }
 
     del(dbTable, field, keys) {
         if (!Array.isArray(keys)) {
             keys = [keys];
         }
+        
         let cacheKeys = [];
+        
         for (let key of keys) {
             cacheKeys.push(this.key(dbTable, field, key));
         }
+        
         return this.log.add("cache,cache:del", () => {
             return this.cache.delAsync(cacheKeys);
         });
@@ -89,7 +104,7 @@ class CacheRedis {
 
     delAll() {
         return this.log.add("cache,cache:delAll", () => {
-            this.cache.flushdbAsync();
+            return this.cache.flushdbAsync();
         });
     }
     

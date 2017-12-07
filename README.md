@@ -1,6 +1,11 @@
-Dataserve is a fast and consistent interface to your data layer. It can be run as a server (via the Redis protocol), interacting with multiple services, or included in a standard NodeJS project. If you decide to change your frontend to a different language, Dataserve can still be used so you do not need to write your model logic all over in a new language. If you decide to spawn off different servers to handle different types of requests (web/api/admin/etc), Dataserve can be run independently, serving your applications data consistently across all frontends.
+Dataserve is a fast and consistent interface to your data layer. It can be run as a server (via the Redis protocol), interacting with multiple services, or included in a standard (non clustered) NodeJS project. If you decide to change your frontend to a different language, Dataserve can still be used so you do not need to write your model logic all over in a new language. If you decide to spawn off different servers to handle different types of requests (web/api/admin/etc), Dataserve can be run independently, serving your applications data consistently across all frontends.
 
 With caching built in, you can quickly setup apps for whatever the use case. Currently supports MySql with Redis, Memcache, or in-memory caching out of the box.
+
+## Installation
+```
+npm install dataserve
+```
 
 # Commands
 
@@ -409,3 +414,21 @@ There are two types of configuration styles. One defines all your tables directl
   "hasMany": [array of tableNames]
 }
 ```
+
+# Server Configurations
+
+One of the main strengths of using dataserve is its built in caching support and consistency of data integrity. This is accomplished via async locking mechanisims which make sure that data in cache is always "clean". Due to this, dataserve does not currently support indiscriminate clustering since it's locks are process based. If you wish to scale horizontally, dataserve can split into processes to serve specific databases or tables individually.
+
+## Single Frontend
+
+### Single NodeJS Process on One Server
+
+Include dataserve in the NodeJS project
+
+### Clustered Process on One Server
+
+Run dataserve as a process on the frontend and communicate via Redis protocol and UNIX sockets
+
+## Single or Multiple Processes on Multiple Servers
+
+Run dataserve as a process on it's own server and communicate via Redis protocol and TCP sockets
