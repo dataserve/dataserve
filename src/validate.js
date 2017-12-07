@@ -72,32 +72,46 @@ class Validate {
 
     constructor(model) {
         this.model = model;
+        
         this.validator = require('validator');
+        
         this.ip = require('ip');
     }
 
     check(field, val, rules, errors) {
         let promises = [];
+        
         rules = rules.split("|");
+        
         for (let split of rules) {
             let [rule, extra] = split.split(":");
+            
             if (rule === "required") {
                 if (typeof val === "undefined" || val === null) {
                     this.addError(rule, extra, field, val, null, errors);
                 }
+                
                 continue;
             }
+            
             rule = camelize(rule);
+            
             if (!ALLOWED_RULES[rule]) {
                 this.addError("_invalidRule", rule, field, val, null, errors);
+                
                 continue;
             }
+            
             let type = Type.string(val);
+            
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
                 this.addError("_invalidType", rule, field, val, null, errors);
+                
                 continue;
             }
+            
             let handler = "validate" + rule.charAt(0).toUpperCase() + rule.slice(1);
+            
             if (PROMISE_RULES.indexOf(rule) !== -1) {
                 promises.push(this[handler](extra, field, val, type, errors));
             } else {
@@ -111,9 +125,11 @@ class Validate {
 
     addError(rule, extra, field, val, type, errors){
         let reason = REASON[rule];
+        
         if (rule.substr(0, 1) === "_") {
             rule = extra;
         }
+        
         errors[field] = {
             rule: rule,
             reason: reason,
@@ -124,11 +140,13 @@ class Validate {
         if (!this.validator.isEmail(val)) {
             return false;
         }
+        
         return true;
     }
 
     validateExists(extra, field, val, type, errors) {
         let [table, column] = extra.split(",");
+        
         let input = {
             "=": {
                 [field]: val,
@@ -137,6 +155,7 @@ class Validate {
             page: 1,
             limit: 1
         };
+        
         return this.model.dataserve.run(table + ":lookup", input)
             .then(res => {
                 if (!res.result.length) {
@@ -147,6 +166,7 @@ class Validate {
     
     validateIn(extra, field, val, type) {
         extra = extra.split(",");
+        
         switch (type) {
         case "Array":
             for (let v of val) {
@@ -154,14 +174,17 @@ class Validate {
                     return false;
                 }
             }
+            
             break;
         case "Number":
         case "String":
             if (extra.indexOf(val) === -1) {
                 return false;
             }
+            
             break;
         }
+        
         return true;
     }
 
@@ -169,6 +192,7 @@ class Validate {
         if (!this.ip.isV4Format(val) && !this.ip.isV6Format(val)) {
             return false;
         }
+        
         return true;
     }
 
@@ -176,6 +200,7 @@ class Validate {
         if (!this.ip.isV4Format(val)) {
             return false;
         }
+        
         return true;
     }
 
@@ -183,6 +208,7 @@ class Validate {
         if (!this.ip.isV6Format(val)) {
             return false;
         }
+        
         return true;
     }
 
@@ -193,18 +219,22 @@ class Validate {
             if (val.length < extra) {
                 return false;
             }
+            
             break;
         case "Date":
             if (val < new Date(extra)) {
                 return false;
             }
+            
             break;
         case "Number":
             if (val < extra) {
                 return false;
             }
+            
             break;
         }
+        
         return true;
     }
 
@@ -215,23 +245,28 @@ class Validate {
             if (extra < val.length) {
                 return false;
             }
+            
             break;
         case "Date":
             if (new Date(extra) < val) {
                 return false;
             }
+            
             break;
         case "Number":
             if (extra < val) {
                 return false;
             }
+            
             break;
         }
+        
         return true;
     }
 
     validateUnique(extra, field, val, type, errors) {
         let [table, column] = extra.split(",");
+        
         let input = {
             "=": {
                 [field]: val,
@@ -240,6 +275,7 @@ class Validate {
             page: 1,
             limit: 1
         };
+        
         return this.model.dataserve.run(table + ":lookup", input)
             .then(res => {
                 if (res.result.length) {

@@ -6,6 +6,7 @@ class Hooks {
 
     constructor(){
         this.pre = [];
+        
         this.post = [];
     }
     
@@ -15,9 +16,11 @@ class Hooks {
     
     runPre(query){
         let promises = [];
+        
         for (let hook of this.pre) {
             promises.push(hook(query));
         }
+        
         return Promise.all(promises)
             .then(results => {
                 return;
@@ -30,9 +33,11 @@ class Hooks {
 
     runPost(result, meta){
         let promises = [];
+        
         for (let hook of this.post) {
             promises.push(hook(result));
         }
+        
         return Promise.all(promises)
             .then(output => {
                 for (let out of output) {
@@ -40,6 +45,7 @@ class Hooks {
                         return out;
                     }
                 }
+                
                 return result;
             });
     }

@@ -12,10 +12,13 @@ module.exports.intArray = function(arr, allowZero=true) {
     if (!arr || !Array.isArray(arr)) {
         return [];
     }
+    
     arr = arr.map(val => parseInt(val, 10));
+    
     if (!allowZero) {
         arr = arr.filter(val => val !== 0);
     }
+    
     return _array.uniq(arr);
 }
 
@@ -27,11 +30,14 @@ module.exports.r = function(success, result=null, meta={}){
             meta: meta,
         };
     }
+    
     let error = result.error || result;
+    
     if (result instanceof Error) {
         //error = result.toString();
         error = result.stack;
     }
+    
     return {
         status: false,
         error: error,

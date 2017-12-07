@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 const Type = require('type-of-is');
 
@@ -14,27 +14,37 @@ class Query {
 
     constructor(input, command, model) {
         this.input = input;
+        
         this.model = model;
         
         this.alias = "";
+        
         this.get = {
             field: null,
             vals: null,
         };
+        
         this.getMulti = {
             field: null,
             vals: null,
         };
+        
         this.primaryKey = null;
+        
         this.fields = {};
 
         this.join = {};
+        
         this.leftJoin = {};
         
         this.where = [];
+        
         this.bind = {};
+        
         this.group = [];
+        
         this.order = [];
+        
         this.limit = {};
 
         this.custom = [];
@@ -54,52 +64,65 @@ class Query {
                 [this.model.getPrimaryKey()]: parseInt(input, 10),
             };
         }
+        
         if (!Type.is(input, Object)) {
             throw new Error("Invalid input, must be an object or primaryKey value, received: " + JSON.stringify(input));
         }
+        
         if (input.alias) {
             this.setAlias(input.alias);
         } else {
             this.setAlias(this.model.getTable().substring(0, 1));
         }
+        
         if (input.fields) {
             for (let field in input.fields) {
                 this.setField(field, input.fields[field]);
             }
         }
+        
         if (input.join) {
             for (let table in input.join) {
                 this.setField(table, input.join[table]);
             }
         }
+        
         if (input.leftJoin) {
             for (let table in input.leftJoin) {
                 this.setField(table, input.leftJoin[table]);
             }
         }
+        
         if (input.where) {
             this.addWhere(input.where, input.bind ? input.bind : null);
         }
+        
         if (input.group) {
             this.addGroup(input.group);
         }
+        
         if (input.order) {
             this.addOrder(input.order);
         }
+        
         if (input.page && input.limit) {
             this.setLimit(input.page, input.limit);
         }
+        
         if (input.custom) {
             this.addCustom(input.custom);
         }
+        
         if (input.fillin) {
             for (let table in input.fillin) {
                 this.setFillin(table, input.fillin[table]);
             }
         }
+        
         if (input.outputStyle) {
             this.addOutputStyle(input.outputStyle);
         }
+        
         if (input[this.model.getPrimaryKey()]) {
             this.setPrimaryKey(input[this.model.getPrimaryKey()]);
         }
@@ -109,6 +132,7 @@ class Query {
             for (let field in input) {
                 this.setField(field, input[field]);
             }
+            
             break;
         case "get":
             if (this.primaryKey) {
@@ -118,11 +142,13 @@ class Query {
                     this.setGet(field, input[field]);
                 }
             }
+            
             break;
         case "getMulti":
             for (let field in input) {
                 this.setGetMulti(field, input[field]);
             }
+            
             break;
         case "lookup":
             break;
@@ -130,6 +156,7 @@ class Query {
             for (let field in input) {
                 this.setField(field, input[field]);
             }
+            
             break;
         }
     }
@@ -150,13 +177,16 @@ class Query {
         if (field != this.model.getPrimaryKey() && !this.model.isUnique(field)) {
             return;
         }
+        
         if (!Array.isArray(vals)) {
             vals = [vals];
             this.singleRowResult = true;
         } else if (!vals.length) {
             return;
         }
+        
         this.get.field = field;
+        
         this.get.vals = vals;
     }
 
@@ -168,13 +198,16 @@ class Query {
         if (!this.model.isGetMulti(field)) {
             return;
         }
+        
         if (!Array.isArray(vals)) {
             vals = [vals];
             this.singleRowResult = true;
         } else if (!vals.length) {
             return;
         }
+        
         this.getMulti.field = field;
+        
         this.getMulti.vals = vals;
     }
 
@@ -186,6 +219,7 @@ class Query {
         if (!this.model.isFillable(field)) {
             return;
         }
+        
         this.fields[field] = val;
     }
 
@@ -207,7 +241,9 @@ class Query {
         } else if (!where.length) {
             return;
         }
+        
         this.where = this.where.concat(where);
+        
         if (binds) {
             this.bind = Object.assign(binds, this.bind);
         }
@@ -219,6 +255,7 @@ class Query {
         } else if (!group.length) {
             return;
         }
+        
         this.group = this.group.concat(group);
     }
 
@@ -228,6 +265,7 @@ class Query {
         } else if (!order.length) {
             return;
         }
+        
         this.order = this.order.concat(order);
     }
 
@@ -244,6 +282,7 @@ class Query {
         } else if (!custom.length) {
             return;
         }
+        
         this.custom = this.custom.concat(custom);
     }
 
@@ -259,6 +298,7 @@ class Query {
         if (ALLOWED_OUTPUT_STYLE.indexOf(style) === -1) {
             return false;
         }
+        
         return true;
     }
     
@@ -268,11 +308,13 @@ class Query {
         } else if (!style.length) {
             return;
         }
+        
         for (let st of style) {
             if (!this.validOutputStyle(st)) {
                 continue;
             }
         }
+        
         this.outputStyle = this.outputStyle.concat(style);
     }
 
@@ -280,14 +322,18 @@ class Query {
         if (!Array.isArray(style)) {
             style = [style];
         }
+        
         //CAN SET TO EMPTY ARRAY
         let styleValid = [];
+        
         for (let st of style) {
             if (!this.validOutputStyle(st)) {
                 continue;
             }
+            
             styleValid.push(st);
         }
+        
         this.outputStyle = styleValid;
     }
 
