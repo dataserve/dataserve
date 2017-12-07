@@ -307,7 +307,7 @@ class Model {
                 primaryKeyVal = primaryKeyValTmp;
                 
                 if (this.cache) {
-                    return this.getLock(this.primaryKey, primaryKeyVal, () => {
+                    return this.getWriteLock(this.primaryKey, primaryKeyVal, () => {
                         return this.cacheDeletePrimary(primaryKeyVal);
                     });
                 }
@@ -353,7 +353,7 @@ class Model {
                     getVals = [getVals];
                 }
                 
-                return this.getLock(query.get.field, getVals, () => {
+                return this.getReadLock(query.get.field, getVals, () => {
                     return this.getDb().get(this, query, getVals)
                         .then(rows => {
                             if (this.cache) {
@@ -470,7 +470,7 @@ class Model {
             return Promise.resolve(r(false, "missing update fields"));
         }
         
-        return this.getLock(this.primaryKey, query.primaryKey, () => {
+        return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
             return this.getDb().inc(this, query, vals)
                 .then(rows => {
                     if (this.cache) {
@@ -548,7 +548,7 @@ class Model {
             return Promise.resolve(r(false, "missing update fields"));
         }
 
-        return this.getLock(this.primaryKey, query.primaryKey, () => {
+        return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
             return this.getDb().set(this, query)
                 .then(rows => {
                     if (this.cache) {
@@ -567,7 +567,7 @@ class Model {
             return Promise.resolve(r(false, "primary key value required"));
         }
         
-        return this.getLock(this.primaryKey, query.primaryKey, () => {
+        return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
             return this.getDb().remove(this, query)
                 .then(res => {
                     if (this.cache) {
@@ -697,8 +697,8 @@ class Model {
     getCache() {
         return this.cache;
     }
-    
-    getLock(field, val, func) {
+
+    getLock(isWrite, field, val, func) {
         if (!Array.isArray(val)) {
             val = [val];
         }
@@ -708,8 +708,18 @@ class Model {
         for (let v of val) {
             lockKey.push(field + ":" + v);
         }
+
+        let fn = isWrite ? "acquireWrite" : "acquireRead";
         
-        return this.lock.acquireWrite(lockKey, func);
+        return this.lock[fn](lockKey, func);
+    }
+    
+    getReadLock(field, val, func) {
+        return this.getLock(false, field, val, func);
+    }
+
+    getWriteLock(field, val, func) {
+        return this.getLock(true, field, val, func);
     }
     
     cacheGetPrimary(keys) {

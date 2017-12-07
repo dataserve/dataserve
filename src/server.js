@@ -30,6 +30,14 @@ class Server {
         
         let dotenvPath = cli.env ? cli.env : null;
 
+        if (!fs.existsSync(dotenvPath)) {
+            throw new Error("Dotenv file not found: " + configPath);
+        }
+
+        if (dotenvPath) {
+            require('dotenv').config({path: dotenvPath});
+        }
+
         this.debug = require("debug")("dataserve");
 
         let listen = cli.port ? cli.port : 6380;
@@ -53,14 +61,14 @@ class Server {
                     fs.unlinkSync(this.cli.socket);
                 }
             }
-            console.log(`Master ${process.pid} is running`);            
+            this.debug(`Master ${process.pid} is running`);
         } else {
-            console.log(`Worker ${process.pid} started`);
+            this.debug(`Worker ${process.pid} started`);
         }
 
         if (1 < workers && cluster.isMaster) {
             cluster.on('exit', (worker, code, signal) => {
-                console.log(`worker ${worker.process.pid} died`);
+                this.debug(`Worker ${worker.process.pid} died`);
                 
                 cluster.fork();
             });
@@ -70,7 +78,7 @@ class Server {
                 cluster.fork();
             }
         } else {
-            this.dataserve = new Dataserve(configPath, dotenvPath, lock);
+            this.dataserve = new Dataserve(configPath, null, lock);
             
             this.server = this.createServer();
 
@@ -110,8 +118,6 @@ class Server {
 
         const command = input[0].toLowerCase();
         
-        const timeStart = microtime.now();
-        
         switch (command) {
         case "ds_add":
         case "ds_flush_cache":
@@ -137,18 +143,22 @@ class Server {
     }
 
     handleCommandRun(input, command, response) {
+        const timeStart = microtime.now();
+        
         let dbTable = input[1], payload = {};
         
         try {
             payload = JSON.parse(input[2]);
         } catch (error) {}
+
+        let dbTableCommand = dbTable + ":" + command.substr(3);
         
-        this.dataserve.run(dbTable + ":" + command.substr(3), payload)
+        this.dataserve.run(dbTableCommand, payload)
             .then(output => {
                 let timeRun = (microtime.now() - timeStart) / 1000000;
                 
-                if (output.status) {
-                    this.debug(timeRun, "CALL SUCCESS");
+                if (output && output.status) {
+                    this.debug(timeRun, "CALL SUCCESS", dbTableCommand);
                 } else {
                     this.debug(timeRun, "CALL FAIL", JSON.stringify(output));//, util.inspect(output, false, null));
                 }

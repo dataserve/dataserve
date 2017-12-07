@@ -3,5 +3,6 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 $DIR/src/server.js --socket $DIR/net/dataserve.sock --env $DIR/.env_dev --config $DIR/config/exampleBlogModules.json --workers 4
-#$DIR/src/server.js --socket $DIR/net/dataserve.sock --env $DIR/.env_dev
+#$DIR/src/server.js --socket $DIR/net/dataserve.sock --env $DIR/.env_dev --workers 1
+#$DIR/src/server.js --socket $DIR/net/dataserve.sock --env $DIR/.env_dev --workers 2
 #$DIR/src/server.js --port 6380 --env ./.env_dev
