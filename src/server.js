@@ -22,76 +22,105 @@ class Server {
     constructor(cli) {
         this.cli = cli;
 
-        let configPath = cli.config ? cli.config : __dirname + "/../config/example.json";
+        this.configPath = cli.config ? cli.config : __dirname + "/../config/example.json";
         
-        if (!fs.existsSync(configPath)) {
-            throw new Error("Config file not found: " + configPath);
+        if (!fs.existsSync(this.configPath)) {
+            throw new Error("Config file not found: " + this.configPath);
         }
         
-        let dotenvPath = cli.env ? cli.env : null;
+        this.dotenvPath = cli.env ? cli.env : null;
 
-        if (!fs.existsSync(dotenvPath)) {
-            throw new Error("Dotenv file not found: " + configPath);
-        }
-
-        if (dotenvPath) {
-            require('dotenv').config({path: dotenvPath});
+        if (this.dotenvPath) {
+            if (!fs.existsSync(this.dotenvPath)) {
+                throw new Error("Dotenv file not found: " + configPath);
+            }
+            
+            require('dotenv').config({path: this.dotenvPath});
         }
 
         this.debug = require("debug")("dataserve");
 
-        let listen = cli.port ? cli.port : 6380;
-        
+        this.listen = cli.port ? cli.port : 6380;
+            
         if (this.cli.socket) {
-            listen = this.cli.socket;
+            this.listen = this.cli.socket;
+            
+            this.isSocket = true;
+        } else {
+            this.isSocket = false;
         }
 
-        let workers = 1 < cli.workers ? parseInt(cli.workers, 10) : 1;
+        this.workers = 1 < cli.workers ? cli.workers : 1;
 
         let opt = {
             Promise: Promise,
             maxPending: 5000
         };
         
-        let lock = 1 < workers ? new ClusterReadwriteLock(cluster, opt) : new ReadwriteLock(opt);
-        
-        if (cluster.isMaster) {
-            if (this.cli.socket) {
-                if (fs.existsSync(this.cli.socket)) {
-                    fs.unlinkSync(this.cli.socket);
-                }
-            }
-            this.debug(`Master ${process.pid} is running`);
-        } else {
-            this.debug(`Worker ${process.pid} started`);
-        }
+        this.lock = 1 < this.workers ? new ClusterReadwriteLock(cluster, opt) : new ReadwriteLock(opt);
+    }
 
-        if (1 < workers && cluster.isMaster) {
-            cluster.on('exit', (worker, code, signal) => {
-                this.debug(`Worker ${worker.process.pid} died`);
-                
-                cluster.fork();
-            });
-            
-            // Fork workers.
-            for (let i = 0; i < workers; i++) {
-                cluster.fork();
-            }
-        } else {
-            this.dataserve = new Dataserve(configPath, null, lock);
-            
-            this.server = this.createServer();
-
-            this.server.listen(listen, () => {
-                if (this.cli.socket) {
-                    if (fs.existsSync(this.cli.socket)) {
-                        fs.chmodSync(this.cli.socket, '777');
+    start() {
+        return new Promise((resolve, reject) => {
+            if (cluster.isMaster) {
+                if (this.isSocket) {
+                    if (fs.existsSync(this.listen)) {
+                        fs.unlinkSync(this.listen);
                     }
                 }
                 
-                this.debug("Redis protocol listening on " + listen);
-            });
-        }
+                this.debug(`Master ${process.pid} is running`);
+            } else {
+                this.debug(`Worker ${process.pid} started`);
+            }
+
+            if (1 < this.workers && cluster.isMaster) {
+                let onlineCnt = 0, resolved = false;
+                
+                cluster.on('message', (worker, msg, handle) => {
+                    if (msg === "WORKER-ONLINE") {
+                        ++onlineCnt;
+                        if (!resolved && onlineCnt == this.workers) {
+                            resolved = true;
+                            resolve();
+                        }
+                    }
+                });
+                
+                cluster.on('exit', (worker, code, signal) => {
+                    this.debug(`Worker ${worker.process.pid} died`);
+
+                    --onlineCnt;
+                    
+                    cluster.fork();
+                });
+                
+                // Fork workers.
+                for (let i = 0; i < this.workers; ++i) {
+                    cluster.fork();
+                }
+            } else {
+                this.dataserve = new Dataserve(this.configPath, null, this.lock);
+                
+                this.server = this.createServer();
+
+                this.server.listen(this.listen, () => {
+                    if (this.isSocket) {
+                        if (fs.existsSync(this.listen)) {
+                            fs.chmodSync(this.listen, '777');
+                        }
+                    }
+                    
+                    this.debug("Redis protocol listening on " + this.listen);
+
+                    if (cluster.isMaster) {
+                        resolve();
+                    } else {
+                        process.send("WORKER-ONLINE");
+                    }
+                });
+            }
+        });
     }
 
     createServer() {
@@ -203,12 +232,30 @@ class Server {
 
 }
 
+function startServer() {
+    const server = new Server(cli);
+    
+    return server.start();
+}
+
 cli.version(version)
     .option('-c, --config <path>', 'Config File path')
     .option('-e, --env <path>', 'Load .env path')
     .option('-p, --port <n>', 'Port', parseInt)
     .option('-s, --socket <path>', 'Socket')
-    .option('-w, --workers <n>', 'Forked Workers')
-    .parse(process.argv);
+    .option('-w, --workers <n>', 'Forked Workers', parseInt);
 
-const server = new Server(cli);
+cli.command('sql')
+    .description('Output Generated SQL')
+    .action(() => {
+        cli.workers = 1;
+        
+        startServer().then(() => {
+            //TODO: run SQL command and exit
+        });
+
+cli.parse(process.argv);
+
+if (!cli.args.length) {
+    startServer();
+}

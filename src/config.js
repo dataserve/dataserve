@@ -371,11 +371,12 @@ class Config {
                 
                 moduleTables.push(tableName);
             }
-            
+
             for (let tableName of moduleTables) {
                 tableInfo[tableName].siblingsAssoc = siblingsAssoc;
             }
         }
+        
         for (let tableName in tables) {
             let parentTables = {}, siblingTables = {}, childrenTables = {};
             
