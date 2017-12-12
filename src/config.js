@@ -3,8 +3,7 @@
 const _array = require("lodash/array");
 const _object = require("lodash/object");
 const path = require("path");
-const Type = require('type-of-is');
-const util = require("util");
+const Type = require("type-of-is");
 
 const {loadJson} = require("./util");
 
@@ -527,6 +526,7 @@ class Config {
             return _array.uniq(objValue.concat(srcValue));
         }
     }
+    
 }
 
 module.exports = Config;

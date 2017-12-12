@@ -1,20 +1,22 @@
 #!/usr/bin/env nodejs
 
+"use strict";
+
 const cli = require("commander");
 const cluster = require("cluster");
 const ClusterReadwriteLock = require("cluster-readwrite-lock");
 const fs = require("fs");
 const microtime = require("microtime");
-const net = require('net');
+const net = require("net");
 const numCPUs = require("os").cpus().length;
-const Parser = require('redis-parser');
+const Parser = require("redis-parser");
 const Promise = require("bluebird");
 const ReadwriteLock = require("readwrite-lock");
 const util = require("util");
 
 const Dataserve = require("./dataserve");
-const {version} = require('../package.json');
-const {Response} = require('./server/encoder');
+const {version} = require("../package.json");
+const {Response} = require("./server/encoder");
 const {r} = require("./util");
 
 class Server {
@@ -35,7 +37,7 @@ class Server {
                 throw new Error("Dotenv file not found: " + configPath);
             }
             
-            require('dotenv').config({path: this.dotenvPath});
+            require("dotenv").config({path: this.dotenvPath});
         }
 
         this.debug = require("debug")("dataserve");
@@ -77,7 +79,7 @@ class Server {
             if (1 < this.workers && cluster.isMaster) {
                 let onlineCnt = 0, resolved = false;
                 
-                cluster.on('message', (worker, msg, handle) => {
+                cluster.on("message", (worker, msg, handle) => {
                     if (msg === "WORKER-ONLINE") {
                         ++onlineCnt;
                         if (!resolved && onlineCnt == this.workers) {
@@ -87,7 +89,7 @@ class Server {
                     }
                 });
                 
-                cluster.on('exit', (worker, code, signal) => {
+                cluster.on("exit", (worker, code, signal) => {
                     this.debug(`Worker ${worker.process.pid} died`);
 
                     --onlineCnt;
@@ -107,7 +109,7 @@ class Server {
                 this.server.listen(this.listen, () => {
                     if (this.isSocket) {
                         if (fs.existsSync(this.listen)) {
-                            fs.chmodSync(this.listen, '777');
+                            fs.chmodSync(this.listen, "777");
                         }
                     }
                     
@@ -136,7 +138,7 @@ class Server {
                 }
             });
 
-            connection.on('data', data => {
+            connection.on("data", data => {
                 parser.execute(data);
             });
         });
@@ -239,14 +241,14 @@ function startServer() {
 }
 
 cli.version(version)
-    .option('-c, --config <path>', 'Config File path')
-    .option('-e, --env <path>', 'Load .env path')
-    .option('-p, --port <n>', 'Port', parseInt)
-    .option('-s, --socket <path>', 'Socket')
-    .option('-w, --workers <n>', 'Forked Workers', parseInt);
+    .option("-c, --config <path>", "Config File path")
+    .option("-e, --env <path>", "Load .env path")
+    .option("-p, --port <n>", "Port", parseInt)
+    .option("-s, --socket <path>", "Socket")
+    .option("-w, --workers <n>", "Forked Workers", parseInt);
 
-cli.command('sql')
-    .description('Output Generated SQL')
+cli.command("sql")
+    .description("Output Generated SQL")
     .action(() => {
         cli.workers = 1;
         

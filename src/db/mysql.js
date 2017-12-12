@@ -888,6 +888,7 @@ class MySql {
         
         return "KEY `" + name + "` (`" + fields.join("`,`") + "`)";
     }
+    
 }
 
 module.exports = MySql;
