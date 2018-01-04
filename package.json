@@ -23,7 +23,7 @@
     "redis": "^2.7.1",
     "redis-clustr": "^1.5.2",
     "redis-parser": "^3.0.0",
-    "sql-schema-modulizer": "^1.0.1",
+    "sql-schema-modulizer": "^1.0.2",
     "type-of-is": "^3.5.1",
     "validator": "^8.0.0"
   },
