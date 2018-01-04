@@ -1,6 +1,6 @@
 {
     "extends": {
-        "category:media": {
+        "category": {
             "tables": {
                 "category_ref": {
                     "fields": {

@@ -15,9 +15,9 @@ const ReadwriteLock = require("readwrite-lock");
 const util = require("util");
 
 const Dataserve = require("./dataserve");
-const {version} = require("../package.json");
-const {Response} = require("./server/encoder");
-const {r} = require("./util");
+const { version } = require("../package.json");
+const { Response } = require("./server/encoder");
+const { r } = require("./util");
 
 class Server {
     
@@ -52,7 +52,7 @@ class Server {
             this.isSocket = false;
         }
 
-        this.workers = 1 < cli.workers ? cli.workers : 1;
+        this.workers = 1 < cli.workers ? parseInt(cli.workers, 10) : 1;
 
         let opt = {
             Promise: Promise,
@@ -116,7 +116,7 @@ class Server {
                     this.debug("Redis protocol listening on " + this.listen);
 
                     if (cluster.isMaster) {
-                        resolve();
+                        resolve(this.dataserve);
                     } else {
                         process.send("WORKER-ONLINE");
                     }
@@ -149,6 +149,14 @@ class Server {
 
         const command = input[0].toLowerCase();
         
+        if (command === "ds_log") {
+            return response.encode(JSON.stringify(r(true, this.dataserve.log.getAll())));
+        }
+
+        if (command === "command") {
+            return this.handleCommandDoc(input, command, response);
+        }
+
         switch (command) {
         case "ds_add":
         case "ds_flush_cache":
@@ -164,10 +172,6 @@ class Server {
         case "ds_remove":
         case "ds_remove_multi":
             return this.handleCommandRun(input, command, response);
-        case "ds_log":
-            return response.encode(JSON.stringify(r(true, this.dataserve.log.getAll())));
-        case "command":
-            return this.handleCommandDoc(input, command, response);
         }
 
         return this.handleCommandUnknown(input, command, response);
@@ -177,7 +181,11 @@ class Server {
         const timeStart = microtime.now();
         
         let dbTable = input[1], payload = {};
-        
+
+        if (!dbTable) {
+            response.encode(JSON.stringify(r(false, "Command missing dbTable")));
+        }
+
         try {
             payload = JSON.parse(input[2]);
         } catch (error) {}
@@ -252,9 +260,18 @@ cli.command("sql")
     .action(() => {
         cli.workers = 1;
         
-        startServer().then(() => {
-            //TODO: run SQL command and exit
+        startServer().then((dataserve) => {
+            let schema = [];
+            
+            for (let dbName of dataserve.config.getDbNames()) {
+                schema.push(dataserve.config.getDbSchema(dbName));
+            }
+            
+            console.log(schema.join("\n"));
+
+            process.exit();
         });
+    });
 
 cli.parse(process.argv);
 

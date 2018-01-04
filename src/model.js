@@ -19,18 +19,20 @@ const ALLOWED_COMMANDS = [
 
 class Model {
 
-    constructor(dataserve, config, dbContainer, cacheContainer, dbTable, log, lock){
+    constructor(dataserve, dbConfig, db, cache, dbTable, log, lock){
         this.dataserve = dataserve;
+
+        this.dbConfig = dbConfig;
         
-        this.dbContainer = dbContainer;
+        this.db = db;
         
-        this.cacheContainer = cacheContainer;
+        this.cache = cache;
+
+        this.dbTable = dbTable;
         
         this.log = log;
 
         this.lock = lock;
-        
-        this.dbTable = dbTable;
         
         this.dbName = null;
         
@@ -72,40 +74,26 @@ class Model {
             },
         };
 
-        this.parseConfig(config);
+        this.parseConfig();
         
         if (!this.model) {
             this.model = this.tableName;
         }
     }
 
-    parseConfig(config){
+    parseConfig(){
         [this.dbName, this.tableName] = this.dbTable.split(".");
         
         if (!this.dbName || !this.tableName) {
             throw new Error("Missing db/table names");
         }
-        
-        this.dbConfig = config.dbs[this.dbName];
-        
-        if (!this.dbConfig) {
-            throw new Error("Configuration missing for db: " + this.dbName);
-        }
-        
+
         this.tableConfig = this.dbConfig.tables[this.tableName];
-        
+
         if (!this.tableConfig) {
             throw new Error("Missing config information for table: " + this.tableName);
         }
         
-        this.db = this.dbContainer.getDb(this.dbName, this.dbConfig);
-        
-        if (this.dbConfig.cache) {
-            this.cache = this.cacheContainer.getCache(this.dbName, this.dbConfig);
-        } else {
-            this.cache = this.cacheContainer.getCache(this.dbName, this.tableConfig);
-        }
-
         if (!this.tableConfig.fields) {
             throw new Error("Missing fields information for table: " + this.tableName);
         }
@@ -134,7 +122,7 @@ class Model {
                     this.timestamps.created = this.tableConfig.timestamps.created;
                 }
                 
-                if (typeof this.tableConfig.timestamp.modified !== "undefined") {
+                if (typeof this.tableConfig.timestamps.modified !== "undefined") {
                     this.timestamps.modified = this.tableConfig.timestamps.modified;
                 }
             }
@@ -362,7 +350,7 @@ class Model {
                                     obj[val] = null;
                                     return obj;
                                 }, {}), rows);
-                                
+
                                 return this.cacheSetPrimary(cache)
                                     .then(() => rows);
                             }

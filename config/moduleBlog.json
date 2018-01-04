@@ -1,6 +1,6 @@
 {
     "extends": {
-        "category:blog": {
+        "category": {
             "tables": {
                 "category_ref": {
                     "fields": {
@@ -27,7 +27,7 @@
                 }
             }
         },
-        "comment:blog": {
+        "comment": {
             "tables": {
                 "comment": {
                     "fields": {
@@ -45,7 +45,7 @@
                 }
             }
         },
-        "media:blog": {
+        "media": {
             "tables": {
                 "media": {
                     "fields": {
@@ -58,29 +58,6 @@
                     "relationships": {
                         "belongsTo": [
                             "^blog"
-                        ]
-                    }
-                }
-            }
-        }
-    },
-    "requires": {
-        "user": {
-            "enable": "user_admin",
-            "tables": {
-                "user": {
-                    "fields": {
-                        "user_profile_media_id": {
-                            "type": "int",
-                            "fillable": true
-                        }
-                    },
-                    "relationships": {
-                        "hasOne": [
-                            "user_profile_media"
-                        ],
-                        "hasMany": [
-                            "blog"
                         ]
                     }
                 }

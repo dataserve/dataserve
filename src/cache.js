@@ -3,46 +3,53 @@
 class Cache {
 
     constructor(log) {
+        this.debug = require("debug")("dataserve:cache");
+        
         this.log = log;
         
         this.dbs = {};
     }
     
     getCache(dbName, dbConfig) {
+        if (!dbConfig || !dbConfig.type) {
+            throw new Error("missing db type for: " + dbName + " - " + JSON.stringify(dbConfig));
+        }
+
         let dbKey = dbConfig.type + ":" + dbName;
         
         if (this.dbs[dbKey]) {
             return this.dbs[dbKey];
         }
+
+        let cacheConfig = dbConfig.cache;
         
-        dbConfig = dbConfig.cache;
-        
-        if (!dbConfig || !dbConfig.type) {
-            throw new Error("missing cache type for: " + dbName + " - " + JSON.stringify(dbConfig));
+        if (!cacheConfig || !cacheConfig.type) {
+            this.debug("missing cache type for: " + dbName + " - " + JSON.stringify(dbConfig));
+            return null;
         }
         
-        switch (dbConfig.type) {
+        switch (cacheConfig.type) {
         case "js":
             let CacheJS = require("./cache/js");
             
-            this.dbs[dbKey] = new CacheJS(dbConfig, this.log);
+            this.dbs[dbKey] = new CacheJS(cacheConfig, this.log);
             
             break;
         case "memcache":
         case "memcached":
             let CacheMemcache = require("./cache/memcache");
             
-            this.dbs[dbKey] = new CacheMemcache(dbConfig, this.log);
+            this.dbs[dbKey] = new CacheMemcache(cacheConfig, this.log);
             
             break;
         case "redis":
             let CacheRedis = require("./cache/redis");
             
-            this.dbs[dbKey] = new CacheRedis(dbConfig, this.log);
+            this.dbs[dbKey] = new CacheRedis(cacheConfig, this.log);
             
             break;
         default:
-            throw new Error("unknown Cache type: " + dbConfig.type);
+            throw new Error("unknown Cache type: " + cacheConfig.type);
         }
         
         return this.dbs[dbKey];

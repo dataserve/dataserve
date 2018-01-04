@@ -9,18 +9,16 @@ class DB {
     }
     
     getDb(dbName, dbConfig) {
+        if (!dbConfig || !dbConfig.type) {
+            throw new Error("missing db type for: " + dbName + " - " + JSON.stringify(dbConfig));
+        }
+
         let dbKey = dbConfig.type + ":" + dbName;
         
         if (this.dbs[dbKey]) {
             return this.dbs[dbKey];
         }
-        
-        dbConfig = dbConfig.db;
-        
-        if (!dbConfig || !dbConfig.type) {
-            throw new Error("missing db type for: " + dbName + " - " + JSON.stringify(dbConfig));
-        }
-        
+               
         switch (dbConfig.type) {
         case "mysql":
             let MySql = require("./db/mysql");

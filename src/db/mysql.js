@@ -1,4 +1,4 @@
-'use strict'
+'use strict';
 
 const Promise = require("bluebird");
 const microtime = require('microtime');
@@ -6,7 +6,7 @@ const mysql = require('mysql');
 const Type = require('type-of-is');
 const util = require("util");
 
-const {intArray, r} = require("../util");
+const { intArray, r } = require("../util");
 
 class MySql {
     
@@ -49,7 +49,7 @@ class MySql {
         this._query("SHOW VARIABLES LIKE 'max_connections'")
             .then(rows => {
                 if (rows[0].Value < config.connectionLimit) {
-                    throw new Error("Mysql max_connections less than connectionLimit");
+                    throw new Error(`Mysql max_connections less than connectionLimit, ${rows[0].Value} < ${config.connectionLimit}`);
                 }
             });
     }
@@ -82,7 +82,7 @@ class MySql {
         this._query("SHOW VARIABLES LIKE 'max_connections'")
             .then(rows => {
                 if (rows[0].Value < config.write.connectionLimit) {
-                    throw new Error("Mysql WRITE: max_connections less than connectionLimit");
+                    throw new Error(`Mysql WRITE: max_connections less than connectionLimit, ${rows[0].Value} < ${config.write.connectionLimit}`);
                 }
             });
         
@@ -108,7 +108,7 @@ class MySql {
         this._query("SHOW VARIABLES LIKE 'max_connections'")
             .then(rows => {
                 if (rows[0].Value < config.read.connectionLimit) {
-                    throw new Error("Mysql READ: max_connections less than connectionLimit");
+                    throw new Error(`Mysql READ: max_connections less than connectionLimit, ${rows[0].Value} < ${config.read.connectionLimit}`);
                 }
             });
     }
@@ -693,7 +693,7 @@ class MySql {
                     });
                 };
 
-                var timeStart = null;
+                let timeStart = null;
                 
                 if (this.debug.enabled) {
                     timeStart = microtime.now();
@@ -707,7 +707,7 @@ class MySql {
                     connection.release();
 
                     if (error) {
-                        return reject(error);
+                        return reject(error.message);
                     }
 
                     return resolve(results);

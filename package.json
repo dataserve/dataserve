@@ -23,14 +23,18 @@
     "redis": "^2.7.1",
     "redis-clustr": "^1.5.2",
     "redis-parser": "^3.0.0",
+    "sql-schema-modulizer": "^1.0.1",
     "type-of-is": "^3.5.1",
     "validator": "^8.0.0"
   },
   "homepage": "https://github.com/dataserve/dataserve",
   "keywords": [
-    "dataserve",
+    "sql",
+    "crud",
+    "mysql",
     "db",
-    "cache"
+    "cache",
+    "database"
   ],
   "license": "MIT",
   "main": "src/index.js",
@@ -43,7 +47,7 @@
     "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/.bin/codacy-coverage && rm -rf ./coverage",
     "test": "mocha"
   },
-  "version": "0.0.4",
+  "version": "0.0.5",
   "devDependencies": {
     "chai": "^4.1.2",
     "mocha": "^4.0.1"

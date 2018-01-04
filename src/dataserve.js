@@ -31,23 +31,17 @@ class Dataserve {
         this.debug = require("debug")("dataserve");
 
         this.lock = lock;
-        
+
         this.model = {};
-        
-        this.dbDefault = null;
-        
-        if (this.config.dbDefault) {
-            this.dbDefault = this.config.dbDefault
-        }
     }
 
     dbTable(dbTable) {
         if (dbTable.split(".").length == 1) {
-            if (!this.dbDefault) {
+            if (!this.config.dbDefault) {
                 throw new Error("No DB specified & config missing default DB, check environment variables or specify .env path");
             }
             
-            return this.dbDefault + "." + dbTable;
+            return this.config.dbDefault + "." + dbTable;
         }
         
         return dbTable;
@@ -55,7 +49,15 @@ class Dataserve {
     
     getModel(dbTable) {
         if (!this.model[dbTable]) {
-            this.model[dbTable] = new this.modelClass(this, this.config, this.db, this.cache, dbTable, this.log, this.lock);
+            let [dbName] = dbTable.split(".");
+
+            let db = this.db.getDb(dbName, this.config.dbs[dbName]);
+
+            let cache = this.cache.getCache(dbName, this.config.dbs[dbName]);
+
+            let dbConfig = this.config.getDbConfig(dbName);
+            
+            this.model[dbTable] = new this.modelClass(this, dbConfig, db, cache, dbTable, this.log, this.lock);
             
             this.debug("Created model " + dbTable);
         }

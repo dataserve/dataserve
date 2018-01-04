@@ -1,0 +1,22 @@
+{
+    "extends": {
+        "comment:media": {
+            "tables": {
+                "media": {
+                    "fields": {
+                        "^comment_id": {
+                            "type": "int",
+                            "fillable": true,
+                            "key": true
+                        }
+                    },
+                    "relationships": {
+                        "belongsTo": [
+                            "^comment"
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}

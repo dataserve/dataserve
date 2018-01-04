@@ -1,6 +1,6 @@
 {
     "extends": {
-        "media:user_profile": {
+        "media:profile": {
             "tables": {
                 "media": {
                     "fields": {

@@ -1,26 +1,8 @@
 {
-    "dbDefaut": null,
-    "dbs": {
-        "dataserve": {
-            "db": {
-                "type": null,
-                "host": null,
-                "port": null,
-                "user": null,
-                "password": null,
-                "connectionLimit": null
-            },
-            "cache": {
-                "type": "memcache"
-            },
-            "extends": {
-                "blog:prepend": null
-            },
-            "requires": {
-                "user": {
-                    "enable": ["user_login", "user_stat"]
-                }
-            }
+    "dataserve": {
+        "imports": {
+            "blog": null,
+            "user": null
         }
     }
 }
