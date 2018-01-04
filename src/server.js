@@ -191,6 +191,8 @@ class Server {
         } catch (error) {}
 
         let dbTableCommand = dbTable + ":" + command.substr(3);
+
+        this.debug("CALL:", dbTableCommand, payload);
         
         this.dataserve.run(dbTableCommand, payload)
             .then(output => {
@@ -199,7 +201,7 @@ class Server {
                 if (output && output.status) {
                     this.debug(timeRun, "CALL SUCCESS", dbTableCommand);
                 } else {
-                    this.debug(timeRun, "CALL FAIL", JSON.stringify(output));//, util.inspect(output, false, null));
+                    this.debug(timeRun, "CALL FAIL", output);//, util.inspect(output, false, null));
                 }
                 
                 response.encode(JSON.stringify(output));

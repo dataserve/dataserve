@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 const bluebird = require("bluebird");
 const redis = require("redis");

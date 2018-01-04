@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 const _array = require("lodash/array");
 

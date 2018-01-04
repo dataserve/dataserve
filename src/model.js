@@ -1,10 +1,10 @@
-"use strict"
+"use strict";
 
 const Promise = require("bluebird");
 const _object = require("lodash/object");
 
 const Query = require("./query");
-const {camelize, paramFo, r} = require("./util");
+const { camelize, paramFo, r } = require("./util");
 
 const ALLOWED_COMMANDS = [
     "add",
@@ -73,6 +73,8 @@ class Model {
                 autoUpdateTimestamp: true
             },
         };
+        
+        this.debug = require("debug")("dataserve:model");
 
         this.parseConfig();
         
@@ -194,6 +196,14 @@ class Model {
         
         return this.fields[field];
     }
+
+    getFieldValidateType(field) {
+        if (typeof this.fields[field] === "undefined") {
+            return null;
+        }
+        
+        return this.db.validateType(this.fields[field].type);
+    }
     
     addField(field, attributes){
         this.fields[field] = attributes;
@@ -211,7 +221,7 @@ class Model {
             }
         }
         
-        if (attributes.fillable) {
+        if (typeof attributes.fillable === "undefined" || attributes.fillable) {
             this.addFillable(field);
         }
         
@@ -308,7 +318,7 @@ class Model {
                     });
                 }
                 
-                return null;
+                return r(true);
             })
             .catch(this.catchDefault);
     }

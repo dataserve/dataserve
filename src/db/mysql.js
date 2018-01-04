@@ -113,6 +113,19 @@ class MySql {
             });
     }
 
+    validateType(type) {
+        switch (type) {
+        case 'int':
+            return 'Number';
+        case 'string':
+            return 'String';
+        case 'timestamp':
+            return 'Date';
+        }
+        
+        return null;
+    }
+
     add(model, query) {
         let cols = [], vals = [], bind = [], primaryKeyVal = null;
         
@@ -128,9 +141,9 @@ class MySql {
             }
         }
         
-        if (!model.getField(model.primaryKey).autoinc) {
+        if (!model.getField(model.primaryKey).autoInc) {
             if (typeof query.fields[model.primaryKey] === "undefined") {
-                return Promise.reject(r(false, "primary key required"));
+                return Promise.reject(r(false, "primary key required when not autoIncrementing"));
             }
             
             primaryKeyVal = query.fields[model.primaryKey];

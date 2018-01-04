@@ -1,6 +1,6 @@
-"use strict"
+"use strict";
 
-const {r} = require("./util");
+const { r } = require("./util");
 
 class Hooks {
 

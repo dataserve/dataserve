@@ -1,9 +1,8 @@
-"use strict"
+"use strict";
 
 const Promise = require("bluebird");
-const Type = require('type-of-is');
 
-const {camelize} = require("./util");
+const { camelize } = require("./util");
 
 const ALLOWED_RULES = {
     "email": [
@@ -46,6 +45,9 @@ const ALLOWED_RULES = {
         "Number",
         "String",
     ],
+    "unsigned": [
+        "Number",
+    ],
 };
 
 const PROMISE_RULES = [
@@ -62,8 +64,8 @@ const REASON = {
     "ipAddress": ":field must be a valid ip address",
     "ipAddressV4": ":field must be a valid v4 ip address",
     "ipAddressV6": ":field must be a valid v6 ip address",
-    "min": ":field must be greater than :extra",
-    "max": ":field must be less than :extra",
+    "min": ":field must be at least :extra",
+    "max": ":field must be under :extra",
     "required": ":field is required",
     "unique": ":field already exists",
 };
@@ -90,7 +92,7 @@ class Validate {
                 if (typeof val === "undefined" || val === null) {
                     this.addError(rule, extra, field, val, null, errors);
                 }
-                
+
                 continue;
             }
             
@@ -102,7 +104,7 @@ class Validate {
                 continue;
             }
             
-            let type = Type.string(val);
+            let type = this.model.getFieldValidateType(field);
             
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
                 this.addError("_invalidType", rule, field, val, null, errors);
@@ -125,7 +127,10 @@ class Validate {
 
     addError(rule, extra, field, val, type, errors){
         let reason = REASON[rule];
-        
+
+        reason = reason.replace(':field', field)
+            .replace(':extra', extra);
+
         if (rule.substr(0, 1) === "_") {
             rule = extra;
         }
@@ -169,6 +174,10 @@ class Validate {
         
         switch (type) {
         case "Array":
+            if (!Array.isArray(val)) {
+                val = [val];
+            }
+            
             for (let v of val) {
                 if (extra.indexOf(v) === -1) {
                     return false;
@@ -215,20 +224,29 @@ class Validate {
     validateMin(extra, field, val, type) {
         switch (type) {
         case "Array":
+            if (!Array.isArray(val)) {
+                val = [val];
+            }
+
+            if (val.length <= extra) {
+                return false;
+            }
+            
+            break;
         case "String":
-            if (val.length < extra) {
+            if (String(val).length <= extra) {
                 return false;
             }
             
             break;
         case "Date":
-            if (val < new Date(extra)) {
+            if (val <= new Date(extra)) {
                 return false;
             }
             
             break;
         case "Number":
-            if (val < extra) {
+            if (Number(val) < extra) {
                 return false;
             }
             
@@ -241,8 +259,17 @@ class Validate {
     validateMax(extra, field, val, type) {
         switch (type) {
         case "Array":
-        case "String":
+            if (!Array.isArray(val)) {
+                val = [val];
+            }
+
             if (extra < val.length) {
+                return false;
+            }
+
+            break;
+        case "String":
+            if (extra < String(val).length) {
                 return false;
             }
             
@@ -254,7 +281,7 @@ class Validate {
             
             break;
         case "Number":
-            if (extra < val) {
+            if (extra < Number(val)) {
                 return false;
             }
             
@@ -284,6 +311,18 @@ class Validate {
             });
     }
 
+    validateUnsigned(extra, field, val, type) {
+        switch (type) {
+        case "Number":
+            if (Number(val) < 0) {
+                return false;
+            }
+            
+            break;
+        }
+        
+        return true;
+    }
 }
 
 module.exports = Validate;
