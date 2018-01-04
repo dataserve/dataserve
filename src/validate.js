@@ -66,6 +66,7 @@ const REASON = {
     "ipAddressV6": ":field must be a valid v6 ip address",
     "min": ":field must be at least :extra",
     "max": ":field must be under :extra",
+    "no": ":field not allowed",
     "required": ":field is required",
     "unique": ":field already exists",
 };
@@ -90,6 +91,14 @@ class Validate {
             
             if (rule === "required") {
                 if (typeof val === "undefined" || val === null) {
+                    this.addError(rule, extra, field, val, null, errors);
+                }
+
+                continue;
+            }
+
+            if (rule === "no") {
+                if (typeof val !== "undefined") {
                     this.addError(rule, extra, field, val, null, errors);
                 }
 
@@ -122,6 +131,7 @@ class Validate {
                 }
             }
         }
+        
         return promises;
     }
 

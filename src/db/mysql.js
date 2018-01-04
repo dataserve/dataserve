@@ -127,6 +127,10 @@ class MySql {
     }
 
     add(model, query) {
+        if (model.getField(model.primaryKey).setInsert) {
+            return Promise.reject("Cannot `add` on a setInsert table, use `set` command instead");
+        }
+
         let cols = [], vals = [], bind = [], primaryKeyVal = null;
         
         for (let field in query.fields) {
@@ -371,6 +375,7 @@ class MySql {
                 bind[model.primaryKey] = query.primaryKey;
             }
         }
+        
         return this.log.add("db,db:set", () => {
             return this.query(sql, bind);
         });

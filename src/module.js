@@ -26,38 +26,42 @@ class Module {
         return this.hooks[command] = hooks;
     }
 
+    runValidation(command) {
+        let validate = new Validate(this.model), errors = {}, promises = [];
+        
+        for (let field in query.fields) {
+            if (!this.model.getField(field).validate) {
+                continue;
+            }
+            
+            if (!this.model.getField(field).validate[command]) {
+                continue;
+            }
+            
+            let promise = validate.check(field, query.fields[field], this.model.getField(field).validate[command], errors);
+            
+            if (promise.length) {
+                promises = promises.concat(promise);
+            }
+        }
+        
+        if (!promises.length) {
+            promises.push(Promise.resolve());
+        }
+        
+        return Promise.all(promises)
+            .then(() => {
+                if (Object.keys(errors).length) {
+                    return Promise.reject(r(false, null, errors));
+                }
+                
+                return Promise.resolve();
+            });
+    }
+
     add(hooks) {
         hooks.addPre(query => {
-            let validate = new Validate(this.model), errors = {}, promises = [];
-            
-            for (let field in query.fields) {
-                if (!this.model.getField(field).validate) {
-                    continue;
-                }
-                
-                if (!this.model.getField(field).validate.add) {
-                    continue;
-                }
-                
-                let promise = validate.check(field, query.fields[field], this.model.getField(field).validate.add, errors);
-                
-                if (promise.length) {
-                    promises = promises.concat(promise);
-                }
-            }
-            
-            if (!promises.length) {
-                promises.push(Promise.resolve());
-            }
-            
-            return Promise.all(promises)
-                .then(() => {
-                    if (Object.keys(errors).length) {
-                        return Promise.reject(errors);
-                    }
-                    
-                    return Promise.resolve();
-                });
+            return this.runValidation("add");
         });
     }
 
@@ -224,27 +228,7 @@ class Module {
 
     set(hooks) {
         hooks.addPre(query => {
-            return new Promise((resolve, reject) => {
-                let validate = new Validate, errors = {};
-                
-                for (let field in query.fields) {
-                    if (!this.model.getField(field).validate) {
-                        continue;
-                    }
-                    
-                    if (!this.model.getField(field).validate.add) {
-                        continue;
-                    }
-                    
-                    validate.check(this.model.getField(field).validate.add, errors);
-                }
-                
-                if (errors) {
-                    return reject(errors);
-                }
-                
-                resolve();
-            });
+            return this.runValidation("set");
         });
     }
     

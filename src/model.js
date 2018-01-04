@@ -3,6 +3,7 @@
 const Promise = require("bluebird");
 const _object = require("lodash/object");
 
+const Module = require("./module");
 const Query = require("./query");
 const { camelize, paramFo, r } = require("./util");
 
@@ -181,7 +182,7 @@ class Model {
         if (module = this.getTableConfig().module) {
             module = new (require("./module/" + module))(this);
         } else {
-            module = new (require("./module"))(this);
+            module = new Module(this);
         }
                
         let hooks = module.getHooks(command);
