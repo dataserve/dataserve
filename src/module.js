@@ -4,7 +4,7 @@ const Promise = require("bluebird");
 
 const Hooks = require("./hooks");
 const Validate = require("./validate");
-const { intArray } = require("./util");
+const { intArray, r } = require("./util");
 
 class Module {
 
@@ -26,7 +26,7 @@ class Module {
         return this.hooks[command] = hooks;
     }
 
-    runValidation(command) {
+    runValidation(query, command) {
         let validate = new Validate(this.model), errors = {}, promises = [];
         
         for (let field in query.fields) {
@@ -52,7 +52,7 @@ class Module {
         return Promise.all(promises)
             .then(() => {
                 if (Object.keys(errors).length) {
-                    return Promise.reject(r(false, null, errors));
+                    return Promise.reject(r(false, 'Validation failed', errors));
                 }
                 
                 return Promise.resolve();
@@ -61,7 +61,7 @@ class Module {
 
     add(hooks) {
         hooks.addPre(query => {
-            return this.runValidation("add");
+            return this.runValidation(query, "add");
         });
     }
 
@@ -228,7 +228,7 @@ class Module {
 
     set(hooks) {
         hooks.addPre(query => {
-            return this.runValidation("set");
+            return this.runValidation(query, "set");
         });
     }
     

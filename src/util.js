@@ -31,7 +31,7 @@ module.exports.r = function(success, result=null, meta={}){
         };
     }
     
-    let error = result.error || result;
+    let error = result ? (result.error || result) : result;
     
     if (result instanceof Error) {
         //error = result.toString();
