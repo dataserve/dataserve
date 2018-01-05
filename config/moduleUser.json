@@ -39,8 +39,8 @@
                 "email": {
                     "type": "string",
                     "validate": {
-                        "add": "required|email|unique:user",
-                        "set": "email"
+                        "add": "required|min:3|email|unique:user",
+                        "set": "min:3|email"
                     },
                     "key": "unique",
                     "fillable": true

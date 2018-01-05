@@ -82,10 +82,10 @@ class Validate {
     }
 
     check(field, val, rules, errors) {
-        let promises = [];
+        let promiseRun = [];
         
         rules = rules.split("|");
-        
+
         for (let split of rules) {
             let [rule, extra] = split.split(":");
             
@@ -124,12 +124,23 @@ class Validate {
             let handler = "validate" + rule.charAt(0).toUpperCase() + rule.slice(1);
             
             if (PROMISE_RULES.indexOf(rule) !== -1) {
-                promises.push(this[handler](extra, field, val, type, errors));
+                promiseRun.push([this[handler], [extra, field, val, type, errors]]);
             } else {
                 if (this[handler](extra, field, val, type) === false) {
                     this.addError(rule, extra, field, val, type, errors);
                 }
             }
+        }
+
+        //don't run promise validations if errors already found
+        if (promiseRun.length && Object.keys(errors).length) {
+            return [];
+        }
+
+        let promises = [];
+
+        for (let run of promiseRun) {
+            promises.push(run[0].bind(this)(...run[1]));
         }
         
         return promises;
@@ -238,19 +249,19 @@ class Validate {
                 val = [val];
             }
 
-            if (val.length <= extra) {
+            if (val.length < extra) {
                 return false;
             }
             
             break;
         case "String":
-            if (String(val).length <= extra) {
+            if (String(val).length < extra) {
                 return false;
             }
             
             break;
         case "Date":
-            if (val <= new Date(extra)) {
+            if (val < new Date(extra)) {
                 return false;
             }
             
