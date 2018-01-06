@@ -76,6 +76,10 @@ class Config {
         return this.config.getDbSchema(dbName);
     }
 
+    getTableConfig(dbName, tableName) {
+        return this.config.getTableConfig(dbName, tableName);
+    }
+
     getTableSchema(dbName, tableName) {
         return this.config.getTableSchema(dbName, tableName);
     }

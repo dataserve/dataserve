@@ -2,13 +2,17 @@
 
 class DB {
 
-    constructor(log){
+    constructor(config, log){
+        this.config = config;
+        
         this.log = log;
         
         this.dbs = {};
     }
     
-    getDb(dbName, dbConfig) {
+    getDb(dbName) {
+        let dbConfig = this.config.dbs[dbName];
+        
         if (!dbConfig || !dbConfig.type) {
             throw new Error("missing db type for: " + dbName + " - " + JSON.stringify(dbConfig));
         }

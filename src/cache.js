@@ -2,15 +2,19 @@
 
 class Cache {
 
-    constructor(log) {
+    constructor(config, log) {
         this.debug = require("debug")("dataserve:cache");
+
+        this.config = config;
         
         this.log = log;
         
         this.dbs = {};
     }
     
-    getCache(dbName, dbConfig) {
+    getCache(dbName) {
+        let dbConfig = this.config.dbs[dbName];
+        
         if (!dbConfig || !dbConfig.type) {
             throw new Error("missing db type for: " + dbName + " - " + JSON.stringify(dbConfig));
         }
