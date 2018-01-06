@@ -1,5 +1,7 @@
 "use strict";
 
+const Promise = require("bluebird");
+const { MiddlewareManager: Manager } = require("js-middleware");
 const util = require("util");
 
 const Cache = require("./cache");
@@ -7,32 +9,35 @@ const Config = require("./config");
 const DB = require("./db");
 const Log = require("./log");
 const Model = require("./model");
-const Query = require("./query");
-const {camelize} = require("./util");
+const { middlewareHandler } = require("./middleware");
+const { queryHandler } = require("./query");
+const { camelize } = require("./util");
 
 class Dataserve {
 
-    constructor(configPath, dotenvPath, lock){
+    constructor(configPath, middlewarePath, dotenvPath, lock){
         //required if dotenv file not already loaded
         if (dotenvPath) {
             require('dotenv').config({path: dotenvPath});
         }
         
-        this.modelClass = Model;
-        
         this.log = new Log;
         
-        this.db = new DB(this.log);
-        
-        this.cache = new Cache(this.log);
-
         this.config = new Config(configPath);
+
+        this.db = new DB(this.config, this.log);
+        
+        this.cache = new Cache(this.config, this.log);
+
+        this.middlewareLookup = middlewarePath ? require(this.middlewareLookup) : null;
 
         this.debug = require("debug")("dataserve");
 
         this.lock = lock;
 
         this.model = {};
+
+        this.manager = {};
     }
 
     dbTable(dbTable) {
@@ -46,20 +51,38 @@ class Dataserve {
         
         return dbTable;
     }
-    
+
+    initDbTable(dbTable) {
+        let [dbName, tableName] = dbTable.split(".");
+
+        let db = this.db.getDb(dbName);
+
+        let cache = this.cache.getCache(dbName);
+
+        let tableConfig = this.config.getTableConfig(dbName, tableName);
+
+        this.model[dbTable] = new Model(this, dbTable, tableConfig, db, cache, this.log, this.lock);
+
+        this.manager[dbTable] = new Manager(this.model[dbTable]);
+
+        this.manager[dbTable].use('run', queryHandler);
+
+        this.manager[dbTable].use('run', middlewareHandler(this.middlewareLookup));
+
+        this.debug("Created dbTable " + dbTable);
+    }
+
+    getManager(dbTable) {
+        if (!this.manager[dbTable]) {
+            this.initDbTable(dbTable);
+        }
+        
+        return this.manager[dbTable];
+    }
+
     getModel(dbTable) {
         if (!this.model[dbTable]) {
-            let [dbName] = dbTable.split(".");
-
-            let db = this.db.getDb(dbName, this.config.dbs[dbName]);
-
-            let cache = this.cache.getCache(dbName, this.config.dbs[dbName]);
-
-            let dbConfig = this.config.getDbConfig(dbName);
-            
-            this.model[dbTable] = new this.modelClass(this, dbConfig, db, cache, dbTable, this.log, this.lock);
-            
-            this.debug("Created model " + dbTable);
+            this.initDbTable(dbTable);
         }
         
         return this.model[dbTable];
@@ -69,10 +92,23 @@ class Dataserve {
         let [dbTable, command] = dbTableCommand.split(":");
         
         command = camelize(command);
+
+        //TODO: FIX
+        if (command === "outputDbSchema") {
+            return this.getDb().outputDbSchema(this.dbName, this.dbConfig, this.dataserve);
+        }
+        
+        //TODO: FIX
+        if (["flushCache", "outputCache"].indexOf(command) !== -1) {
+            return this[command]();
+        }
         
         dbTable = this.dbTable(dbTable);
-        
-        return this.getModel(dbTable).run(command, input);
+
+        return this.getModel(dbTable).run({
+            command,
+            input,
+        });
     }
     
 }

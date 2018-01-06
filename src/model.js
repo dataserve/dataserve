@@ -3,8 +3,6 @@
 const Promise = require("bluebird");
 const _object = require("lodash/object");
 
-const Module = require("./module");
-const Query = require("./query");
 const { camelize, paramFo, r } = require("./util");
 
 const ALLOWED_COMMANDS = [
@@ -20,21 +18,29 @@ const ALLOWED_COMMANDS = [
 
 class Model {
 
-    constructor(dataserve, dbConfig, db, cache, dbTable, log, lock){
+    constructor(dataserve, dbTable, tableConfig, db, cache, log, lock){
         this.dataserve = dataserve;
 
-        this.dbConfig = dbConfig;
+        this.dbTable = dbTable;
+        
+        this.tableConfig = tableConfig;
         
         this.db = db;
         
         this.cache = cache;
 
-        this.dbTable = dbTable;
+        /*
+        this.middleware = null;
+
+        if (tableConfig.middleware) {
+            this.middleware = new Middleware(this, tableConfig.middleware, middlewareLookup);
+        }
+        */
         
         this.log = log;
 
         this.lock = lock;
-        
+
         this.dbName = null;
         
         this.tableName = null;
@@ -91,12 +97,6 @@ class Model {
             throw new Error("Missing db/table names");
         }
 
-        this.tableConfig = this.dbConfig.tables[this.tableName];
-
-        if (!this.tableConfig) {
-            throw new Error("Missing config information for table: " + this.tableName);
-        }
-        
         if (!this.tableConfig.fields) {
             throw new Error("Missing fields information for table: " + this.tableName);
         }
@@ -140,23 +140,11 @@ class Model {
         }
     }
 
-    getDbConfig() {
-        return this.dbConfig;
-    }
-
     getTableConfig() {
         return this.tableConfig;
     }
 
-    run(command, input) {        
-        if (["flushCache", "outputCache"].indexOf(command) !== -1) {
-            return this[command]();
-        }
-
-        if (command === "outputDbSchema") {
-            return this.getDb().outputDbSchema(this.dbName, this.dbConfig, this.dataserve);
-        }
-
+    run({ command, query }) {
         if (command == "outputTableSchema") {
             return this.getDb().outputTableSchema(this.tableName, this.tableConfig, this.timestamps);
         }
@@ -165,29 +153,7 @@ class Model {
             return Promise.resolve(r(false, "invalid command: " + command));
         }
 
-        let query = null;
-        
-        if (input instanceof Query) {
-            query = input;
-        } else {
-            try {
-                query = new Query(input, command, this);
-            } catch (error) {
-                return Promise.resolve(r(false, error.toString()));
-            }
-        }
-
-        let module = null;
-        
-        if (module = this.getTableConfig().module) {
-            module = new (require("./module/" + module))(this);
-        } else {
-            module = new Module(this);
-        }
-               
-        let hooks = module.getHooks(command);
-
-        return this[command](query, hooks);
+        return this[command](query);
     }
     
     getField(field) {
@@ -206,7 +172,7 @@ class Model {
         return this.db.validateType(this.fields[field].type);
     }
     
-    addField(field, attributes){
+    addField(field, attributes) {
         this.fields[field] = attributes;
         
         if (attributes.key) {
@@ -289,19 +255,16 @@ class Model {
         this.relationships[type][table] = true;
     }
 
-    add(query, hooks){
+    add(query){
         if (!query.hasFields()) {
             return Promise.resolve(r(false, "missing fields"));
         }
         
         var primaryKeyVal = null;
         
-        return hooks.runPre(query)
-            .then(() => {
-                return this.log.add("db,db:add", () => {
-                    return this.getDb().add(this, query);
-                });
-            })
+        return this.log.add("db,db:add", () => {
+            return this.getDb().add(this, query);
+        })
             .then(primaryKeyValTmp => {
                 primaryKeyVal = primaryKeyValTmp;
                 
@@ -324,7 +287,7 @@ class Model {
             .catch(this.catchDefault);
     }
     
-    get(query, hooks){
+    get(query){
         if (!query.hasGet()) {
             return Promise.resolve(r(false, "missing param:"+JSON.stringify(query.input)));
         }
@@ -401,7 +364,7 @@ class Model {
             .catch(this.catchDefault);
     }
 
-    getCount(query, hooks) {
+    getCount(query) {
         query.setLimit(1, 1);
         
         query.setOutputStyle("FOUND_ONLY");
@@ -413,7 +376,7 @@ class Model {
             .catch(this.catchDefault);
     }
 
-    getMulti(query, hooks){
+    getMulti(query){
         if (!query.hasGetMulti()) {
             return Promise.resolve(r(false, "missing param"));
         }
@@ -460,7 +423,7 @@ class Model {
             .catch(this.catchDefault);
     }
 
-    inc(query, hooks) {
+    inc(query) {
         if (!query.primaryKey) {
             Promise.resolve(r(false, "missing primary field:"+JSON.stringify(query.input)));
         }
@@ -483,13 +446,10 @@ class Model {
             .catch(this.catchDefault);
     }
 
-    lookup(query, hooks) {
+    lookup(query) {
         var meta = {};
         
-        return hooks.runPre(query)
-            .then(() => {
-                return this.getDb().lookup(this, query);
-            })
+        return this.getDb().lookup(this, query)
             .then(args => {
                 let [rows, found] = args;
                 
@@ -532,14 +492,11 @@ class Model {
                 
                 return Object.values(result.result);
             })
-            .then(result => {
-                return hooks.runPost(result);
-            })
             .then(result => r(true, result, meta))
             .catch(this.catchDefault);
     }
 
-    set(query, hooks) {
+    set(query) {
         if (!query.primaryKey) {
             return Promise.resolve(r(false, "missing primary key"));
         }
@@ -561,7 +518,7 @@ class Model {
             .catch(this.catchDefault);
     }
 
-    remove(query, hooks){
+    remove(query){
         if (!query.primaryKey) {
             return Promise.resolve(r(false, "primary key value required"));
         }
@@ -586,7 +543,7 @@ class Model {
         return output;
     }
 
-    getTable(){
+    getTableName(){
         return this.tableName;
     }
 

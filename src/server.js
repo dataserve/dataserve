@@ -29,12 +29,18 @@ class Server {
         if (!fs.existsSync(this.configPath)) {
             throw new Error("Config file not found: " + this.configPath);
         }
-        
+
+        this.middleware = cli.middleware ? cli.middleware : null;
+
+        if (this.middlewarePath && !fs.existsSync(this.middlewarePath)) {
+            throw new Error("Middleware file not found: " + this.middlewarePath);
+        }
+
         this.dotenvPath = cli.env ? cli.env : null;
 
         if (this.dotenvPath) {
             if (!fs.existsSync(this.dotenvPath)) {
-                throw new Error("Dotenv file not found: " + configPath);
+                throw new Error("Dotenv file not found: " + this.dotenvPath);
             }
             
             require("dotenv").config({path: this.dotenvPath});
@@ -102,7 +108,7 @@ class Server {
                     cluster.fork();
                 }
             } else {
-                this.dataserve = new Dataserve(this.configPath, null, this.lock);
+                this.dataserve = new Dataserve(this.configPath, this.middlewarePath, null, this.lock);
                 
                 this.server = this.createServer();
 
@@ -203,13 +209,18 @@ class Server {
                 } else {
                     this.debug(timeRun, "CALL FAIL", output);//, util.inspect(output, false, null));
                 }
+
+                if (typeof output === "undefined" || typeof output.status === "undefined") {
+                    response.encode(JSON.stringify(r(false, "Unknown error 1")));
+                    return;
+                }
                 
                 response.encode(JSON.stringify(output));
             })
             .catch(err => {
                 this.debug("CALL FAIL:", err);
                 
-                response.encode(JSON.stringify(r(false, "Unknown error")));
+                response.encode(JSON.stringify(r(false, "Unknown error 2")));
             });
     }
 
@@ -252,6 +263,7 @@ function startServer() {
 
 cli.version(version)
     .option("-c, --config <path>", "Config File path")
+    .option("-m, --middleware <path>", "Middleware File path")
     .option("-e, --env <path>", "Load .env path")
     .option("-p, --port <n>", "Port", parseInt)
     .option("-s, --socket <path>", "Socket")

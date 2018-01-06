@@ -10,11 +10,15 @@ const ALLOWED_OUTPUT_STYLE = [
     "LOOKUP_RAW",
 ];
 
+module.exports.queryHandler = model => next => obj => {
+    obj.query = new Query(model, obj.command, obj.input);
+    
+    return next(obj);
+}
+
 class Query {
 
-    constructor(input, command, model) {
-        this.input = input;
-        
+    constructor(model, command, input) {
         this.model = model;
         
         this.alias = "";
@@ -55,10 +59,12 @@ class Query {
 
         this.singleRowResult = false;
 
-        this.build(input, command);
+        this.build(command, input);
     }
 
-    build(input, command) {
+    build(command, input) {
+        this.input = input;
+
         if (!isNaN(parseInt(input, 10))) {
             this.input = input = {
                 [this.model.getPrimaryKey()]: parseInt(input, 10),
@@ -72,7 +78,7 @@ class Query {
         if (input.alias) {
             this.setAlias(input.alias);
         } else {
-            this.setAlias(this.model.getTable().substring(0, 1));
+            this.setAlias(this.model.getTableName().substring(0, 1));
         }
         
         if (input.fields) {
@@ -342,4 +348,4 @@ class Query {
     }
 }
 
-module.exports = Query;
+module.exports.Query = Query;

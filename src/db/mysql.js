@@ -153,7 +153,7 @@ class MySql {
             primaryKeyVal = query.fields[model.primaryKey];
         }
         
-        let sql = "INSERT INTO " + model.getTable() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
+        let sql = "INSERT INTO " + model.getTableName() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
         
         return this.log.add("db,db:add", () => {
             return this.query(sql, bind);
@@ -241,7 +241,7 @@ class MySql {
             updates.push(key + "=" + key + " + " + parseInt(query.fields[key], 10));
         }
         
-        let sql = "UPDATE " + model.getTable() + " SET ";
+        let sql = "UPDATE " + model.getTableName() + " SET ";
         
         sql += updates.join(",");
         
@@ -343,9 +343,9 @@ class MySql {
                 }
             }
             
-            sql = "INSERT INTO " + model.getTable() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ") ON DUPLICATE KEY UPDATE " + updates.join(",") + " ";
+            sql = "INSERT INTO " + model.getTableName() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ") ON DUPLICATE KEY UPDATE " + updates.join(",") + " ";
         } else {
-            sql = "UPDATE " + model.getTable() + " SET ";
+            sql = "UPDATE " + model.getTableName() + " SET ";
             
             for (let field in query.fields) {
                 if (model.getField(field).type == "int") {
@@ -431,7 +431,7 @@ class MySql {
     }
 
     from(model, alias="") {
-        return "FROM " + model.getTable() + " " + (alias?alias + " ":"");
+        return "FROM " + model.getTableName() + " " + (alias?alias + " ":"");
     }
 
     where(where){
