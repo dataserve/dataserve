@@ -1,6 +1,6 @@
-"use strict";
+'use strict';
 
-const microtime = require("microtime");
+const microtime = require('microtime');
 
 class Log {
 
@@ -9,7 +9,7 @@ class Log {
     }
 
     add(types, func) {
-        types = types.split(",");
+        types = types.split(',');
         
         let timeStart = microtime.now();
         
@@ -17,7 +17,7 @@ class Log {
             let timeRun = (microtime.now() - timeStart) / 1000000;
             
             for (let type of types) {
-                if (typeof this.log[type] === "undefined") {
+                if (typeof this.log[type] === 'undefined') {
                     this.log[type] = {
                         entries: [],
                     };
@@ -31,9 +31,9 @@ class Log {
     }
 
     get(types) {
-        types = types.split(",");
+        types = types.split(',');
         
-        if (types.indexOf("*") !== -1) {
+        if (types.indexOf('*') !== -1) {
             return this.getAll();
         }
         
@@ -63,7 +63,7 @@ class Log {
     }
     
     getAll() {
-        return this.get(Object.keys(this.log).sort().join(","));
+        return this.get(Object.keys(this.log).sort().join(','));
     }
     
 }

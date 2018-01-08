@@ -1,7 +1,7 @@
-"use strict";
+'use strict';
 
-const bluebird = require("bluebird");
-const redis = require("redis");
+const bluebird = require('bluebird');
+const redis = require('redis');
 
 bluebird.promisifyAll(redis.RedisClient.prototype);
 bluebird.promisifyAll(redis.Multi.prototype);
@@ -15,14 +15,14 @@ class CacheRedis {
     }
 
     key(dbTable, field, key) {
-        return dbTable + ":" + field + ":" + key
+        return dbTable + ':' + field + ':' + key
     }
     
     getAll() {
         let output = {};
         
-        return this.log.add("cache,cache:getAll", () => {
-            return this.cache.keysAsync("*");
+        return this.log.add('cache,cache:getAll', () => {
+            return this.cache.keysAsync('*');
         }).then(cacheKeys => {
             if (!cacheKeys.length) {
                 return [];
@@ -49,7 +49,7 @@ class CacheRedis {
         
         let output = {};
         
-        return this.log.add("cache,cache:get", () => {
+        return this.log.add('cache,cache:get', () => {
             return this.cache.mgetAsync(cacheKeys)
         }).then(res => {
             let output = {};
@@ -79,7 +79,7 @@ class CacheRedis {
             input.push(val);
         }
         
-        return this.log.add("cache,cache:set", () => {
+        return this.log.add('cache,cache:set', () => {
             return this.cache.msetAsync(input);
         }).then(res => {
             return vals;
@@ -97,13 +97,13 @@ class CacheRedis {
             cacheKeys.push(this.key(dbTable, field, key));
         }
         
-        return this.log.add("cache,cache:del", () => {
+        return this.log.add('cache,cache:del', () => {
             return this.cache.delAsync(cacheKeys);
         });
     }
 
     delAll() {
-        return this.log.add("cache,cache:delAll", () => {
+        return this.log.add('cache,cache:delAll', () => {
             return this.cache.flushdbAsync();
         });
     }

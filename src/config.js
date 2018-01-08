@@ -1,12 +1,12 @@
-"use strict";
+'use strict';
 
-const _array = require("lodash/array");
-const _object = require("lodash/object");
-const path = require("path");
-const Type = require("type-of-is");
-const SqlSchemaModulizer = require("sql-schema-modulizer");
+const _array = require('lodash/array');
+const _object = require('lodash/object');
+const path = require('path');
+const Type = require('type-of-is');
+const SqlSchemaModulizer = require('sql-schema-modulizer');
 
-const { loadJson } = require("./util");
+const { loadJson } = require('./util');
 
 class Config {
     
@@ -38,24 +38,24 @@ class Config {
         let dbList = [];
         
         if (process.env.DB_LIST) {
-            dbList = process.env.DB_LIST.split(",");
+            dbList = process.env.DB_LIST.split(',');
         }
         
         if (dbList.length) {
             for (let dbName of dbList) {
-                if (process.env["DB_" + dbName + "_CACHE"]) {
+                if (process.env[`DB_${dbName}_CACHE`]) {
                     this.configCache(dbName);
                 }
                 
-                if (process.env["DB_" + dbName]) {
+                if (process.env[`DB_${dbName}`]) {
                     this.configSingle(dbName);
                     
                     continue;
                 }
                 
-                if (process.env["DB_" + dbName + "_TYPE"]
-                    && process.env["DB_" + dbName + "_WRITE"]
-                    && process.env["DB_" + dbName + "_READ"]) {
+                if (process.env[`DB_${dbName}_TYPE`]
+                    && process.env[`DB_${dbName}_WRITE`]
+                    && process.env[`DB_${dbName}_READ`]) {
                     this.configReplicated(dbName);
                     
                     continue;
@@ -85,7 +85,7 @@ class Config {
     }
 
     configCache(dbName) {
-        let cacheParam = process.env["DB_" + dbName + "_CACHE"].split(",");
+        let cacheParam = process.env[`DB_${dbName}_CACHE`].split(',');
 
         if (!cacheParam.length) {
             return;
@@ -100,7 +100,7 @@ class Config {
         
         //hostname
         if (cacheParam[1] && cacheParam[1].length) {
-            let [host, port] = cacheParam[1].split(":");
+            let [host, port] = cacheParam[1].split(':');
             
             this.dbs[dbName].cache.host = host;
             
@@ -111,7 +111,7 @@ class Config {
     }
     
     configSingle(dbName) {
-        let dbParam = process.env["DB_" + dbName].split(",");
+        let dbParam = process.env[`DB_${dbName}`].split(',');
 
         if (!dbParam.length) {
             return;
@@ -124,7 +124,7 @@ class Config {
         
         //hostname
         if (dbParam[1] && dbParam[1].length) {
-            let [host, port] = dbParam[1].split(":");
+            let [host, port] = dbParam[1].split(':');
             
             this.dbs[dbName].host = host;
             
@@ -151,11 +151,11 @@ class Config {
 
     configReplicated(dbName) {
         //type
-        if (process.env["DB_" + dbName + "_TYPE"]) {
-            this.dbs[dbName].type = process.env["DB_" + dbName + "_TYPE"];
+        if (process.env[`DB_${dbName}_TYPE`]) {
+            this.dbs[dbName].type = process.env[`DB_${dbName}_TYPE`];
         }
 
-        let dbWriteParam = process.env["DB_" + dbName + "_WRITE"].split(",");
+        let dbWriteParam = process.env[`DB_${dbName}_WRITE`].split(',');
         
         this.dbs[dbName].write = {
             type: this.dbs[dbName].type,
@@ -163,7 +163,7 @@ class Config {
         
         //hostname
         if (dbWriteParam[0] && dbWriteParam[0].length) {
-            let [host, port] = dbWriteParam[0].split(":");
+            let [host, port] = dbWriteParam[0].split(':');
             
             this.dbs[dbName].write.host = host;
             
@@ -189,7 +189,7 @@ class Config {
             this.dbs[dbName].write.connectionLimit = this.dbs[dbName].connectionLimit;
         }
 
-        let dbReadParam = process.env["DB_" + dbName + "_READ"].split(",");
+        let dbReadParam = process.env[`DB_${dbName}_READ`].split(',');
         
         this.dbs[dbName].read = {
             type: this.dbs[dbName].type,
@@ -197,7 +197,7 @@ class Config {
         
         //hostname
         if (dbReadParam[0] && dbReadParam[0].length) {
-            let [host, port] = dbReadParam[0].split(":");
+            let [host, port] = dbReadParam[0].split(':');
             
             this.dbs[dbName].read.host = host;
             

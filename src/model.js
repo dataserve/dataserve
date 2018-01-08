@@ -1,19 +1,19 @@
-"use strict";
+'use strict';
 
-const Promise = require("bluebird");
-const _object = require("lodash/object");
+const Promise = require('bluebird');
+const _object = require('lodash/object');
 
-const { camelize, paramFo, r } = require("./util");
+const { camelize, paramFo, r } = require('./util');
 
 const ALLOWED_COMMANDS = [
-    "add",
-    "get",
-    "getCount",
-    "getMulti",
-    "inc",
-    "lookup",
-    "remove",
-    "set",
+    'add',
+    'get',
+    'getCount',
+    'getMulti',
+    'inc',
+    'lookup',
+    'remove',
+    'set',
 ];
 
 class Model {
@@ -57,21 +57,21 @@ class Model {
 
         this.timestamps = {
             created: {
-                name: "ctime",
-                type: "timestamp",
+                name: 'ctime',
+                type: 'timestamp',
                 fillable: false,
                 autoSetTimestamp: true
             },
             modified: {
-                name: "mtime",
-                type: "timestamp",
+                name: 'mtime',
+                type: 'timestamp',
                 fillable: false,
                 autoSetTimestamp: true,
                 autoUpdateTimestamp: true
             },
         };
         
-        this.debug = require("debug")("dataserve:model");
+        this.debug = require('debug')('dataserve:model');
 
         this.parseConfig();
         
@@ -81,14 +81,14 @@ class Model {
     }
 
     parseConfig(){
-        [this.dbName, this.tableName] = this.dbTable.split(".");
+        [this.dbName, this.tableName] = this.dbTable.split('.');
         
         if (!this.dbName || !this.tableName) {
-            throw new Error("Missing db/table names");
+            throw new Error('Missing db/table names');
         }
 
         if (!this.tableConfig.fields) {
-            throw new Error("Missing fields information for table: " + this.tableName);
+            throw new Error('Missing fields information for table: ' + this.tableName);
         }
         
         for (let key in this.tableConfig.fields) {
@@ -96,14 +96,14 @@ class Model {
         }
         
         if (!this.primaryKey) {
-            throw new Error("A primary key must be specified for table: " + this.tableName);
+            throw new Error('A primary key must be specified for table: ' + this.tableName);
         }
         
-        if (typeof this.tableConfig.setInsert !== "undefined") {
+        if (typeof this.tableConfig.setInsert !== 'undefined') {
             this.setInsert = this.tableConfig.setInsert;
             
             if (this.setInsert && !this.fields[this.primaryKey].fillable) {
-                throw new Error("Primary key must be fillable when `setInsert` is set to true");
+                throw new Error('Primary key must be fillable when `setInsert` is set to true');
             }
         }
 
@@ -111,15 +111,15 @@ class Model {
             this.addMiddleware(this.tableConfig.middleware);
         }
         
-        if (typeof this.tableConfig.timestamps !== "undefined") {
+        if (typeof this.tableConfig.timestamps !== 'undefined') {
             if (!this.tableConfig.timestamps) {
                 this.timestamps = null;
             } else {
-                if (typeof this.tableConfig.timestamps.created !== "undefined") {
+                if (typeof this.tableConfig.timestamps.created !== 'undefined') {
                     this.timestamps.created = this.tableConfig.timestamps.created;
                 }
                 
-                if (typeof this.tableConfig.timestamps.modified !== "undefined") {
+                if (typeof this.tableConfig.timestamps.modified !== 'undefined') {
                     this.timestamps.modified = this.tableConfig.timestamps.modified;
                 }
             }
@@ -139,19 +139,19 @@ class Model {
     }
 
     run({ command, query }) {
-        if (command == "outputTableSchema") {
+        if (command == 'outputTableSchema') {
             return this.getDb().outputTableSchema(this.tableName, this.tableConfig, this.timestamps);
         }
 
         if (ALLOWED_COMMANDS.indexOf(command) === -1) {
-            return Promise.resolve(r(false, "invalid command: " + command));
+            return Promise.resolve(r(false, 'invalid command: ' + command));
         }
 
         return this[command](query);
     }
     
     getField(field) {
-        if (typeof this.fields[field] === "undefined") {
+        if (typeof this.fields[field] === 'undefined') {
             return null;
         }
         
@@ -159,7 +159,7 @@ class Model {
     }
 
     getFieldValidateType(field) {
-        if (typeof this.fields[field] === "undefined") {
+        if (typeof this.fields[field] === 'undefined') {
             return null;
         }
         
@@ -171,18 +171,18 @@ class Model {
         
         if (attributes.key) {
             switch (attributes.key) {
-            case "primary":
+            case 'primary':
                 this.primaryKey = field;
                 
                 break;
-            case "unique":
+            case 'unique':
                 this.addUnique(field);
                 
                 break;
             }
         }
         
-        if (typeof attributes.fillable === "undefined" || attributes.fillable) {
+        if (typeof attributes.fillable === 'undefined' || attributes.fillable) {
             this.addFillable(field);
         }
         
@@ -238,7 +238,7 @@ class Model {
     addRelationship(type, table){
         type = camelize(type);
         
-        if (["belongsTo", "hasOne"].indexOf(type) == -1) {
+        if (['belongsTo', 'hasOne'].indexOf(type) == -1) {
             return;
         }
         
@@ -263,12 +263,12 @@ class Model {
 
     add(query){
         if (!query.hasFields()) {
-            return Promise.resolve(r(false, "missing fields"));
+            return Promise.resolve(r(false, 'missing fields'));
         }
         
         var primaryKeyVal = null;
         
-        return this.log.add("db,db:add", () => {
+        return this.log.add('db,db:add', () => {
             return this.getDb().add(this, query);
         })
             .then(primaryKeyValTmp => {
@@ -281,8 +281,8 @@ class Model {
                 }
             })
             .then(res => {
-                if (query.isOutputStyle("RETURN_ADD")) {
-                    return this.run("get", {
+                if (query.isOutputStyle('RETURN_ADD')) {
+                    return this.run('get', {
                         [this.primaryKey]: primaryKeyVal,
                         fillin: query.fillin,
                     });
@@ -295,7 +295,7 @@ class Model {
     
     get(query){
         if (!query.hasGet()) {
-            return Promise.resolve(r(false, "missing param:"+JSON.stringify(query.input)));
+            return Promise.resolve(r(false, 'missing param:'+JSON.stringify(query.input)));
         }
 
         var cacheRows = {}, cachePromise = null;
@@ -361,7 +361,7 @@ class Model {
                     return r(true, {});
                 }
                 
-                if (query.isOutputStyle("BY_ID")) {
+                if (query.isOutputStyle('BY_ID')) {
                     return r(true, rows, extra);
                 }
                 
@@ -373,9 +373,9 @@ class Model {
     getCount(query) {
         query.setLimit(1, 1);
         
-        query.setOutputStyle("FOUND_ONLY");
+        query.setOutputStyle('FOUND_ONLY');
         
-        return this.run("lookup", query)
+        return this.run('lookup', query)
             .then(output => {
                 return output.status ? r(true, output.meta.found) : output;
             })
@@ -384,7 +384,7 @@ class Model {
 
     getMulti(query){
         if (!query.hasGetMulti()) {
-            return Promise.resolve(r(false, "missing param"));
+            return Promise.resolve(r(false, 'missing param'));
         }
 
         return this.getDb().getMulti(this, query)
@@ -400,8 +400,8 @@ class Model {
                 let q = new Query({
                     id: ids,
                     fillin: query.fillin,
-                    outputStyle: "BY_ID",
-                }, "get", this);
+                    outputStyle: 'BY_ID',
+                }, 'get', this);
                 
                 return this.get(q);
             })
@@ -431,11 +431,11 @@ class Model {
 
     inc(query) {
         if (!query.primaryKey) {
-            Promise.resolve(r(false, "missing primary field:"+JSON.stringify(query.input)));
+            Promise.resolve(r(false, 'missing primary field:'+JSON.stringify(query.input)));
         }
         
         if (!query.hasFields()) {
-            return Promise.resolve(r(false, "missing update fields"));
+            return Promise.resolve(r(false, 'missing update fields'));
         }
         
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
@@ -467,22 +467,22 @@ class Model {
                 let ids = rows ? Object.keys(rows) : [];
                 
                 if (!ids.length) {
-                    if (query.isOutputStyle("BY_ID")) {
+                    if (query.isOutputStyle('BY_ID')) {
                         return Promise.reject(r(true, {}));
                     }
                     
                     return Promise.reject(r(true, []));
                 }
                 
-                if (query.isOutputStyle("LOOKUP_RAW")) {
-                    if (query.isOutputStyle("BY_ID")) {
+                if (query.isOutputStyle('LOOKUP_RAW')) {
+                    if (query.isOutputStyle('BY_ID')) {
                         return Promise.reject(r(true, rows));
                     }
                     
                     return Promise.reject(r(true, Object.values(rows)));
                 }
                 
-                return this.run("get", {
+                return this.run('get', {
                     [this.primaryKey]: ids,
                     fillin: query.fillin,
                 });
@@ -492,7 +492,7 @@ class Model {
                     return Promise.reject(result);
                 }
                 
-                if (query.isOutputStyle("BY_ID")) {
+                if (query.isOutputStyle('BY_ID')) {
                     return result.result;
                 }
                 
@@ -504,10 +504,10 @@ class Model {
 
     set(query) {
         if (!query.primaryKey) {
-            return Promise.resolve(r(false, "missing primary key"));
+            return Promise.resolve(r(false, 'missing primary key'));
         }
         if (!query.fields) {
-            return Promise.resolve(r(false, "missing update fields"));
+            return Promise.resolve(r(false, 'missing update fields'));
         }
 
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
@@ -526,7 +526,7 @@ class Model {
 
     remove(query){
         if (!query.primaryKey) {
-            return Promise.resolve(r(false, "primary key value required"));
+            return Promise.resolve(r(false, 'primary key value required'));
         }
         
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
@@ -542,7 +542,7 @@ class Model {
     }
 
     catchDefault(output) {
-        if (!output || typeof output.status === "undefined") {
+        if (!output || typeof output.status === 'undefined') {
             return r(false, output);
         }
         
@@ -576,25 +576,25 @@ class Model {
                 
                 let inp = {
                     fillin: query.fillin,
-                    outputStyle: "BY_ID",
+                    outputStyle: 'BY_ID',
                 };
                 
-                if (this.relationships[type][table] && typeof this.relationships[type][table] == "object") {
+                if (this.relationships[type][table] && typeof this.relationships[type][table] == 'object') {
                     inp = Object.assign(opts, inp);
                 }
                 
-                if (type == "hasMany") {
-                    inp[this.model + "_id"] = ids;
+                if (type == 'hasMany') {
+                    inp[this.model + '_id'] = ids;
                     
-                    promises.push(this.dataserve.run(this.dbName + "." + table + ":getMulti", inp));
+                    promises.push(this.dataserve.run(`${this.dbName}.${table}:getMulti`, inp));
                 } else {
-                    if (type == "hasOne") {
-                        inp[this.model + "_id"] = ids;
-                    } else if (type == "belongsTo") {
-                        inp["id"] = Object.keys(rows).map(key => rows[key][table+"_id"]);
+                    if (type == 'hasOne') {
+                        inp[this.model + '_id'] = ids;
+                    } else if (type == 'belongsTo') {
+                        inp['id'] = Object.keys(rows).map(key => rows[key][table+'_id']);
                     }
                     
-                    promises.push(this.dataserve.run(this.dbName + "." + table + ":get", inp));
+                    promises.push(this.dataserve.run(`${this.dbName}.${table}:get`, inp));
                 }
                 
                 promiseMap[table] = type;
@@ -630,10 +630,10 @@ class Model {
                             continue;
                         }
                         
-                        if (["hasOne", "hasMany"].indexOf(fillin[table].type) !== -1) {
-                            rows[index][table] = paramFo(fillin[table].result, rows[index]["id"]);
-                        } else if (fillin[table].type == "belongsTo") {
-                            rows[index][table] = paramFo(fillin[table].result, rows[index][table + "_id"]);
+                        if (['hasOne', 'hasMany'].indexOf(fillin[table].type) !== -1) {
+                            rows[index][table] = paramFo(fillin[table].result, rows[index]['id']);
+                        } else if (fillin[table].type == 'belongsTo') {
+                            rows[index][table] = paramFo(fillin[table].result, rows[index][table + '_id']);
                         }
                     }
                 }
@@ -668,10 +668,10 @@ class Model {
         let lockKey = [];
         
         for (let v of val) {
-            lockKey.push(field + ":" + v);
+            lockKey.push(field + ':' + v);
         }
 
-        let fn = isWrite ? "acquireWrite" : "acquireRead";
+        let fn = isWrite ? 'acquireWrite' : 'acquireRead';
         
         return this.lock[fn](lockKey, func);
     }
@@ -697,7 +697,7 @@ class Model {
             let ids = [];
             
             for (let key of keys) {
-                if (typeof cacheRows[key] === "undefined") {
+                if (typeof cacheRows[key] === 'undefined') {
                     ids.push(key);
                 }
             }

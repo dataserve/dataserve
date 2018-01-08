@@ -1,6 +1,6 @@
-"use strict";
+'use strict';
 
-const { r } = require("./util");
+const { r } = require('./util');
 
 class Hooks {
 
@@ -41,7 +41,7 @@ class Hooks {
         return Promise.all(promises)
             .then(output => {
                 for (let out of output) {
-                    if (out && typeof out.status !== "undefined" && !out.status) {
+                    if (out && typeof out.status !== 'undefined' && !out.status) {
                         return out;
                     }
                 }

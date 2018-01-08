@@ -1,17 +1,17 @@
 'use strict';
 
-const Promise = require("bluebird");
+const Promise = require('bluebird');
 const microtime = require('microtime');
 const mysql = require('mysql');
 const Type = require('type-of-is');
-const util = require("util");
+const util = require('util');
 
-const { intArray, r } = require("../util");
+const { intArray, r } = require('../util');
 
 class MySql {
     
     constructor(dbName, config, log){
-        this.debug = require("debug")("dataserve:mysql");
+        this.debug = require('debug')('dataserve:mysql');
         
         this.log = log;
         
@@ -128,7 +128,7 @@ class MySql {
 
     add(model, query) {
         if (model.getField(model.primaryKey).setInsert) {
-            return Promise.reject("Cannot `add` on a setInsert table, use `set` command instead");
+            return Promise.reject('Cannot `add` on a setInsert table, use `set` command instead');
         }
 
         let cols = [], vals = [], bind = [], primaryKeyVal = null;
@@ -136,26 +136,26 @@ class MySql {
         for (let field in query.fields) {
             cols.push(field);
             
-            if (model.getField(field).type == "int") {
+            if (model.getField(field).type == 'int') {
                 vals.push(parseInt(query.fields[field], 10));
             } else {
-                vals.push(":" + field);
+                vals.push(':' + field);
                 
                 bind[field] = query.fields[field];
             }
         }
         
         if (!model.getField(model.primaryKey).autoInc) {
-            if (typeof query.fields[model.primaryKey] === "undefined") {
-                return Promise.reject(r(false, "primary key required when not autoIncrementing"));
+            if (typeof query.fields[model.primaryKey] === 'undefined') {
+                return Promise.reject(r(false, 'primary key required when not autoIncrementing'));
             }
             
             primaryKeyVal = query.fields[model.primaryKey];
         }
         
-        let sql = "INSERT INTO " + model.getTableName() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ")";
+        let sql = 'INSERT INTO ' + model.getTableName() + ' (' + cols.join(',') + ') VALUES (' + vals.join(',') + ')';
         
-        return this.log.add("db,db:add", () => {
+        return this.log.add('db,db:add', () => {
             return this.query(sql, bind);
         })
             .then(res => {
@@ -170,24 +170,24 @@ class MySql {
     get(model, query, getVals) {
         let where = [], bind = {};
         
-        if (model.getField(query.get.field).type == "int") {
+        if (model.getField(query.get.field).type == 'int') {
             getVals = intArray(getVals);
             
-            where.push(query.get.field + " IN (" + getVals.join(",") + ")");
+            where.push(query.get.field + ' IN (' + getVals.join(',') + ')');
         } else {
             getVals = [...new Set(getVals)];
             
             let wh = [], cnt = 1;
             
             for (let index in getVals) {
-                wh.push(":" + query.get.field + cnt);
+                wh.push(':' + query.get.field + cnt);
                 
                 bind[query.get.field + cnt] = getVals[index];
                 
                 ++cnt;
             }
             
-            where.push(query.get.field + " IN (" + wh.join(",") + ")");
+            where.push(query.get.field + ' IN (' + wh.join(',') + ')');
         }
         
         let sql = this.select(model);
@@ -196,8 +196,8 @@ class MySql {
         
         sql += this.where(where);
         
-        return this.log.add("db,db:get", () => {
-            return this.query(sql, bind, model.primaryKey, "write")
+        return this.log.add('db,db:get', () => {
+            return this.query(sql, bind, model.primaryKey, 'write')
         });
     }
 
@@ -219,9 +219,9 @@ class MySql {
         } else if (model.getField(query.getMulti.field) == 'string') {
             //TODO
         } else {
-            return Promise.resolve(r(false, "invalid field type for multi get:" + model.getField(query.getMulti.field)));
+            return Promise.resolve(r(false, 'invalid field type for multi get:' + model.getField(query.getMulti.field)));
         }
-        return this.log.add("db,db:getMulti", () => {
+        return this.log.add('db,db:getMulti', () => {
             return this.queryMulti(queries);
         });
     }
@@ -238,34 +238,34 @@ class MySql {
         let updates = [];
         
         for (let key in query.fields) {
-            updates.push(key + "=" + key + " + " + parseInt(query.fields[key], 10));
+            updates.push(key + '=' + key + ' + ' + parseInt(query.fields[key], 10));
         }
         
-        let sql = "UPDATE " + model.getTableName() + " SET ";
+        let sql = 'UPDATE ' + model.getTableName() + ' SET ';
         
-        sql += updates.join(",");
+        sql += updates.join(',');
         
-        sql += "WHERE " + this.primaryKey + " IN (" + vals.join(",") + ")";
+        sql += 'WHERE ' + this.primaryKey + ' IN (' + vals.join(',') + ')';
         
-        return this.log.add("db,db:inc", () => {
+        return this.log.add('db,db:inc', () => {
             return this.query(sql);
         });
     }
     
     lookup(model, query) {
-        let sqlSelect = "SELECT " + query.alias + "." + model.primaryKey + " "
+        let sqlSelect = 'SELECT ' + query.alias + '.' + model.primaryKey + ' '
         
         let sql = this.from(model, query.alias);
         
         if (query.join && Array.isArray(query.join) && query.join.length) {
             for (let table in query.join) {
-                sql += "INNER JOIN " + table + " ON (" + query.join[table] + ") ";
+                sql += 'INNER JOIN ' + table + ' ON (' + query.join[table] + ') ';
             }
         }
         
         if (query.leftJoin && Array.isArray(query.leftJoin) && query.leftJoin.length) {
             for (let table in query.leftJoin) {
-                sql += "LEFT JOIN " + table + " ON (" + query.leftTable[table] + ") ";
+                sql += 'LEFT JOIN ' + table + ' ON (' + query.leftTable[table] + ') ';
             }
         }
         
@@ -281,14 +281,14 @@ class MySql {
         
         let sqlRows = sqlSelect + sql + sqlLimit;
 
-        let sqlCnt = "SELECT COUNT(*) AS cnt " + sql;
+        let sqlCnt = 'SELECT COUNT(*) AS cnt ' + sql;
         
         if (sqlGroup.length) {
-            sqlCnt = "SELECT COUNT(*) AS cnt FROM (" + sqlSelect + sql + ") AS t";
+            sqlCnt = 'SELECT COUNT(*) AS cnt FROM (' + sqlSelect + sql + ') AS t';
         }
 
-        if (query.isOutputStyle("FOUND_ONLY")) {
-            return this.log.add("db,db:lookup:found", () => {
+        if (query.isOutputStyle('FOUND_ONLY')) {
+            return this.log.add('db,db:lookup:found', () => {
                 return this.query(sqlCnt, query.bind, true);
             })
                 .then(row => {
@@ -301,13 +301,13 @@ class MySql {
             });
         }
         
-        return this.log.add("db,db:lookup", () => {
+        return this.log.add('db,db:lookup', () => {
             return this.query(sqlRows, query.bind, model.primaryKey)
         })
             .then(rows => {
-                if (query.isOutputStyle("INCLUDE_FOUND")) {
-                    return this.log.add("db,db:lookup:found", () => {
-                        return this.query(sqlCnt, query.bind, true).then(found => [rows, found["cnt"]]);
+                if (query.isOutputStyle('INCLUDE_FOUND')) {
+                    return this.log.add('db,db:lookup:found', () => {
+                        return this.query(sqlCnt, query.bind, true).then(found => [rows, found['cnt']]);
                     });
                 } else {
                     return [rows, null];
@@ -316,7 +316,7 @@ class MySql {
     }
 
     set(model, query) {
-        var sql = "", updates = [], bind = {};
+        var sql = '', updates = [], bind = {};
         
         if (model.getField(model.primaryKey).setInsert) {
             query.fields[model.primaryKey] = query.primaryKey;
@@ -326,57 +326,57 @@ class MySql {
             for (let field in query.fields) {
                 cols.push(field);
                 
-                if (model.getField(field).type == "int") {
+                if (model.getField(field).type == 'int') {
                     vals.push(parseInt(query.fields[field], 10));
                     
                     if (field != model.primaryKey) {
-                        updates.push(field + "=" + parseInt(query.fields[field], 10) + " ");
+                        updates.push(field + '=' + parseInt(query.fields[field], 10) + ' ');
                     }
                 } else {
-                    vals.push(":" + field);
+                    vals.push(':' + field);
                     
                     if (field != model.primaryKey) {
-                        updates.push(field + "=:" + field + " ");
+                        updates.push(field + '=:' + field + ' ');
                     }
                     
                     bind[field] = query.fields[field];
                 }
             }
             
-            sql = "INSERT INTO " + model.getTableName() + " (" + cols.join(",") + ") VALUES (" + vals.join(",") + ") ON DUPLICATE KEY UPDATE " + updates.join(",") + " ";
+            sql = 'INSERT INTO ' + model.getTableName() + ' (' + cols.join(',') + ') VALUES (' + vals.join(',') + ') ON DUPLICATE KEY UPDATE ' + updates.join(',') + ' ';
         } else {
-            sql = "UPDATE " + model.getTableName() + " SET ";
+            sql = 'UPDATE ' + model.getTableName() + ' SET ';
             
             for (let field in query.fields) {
-                if (model.getField(field).type == "int") {
-                    updates.push(field + "=" + parseInt(query.fields[field], 10));
+                if (model.getField(field).type == 'int') {
+                    updates.push(field + '=' + parseInt(query.fields[field], 10));
                 } else {
-                    updates.push(field + "=:" + field);
+                    updates.push(field + '=:' + field);
                     
                     bind[field] = query.fields[field];
                 }
             }
             
-            sql += updates.join(",") + " ";
+            sql += updates.join(',') + ' ';
             
             if (query.custom.length) {
                 if (updates.length) {
-                    sql += ",";
+                    sql += ',';
                 }
                 
-                sql += query.custom.join(",") + " ";
+                sql += query.custom.join(',') + ' ';
             }
             
-            if (model.getField(model.primaryKey).type == "int") {
-                sql += "WHERE " + model.primaryKey + "=" + parseInt(query.primaryKey, 10);
+            if (model.getField(model.primaryKey).type == 'int') {
+                sql += 'WHERE ' + model.primaryKey + '=' + parseInt(query.primaryKey, 10);
             } else {
-                sql += "WHERE " + model.primaryKey + "=:" + model.primaryKey;
+                sql += 'WHERE ' + model.primaryKey + '=:' + model.primaryKey;
                 
                 bind[model.primaryKey] = query.primaryKey;
             }
         }
         
-        return this.log.add("db,db:set", () => {
+        return this.log.add('db,db:set', () => {
             return this.query(sql, bind);
         });
     }
@@ -390,77 +390,77 @@ class MySql {
         
         let bind = {};
         
-        let sql = "DELETE ";
+        let sql = 'DELETE ';
         
         sql += this.from(model);
         
-        if (model.getField(model.primaryKey).type == "int") {
+        if (model.getField(model.primaryKey).type == 'int') {
             vals = intArray(vals);
             
-            sql += "WHERE " + model.primaryKey + " IN (" + vals.join(",") + ")";
+            sql += 'WHERE ' + model.primaryKey + ' IN (' + vals.join(',') + ')';
         } else {
             vals = [...new Set(vals)];
             
             let wh = [], cnt = 1;
             
             for (let key in vals) {
-                wh.push(":" + model.primaryKey + cnt);
+                wh.push(':' + model.primaryKey + cnt);
                 
                 bind[model.primaryKey + cnt] = vals[key];
                 
                 ++cnt;
             }
             
-            sql += "WHERE " + model.primaryKey + " IN (" + wh.join(",") + ")";
+            sql += 'WHERE ' + model.primaryKey + ' IN (' + wh.join(',') + ')';
         }
-        return this.log.add("db,db:remove", () => {
+        return this.log.add('db,db:remove', () => {
             return this.query(sql, bind);
         });
     }
 
-    select(model, raw=""){
+    select(model, raw=''){
         if (raw) {
-            return "SELECT " + raw + " ";
+            return 'SELECT ' + raw + ' ';
         }
         
-        return "SELECT "
-            + Object.keys(model.fields).join(",")
-            + (model.timestamps && model.timestamps.created ? ",UNIX_TIMESTAMP(" + model.timestamps.created.name + ") AS " + model.timestamps.created.name : "")
-            + (model.timestamps && model.timestamps.modified ? ",UNIX_TIMESTAMP(" + model.timestamps.modified.name + ") AS " + model.timestamps.modified.name : "")
-            + " ";
+        return 'SELECT '
+            + Object.keys(model.fields).join(',')
+            + (model.timestamps && model.timestamps.created ? ',UNIX_TIMESTAMP(' + model.timestamps.created.name + ') AS ' + model.timestamps.created.name : '')
+            + (model.timestamps && model.timestamps.modified ? ',UNIX_TIMESTAMP(' + model.timestamps.modified.name + ') AS ' + model.timestamps.modified.name : '')
+            + ' ';
     }
 
-    from(model, alias="") {
-        return "FROM " + model.getTableName() + " " + (alias?alias + " ":"");
+    from(model, alias='') {
+        return 'FROM ' + model.getTableName() + ' ' + (alias?alias + ' ':'');
     }
 
     where(where){
         if (!where || !Array.isArray(where) || !where.length) {
-            return "";
+            return '';
         }
         
-        return "WHERE " + where.join(" AND ") + " ";
+        return 'WHERE ' + where.join(' AND ') + ' ';
     }
 
     group(group){
         if (!group || !Array.isArray(group) || !group.length) {
-            return "";
+            return '';
         }
         
-        return "GROUP BY " + group.join(",") + " ";
+        return 'GROUP BY ' + group.join(',') + ' ';
     }
 
     order(order){
         if (!order || !Array.isArray(order) || !order.length) {
-            return "";
+            return '';
         }
         
-        return "ORDER BY " + order.join(",") + " ";
+        return 'ORDER BY ' + order.join(',') + ' ';
     }
 
     limit(query){
         if (!query.limit.page || !query.limit.limit) {
-            return "";
+            return '';
         }
         
         let page = parseInt(query.limit.page, 10) - 1;
@@ -469,43 +469,43 @@ class MySql {
         
         let offset = page * limit;
         
-        return "LIMIT " + offset + "," + limit;
+        return 'LIMIT ' + offset + ',' + limit;
     }
     
     query(sql, bind={}, retType=null, forceEndpoint=null) {
         var queryType = sql.substring(0, 8).toUpperCase();
         
-        if (queryType.indexOf("SELECT") == 0) {
-            queryType = "SELECT";
+        if (queryType.indexOf('SELECT') == 0) {
+            queryType = 'SELECT';
             
             if (!forceEndpoint) {
-                forceEndpoint = "read";
+                forceEndpoint = 'read';
             }
-        } else if (queryType.indexOf("UPDATE") == 0) {
-            queryType = "UPDATE";
+        } else if (queryType.indexOf('UPDATE') == 0) {
+            queryType = 'UPDATE';
             
-            forceEndpoint = "write";
-        } else if (queryType.indexOf("INSERT") == 0) {
-            queryType = "INSERT";
+            forceEndpoint = 'write';
+        } else if (queryType.indexOf('INSERT') == 0) {
+            queryType = 'INSERT';
             
-            forceEndpoint = "write";
-        } else if (queryType.indexOf("REPLACE") == 0) {
-            queryType = "REPLACE";
+            forceEndpoint = 'write';
+        } else if (queryType.indexOf('REPLACE') == 0) {
+            queryType = 'REPLACE';
             
-            forceEndpoint = "write";
-        } else if (queryType.indexOf("DELETE") == 0
-                   || queryType.indexOf("TRUNCATE") == 0) {
-            queryType = "DELETE";
+            forceEndpoint = 'write';
+        } else if (queryType.indexOf('DELETE') == 0
+                   || queryType.indexOf('TRUNCATE') == 0) {
+            queryType = 'DELETE';
             
-            forceEndpoint = "write";
+            forceEndpoint = 'write';
         } else {
             queryType = null;
         }
 
         return this._query(sql, bind, forceEndpoint)
             .then(rows => {
-                if (queryType == "SELECT") {
-                    if (typeof(retType) === "boolean" && retType) {
+                if (queryType == 'SELECT') {
+                    if (typeof(retType) === 'boolean' && retType) {
                         if (!rows.length) {
                             return {};
                         }
@@ -513,7 +513,7 @@ class MySql {
                         return rows[0];
                     }
                     
-                    if (typeof(retType) === "string") {
+                    if (typeof(retType) === 'string') {
                         if (!rows.length) {
                             return {};
                         }
@@ -529,19 +529,19 @@ class MySql {
                     return rows;
                 }
                 
-                if (queryType == "INSERT") {
+                if (queryType == 'INSERT') {
                     return {
                         insertId: rows.insertId,
                     };
                 }
                 
-                if (queryType == "DELETE") {
+                if (queryType == 'DELETE') {
                     return {
                         affectedRows: rows.affectedRows,
                     };
                 }
                 
-                if (queryType == "UPDATE" || queryType == "REPLACE") {
+                if (queryType == 'UPDATE' || queryType == 'REPLACE') {
                     return {
                         affectedRows: rows.affectedRows,
                         changedRows: rows.changedRows,
@@ -561,32 +561,32 @@ class MySql {
             let queryType = sql.substring(0, 8).toUpperCase();
             
             if (lastQueryType && queryType !== lastQueryType) {
-                return Promise.reject("Every query must be of same type in queryMulti");
+                return Promise.reject('Every query must be of same type in queryMulti');
             }
             
-            if (queryType.indexOf("SELECT") == 0) {
-                queryType = "SELECT";
+            if (queryType.indexOf('SELECT') == 0) {
+                queryType = 'SELECT';
                 
                 if (!forceEndpoint) {
-                    forceEndpoint = "read";
+                    forceEndpoint = 'read';
                 }
-            } else if (queryType.indexOf("UPDATE") == 0) {
-                queryType = "UPDATE";
+            } else if (queryType.indexOf('UPDATE') == 0) {
+                queryType = 'UPDATE';
                 
-                forceEndpoint = "write";
-            } else if (queryType.indexOf("INSERT") == 0) {
-                queryType = "INSERT";
+                forceEndpoint = 'write';
+            } else if (queryType.indexOf('INSERT') == 0) {
+                queryType = 'INSERT';
                 
-                forceEndpoint = "write";
-            } else if (queryType.indexOf("REPLACE") == 0) {
-                queryType = "REPLACE";
+                forceEndpoint = 'write';
+            } else if (queryType.indexOf('REPLACE') == 0) {
+                queryType = 'REPLACE';
                 
-                forceEndpoint = "write";
-            } else if (queryType.indexOf("DELETE") == 0
-                       || queryType.indexOf("TRUNCATE") == 0) {
-                queryType = "DELETE";
+                forceEndpoint = 'write';
+            } else if (queryType.indexOf('DELETE') == 0
+                       || queryType.indexOf('TRUNCATE') == 0) {
+                queryType = 'DELETE';
                 
-                forceEndpoint = "write";
+                forceEndpoint = 'write';
             } else {
                 queryType = null;
             }
@@ -602,7 +602,7 @@ class MySql {
             
             lastQueryType = queryType;
         }
-        return this._query(sqlConcat.join(";"), bind, forceEndpoint)
+        return this._query(sqlConcat.join(';'), bind, forceEndpoint)
             .then(results => {
                 var output = [];
                 
@@ -611,8 +611,8 @@ class MySql {
                     
                     let rows = results[index];
                     
-                    if (query.type == "SELECT") {
-                        if (typeof(retType) === "boolean" && retType) {
+                    if (query.type == 'SELECT') {
+                        if (typeof(retType) === 'boolean' && retType) {
                             if (rows.length) {
                                 output.push(rows[0]);
                             } else {
@@ -622,7 +622,7 @@ class MySql {
                             continue;
                         }
                         
-                        if (typeof(retType) === "string") {
+                        if (typeof(retType) === 'string') {
                             if (!rows.length) {
                                 output.push({});
                             } else {
@@ -643,7 +643,7 @@ class MySql {
                         continue;
                     }
                     
-                    if (query.type == "INSERT") {
+                    if (query.type == 'INSERT') {
                         output.push({
                             insertId: rows.insertId,
                         });
@@ -651,7 +651,7 @@ class MySql {
                         continue;
                     }
                     
-                    if (query.type == "DELETE") {
+                    if (query.type == 'DELETE') {
                         output.push({
                             affectedRows: rows.affectedRows,
                         });
@@ -659,7 +659,7 @@ class MySql {
                         continue;
                     }
                     
-                    if (query.type == "UPDATE" || query.type == "REPLACE") {
+                    if (query.type == 'UPDATE' || query.type == 'REPLACE') {
                         output.push({
                             affectedRows: rows.affectedRows,
                             changedRows: rows.changedRows,
@@ -684,7 +684,7 @@ class MySql {
             pool = this.pool;
         } else {
             if (Type.is(forceEndpoint, String)
-                && forceEndpoint === "read") {
+                && forceEndpoint === 'read') {
                 pool = this.pool.read;
             } else {
                 pool = this.pool.write;
@@ -734,179 +734,6 @@ class MySql {
         });
     }
 
-    outputDbSchema(dbName, dbConfig, dataserve) {
-        let dbSchema = this.getDbSchema(dbName, dbConfig, dataserve);
-        
-        return Promise.resolve(r(true, dbSchema));
-    }
-
-    outputTableSchema(tableName, tableConfig, timestamps) {
-        let tableSchema = this.getTableSchema(tableName, tableConfig, timestamps);
-        
-        return Promise.resolve(r(true, tableSchema));
-    }
-
-    getDbSchema(dbName, dbConfig, dataserve) {
-        let tables = dbConfig.tables;
-        
-        let tablesSorted = Object.keys(tables).sort();
-        
-        let res = [];
-        
-        for (let tableName of tablesSorted) {
-            let timestamps = dataserve.getModel(dbName + "." + tableName).timestamps;
-            
-            res.push(this.getTableSchema(tableName, tables[tableName], timestamps));
-        }
-        
-        return res.join("\n\n");
-    }
-    
-    getTableSchema(tableName, tableConfig, timestamps) {
-        let fields = tableConfig.fields;
-        
-        let keys = tableConfig.keys;
-        
-        let res = [];
-        
-        res.push("CREATE TABLE `" + tableName + "` (");
-        
-        let defs = [];
-        
-        for (let field in fields) {
-            defs.push("  " + this.outputFieldSchema(field, fields[field]));
-        }
-        
-        if (timestamps) {
-            for (let field in timestamps) {
-                defs.push("  " + this.outputFieldSchema(timestamps[field].name, timestamps[field]));
-            }
-        }
-        
-        for (let field in fields) {
-            let keySchema = this.outputKeySchema(field, fields[field]);
-            
-            if (keySchema) {
-                defs.push("  " + keySchema);
-            }
-        }
-        
-        if (keys) {
-            for (let key in keys) {
-                let keySchema = this.outputMultiKeySchema(key, keys[key]);
-                
-                if (keySchema) {
-                    defs.push("  " + keySchema);
-                }
-            }
-        }
-        
-        let len = defs.length, cnt = 0;
-        
-        for (let i in defs) {
-            let comma = ",";
-            
-            if (cnt == (len - 1)) {
-                comma = "";
-            }
-            
-            defs[i] += comma;
-            
-            ++cnt;
-        }
-        
-        res = res.concat(defs);
-        
-        res.push(") ENGINE=InnoDB DEFAULT CHARSET=utf8;");
-        
-        return res.join("\n")
-    }
-
-    outputFieldSchema(field, config) {
-        let res = ["`" + field + "`"];
-        
-        let [type, length] = config.type.split(":");
-        
-        switch (type) {
-        case "int":
-        case "bigint":
-        case "mediumint":
-        case "smallint":
-        case "tinyint":
-            res.push(type);
-            
-            if (config.unsigned) {
-                res.push("unsigned");
-            }
-            
-            break;
-        case "string":
-            if (!length) {
-                length = 255;
-            }
-            
-            res.push("varchar(" + length + ")");
-            
-            break;
-        case "timestamp":
-            res.push("timestamp");
-            
-            break;
-        }
-        
-        if (!config.nullable) {
-            res.push("NOT NULL");
-        }
-        
-        if (config.autoInc) {
-            res.push("AUTO_INCREMENT");
-        }
-        
-        if (config.autoSetTimestamp) {
-            res.push("DEFAULT CURRENT_TIMESTAMP");
-        }
-        
-        if (config.autoUpdateTimestamp) {
-            res.push("ON UPDATE CURRENT_TIMESTAMP");
-        }
-        
-        return res.join(" ");
-    }
-
-    outputKeySchema(field, config) {
-        if (!config.key) {
-            return;
-        }
-        
-        switch (config.key) {
-        case "primary":
-            return "PRIMARY KEY (`" + field + "`)";
-        case "unique":
-            return "UNIQUE KEY `" + field + "` (`" + field + "`)";
-        }
-        
-        return "KEY `" + field + "` (`" + field + "`)";
-    }
-
-    outputMultiKeySchema(name, config) {
-        let {type, fields} = config;
-        
-        if (!type || !fields) {
-            return;
-        }
-        
-        if (!Array.isArray(fields)) {
-            fields = [fields];
-        }
-        
-        switch (type) {
-        case "unique":
-            return "UNIQUE KEY `" + name + "` (`" + fields.join("`,`") + "`)";
-        }
-        
-        return "KEY `" + name + "` (`" + fields.join("`,`") + "`)";
-    }
-    
 }
 
 module.exports = MySql;

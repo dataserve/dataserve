@@ -1,7 +1,7 @@
-"use strict";
+'use strict';
 
-const Promise = require("bluebird");
-const LRU = require("lru-cache");
+const Promise = require('bluebird');
+const LRU = require('lru-cache');
 
 class CacheJS {
 
@@ -15,12 +15,12 @@ class CacheJS {
     }
 
     key(dbTable, field, key) {
-        return dbTable + ":" + field + ":" + key
+        return dbTable + ':' + field + ':' + key
     }
     
     getAll() {
         let output = {};
-        return this.log.add("cache,cache:getAll", () => {
+        return this.log.add('cache,cache:getAll', () => {
             let keys = this.cache.keys();
             for (let key of keys) {
                 output[key] = this.cache.peek(key);
@@ -33,11 +33,11 @@ class CacheJS {
         if (!Array.isArray(keys)) {
             keys = [keys];
         }
-        return this.log.add("cache,cache:get", () => {
+        return this.log.add('cache,cache:get', () => {
             let output = {};
             for (let key of keys) {
                 let val = this.cache.get(this.key(dbTable, field, key));
-                if (typeof val !== "undefined") {
+                if (typeof val !== 'undefined') {
                     output[key] = val;
                 }
             }
@@ -46,7 +46,7 @@ class CacheJS {
     }
 
     set(dbTable, field, vals) {
-        return this.log.add("cache,cache:set", () => {
+        return this.log.add('cache,cache:set', () => {
             for (let key in vals) {
                 this.cache.set(this.key(dbTable, field, key), vals[key]);
             }
@@ -58,7 +58,7 @@ class CacheJS {
         if (!Array.isArray(keys)) {
             keys = [keys];
         }
-        return this.log.add("cache,cache:del", () => {
+        return this.log.add('cache,cache:del', () => {
             for (let key of keys) {
                 this.cache.del(this.key(dbTable, field, key));
             }
@@ -67,7 +67,7 @@ class CacheJS {
     }
         
     delAll() {
-        return this.log.add("cache,cache:delAll", () => {
+        return this.log.add('cache,cache:delAll', () => {
             this.cache.reset();
             return Promise.resolve(true);
         });

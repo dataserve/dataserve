@@ -1,6 +1,6 @@
-"use strict";
+'use strict';
 
-const _array = require("lodash/array");
+const _array = require('lodash/array');
 
 module.exports.camelize = function(str) {
     return str.replace(/[_.-](\w|$)/g, function (_,x) {
