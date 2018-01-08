@@ -11,7 +11,7 @@ const Log = require('./log');
 const Model = require('./model');
 const { middlewareHandler } = require('./middleware');
 const { queryHandler } = require('./query');
-const { camelize } = require('./util');
+const { camelize, r } = require('./util');
 
 class Dataserve {
 
@@ -92,18 +92,22 @@ class Dataserve {
         let [dbTable, command] = dbTableCommand.split(':');
         
         command = camelize(command);
-
-        //TODO: FIX
-        if (command === 'outputDbSchema') {
-            return this.getDb().outputDbSchema(this.dbName, this.dbConfig, this.dataserve);
-        }
-        
-        //TODO: FIX
-        if (['flushCache', 'outputCache'].indexOf(command) !== -1) {
-            return this[command]();
-        }
-        
+                
         dbTable = this.dbTable(dbTable);
+
+        let [dbName, tableName] = dbTable.split('.');
+
+        if (['flushCache', 'outputCache'].indexOf(command) !== -1) {
+            return this.getModel(dbTable)[command]();
+        }
+
+        if (command === 'outputDbSchema') {
+            return Promise.resolve(r(true, this.config.getDbSchema(dbName)));
+        }
+
+        if (command == 'outputTableSchema') {
+            return Promise.resolve(r(true, this.config.getTableSchema(dbName, tableName)));
+        }
 
         return this.getModel(dbTable).run({
             command,

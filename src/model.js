@@ -139,10 +139,6 @@ class Model {
     }
 
     run({ command, query }) {
-        if (command == 'outputTableSchema') {
-            return this.getDb().outputTableSchema(this.tableName, this.tableConfig, this.timestamps);
-        }
-
         if (ALLOWED_COMMANDS.indexOf(command) === -1) {
             return Promise.resolve(r(false, 'invalid command: ' + command));
         }

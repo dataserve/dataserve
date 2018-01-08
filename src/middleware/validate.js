@@ -10,11 +10,13 @@ const ALLOWED_RULES = {
     ],
     'exists': [
         'Date',
+        'Integer',
         'Number',
         'String',
     ],
     'in': [
         'Array',
+        'Integer',
         'Number',
         'String',
     ],
@@ -30,22 +32,26 @@ const ALLOWED_RULES = {
     'min': [
         'Array',
         'Date',
+        'Integer',
         'Number',
         'String',
     ],
     'max': [
         'Array',
         'Date',
+        'Integer',
         'Number',
         'String',
     ],
     'required': null,
     'unique': [
         'Date',
+        'Integer',
         'Number',
         'String',
     ],
     'unsigned': [
+        'Integer',
         'Number',
     ],
 };
@@ -207,19 +213,22 @@ class Validate {
     }
 
     validateExists(extra, field, val, type, errors) {
-        let [table, column] = extra.split(',');
+        let [dbTable, column] = extra.split(',');
+
+        if (!column) {
+            column = field;
+        }
         
         let input = {
-            where: `${field}=:${field}`,
-            bind: {
-                [field]: val
+            '=': {
+                [column]: val,
             },
             outputStyle: 'LOOKUP_RAW',
             page: 1,
             limit: 1
         };
         
-        return this.model.dataserve.run(table + ':lookup', input)
+        return this.model.dataserve.run(`${dbTable}:lookup`, input)
             .then(res => {
                 if (!res.result.length) {
                     this.addError('exists', extra, field, val, type, errors);
@@ -243,6 +252,7 @@ class Validate {
             }
             
             break;
+        case 'Integer':
         case 'Number':
         case 'String':
             if (extra.indexOf(val) === -1) {
@@ -303,6 +313,12 @@ class Validate {
             }
             
             break;
+        case 'Integer':
+            if (parseInt(val, 10) < extra) {
+                return false;
+            }
+            
+            break;
         case 'Number':
             if (Number(val) < extra) {
                 return false;
@@ -338,6 +354,12 @@ class Validate {
             }
             
             break;
+        case 'Integer':
+            if (extra < parseInt(val, 10)) {
+                return false;
+            }
+            
+            break;
         case 'Number':
             if (extra < Number(val)) {
                 return false;
@@ -350,19 +372,22 @@ class Validate {
     }
 
     validateUnique(extra, field, val, type, errors) {
-        let [table, column] = extra.split(',');
+        let [dbTable, column] = extra.split(',');
+
+        if (!column) {
+            column = field;
+        }
         
         let input = {
-            where: `${field}=:${field}`,
-            bind: {
-                [field]: val
+            '=': {
+                [column]: val,
             },
             outputStyle: 'LOOKUP_RAW',
             page: 1,
             limit: 1
         };
         
-        return this.model.dataserve.run(table + ':lookup', input)
+        return this.model.dataserve.run(`${dbTable}:lookup`, input)
             .then(res => {
                 if (res.result.length) {
                     this.addError('unique', extra, field, val, type, errors);
@@ -372,6 +397,7 @@ class Validate {
 
     validateUnsigned(extra, field, val, type) {
         switch (type) {
+        case 'Integer':
         case 'Number':
             if (Number(val) < 0) {
                 return false;

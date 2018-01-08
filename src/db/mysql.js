@@ -116,10 +116,31 @@ class MySql {
     validateType(type) {
         switch (type) {
         case 'int':
+        case 'tinyint':
+        case 'smallint':
+        case 'mediumint':
+        case 'bigint':
+            return 'Integer';
+        case 'float':
+        case 'decimal':
+        case 'double':
             return 'Number';
         case 'string':
+        case 'char':
+        case 'varchar':
+        case 'tinytext':
+        case 'text':
+        case 'mediumtext':
+        case 'longtext':
+        case 'enum':
             return 'String';
+        case 'set':
+            return 'Array';
+        case 'date':
+        case 'datetime':
         case 'timestamp':
+        case 'time':
+        case 'year':
             return 'Date';
         }
         
@@ -253,6 +274,8 @@ class MySql {
     }
     
     lookup(model, query) {
+        this.buildLookup(model, query);
+        
         let sqlSelect = 'SELECT ' + query.alias + '.' + model.primaryKey + ' '
         
         let sql = this.from(model, query.alias);
@@ -313,6 +336,144 @@ class MySql {
                     return [rows, null];
                 }
             });
+    }
+
+    buildLookup(model, query) {
+        let where = [], bind = {}, input = null;
+
+        if (input = query.raw('=')) {
+            for (let field in input) {
+                if (!model.getField(field)) {
+                    continue;
+                }
+
+                let vals = input[field];
+
+                if (!Array.isArray(vals)) {
+                    vals = [vals];
+                }
+
+                if (model.getField(field).type == 'int') {
+                    vals = intArray(vals);
+
+                    where.push(query.alias + '.' + field + ' IN (' + vals.join(',') + ') ');
+                } else {
+                    vals = [...new Set(vals)];
+
+                    let wh = [], cnt = 1;
+
+                    for (let val of vals) {
+                        wh.push(':' + field + cnt);
+
+                        bind[field + cnt] = val;
+
+                        ++cnt;
+                    }
+
+                    where.push(field + ' IN (' + wh.join(',') + ')');
+                }
+            }
+        }
+
+        if (input = query.raw('%search')) {
+            for (let field in input) {
+                if (!model.getField(field)) {
+                    continue;
+                }
+
+                where.push(query.alias + '.' + field + ' LIKE :' + field);
+
+                bind[field] = '%' + input[field];
+            }
+        }
+
+        if (input = query.raw('search%')) {
+            for (let field in input) {
+                if (!model.getField(field)) {
+                    continue;
+                }
+
+                where.push(query.alias + '.' + field + ' LIKE :' + field);
+
+                bind[field] = input[field] + '%';
+            }
+        }
+
+        if (input = query.raw('%search%')) {
+            for (let field in input) {
+                if (!model.getField(field)) {
+                    continue;
+                }
+
+                where.push(query.alias + '.' + field + ' LIKE :' + field);
+
+                bind[field] = '%' + input[field] + '%';
+            }
+        }
+
+        if (input = query.raw('>')) {
+            for (let field in input) {
+                if (!model.getField(field)) {
+                    continue;
+                }
+
+                where.push(':' + field + '_greater < ' + query.alias + '.' + field);
+
+                bind[field + '_greater'] = parseInt(input[field], 10);
+            }
+        }
+
+        if (input = query.raw('>=')) {
+            for (let field in input) {
+                if (!model.getField(field)) {
+                    continue;
+                }
+
+                where.push(':' + field + '_greater_equal <= ' + query.alias + '.' + field);
+
+                bind[field + '_greater_equal'] = parseInt(input[field], 10);
+            }
+        }
+
+        if (input = query.raw('<')) {
+            for (let field in input) {
+                if (!model.getField(field)) {
+                    continue;
+                }
+
+                where.push(query.alias + '.' + field + ' < :' + field + '_less');
+
+                bind[field + '_less'] = parseInt(input[field], 10);
+            }
+        }
+
+        if (input = query.raw('<=')) {
+            for (let field in input) {
+                if (!model.getField(field)) {
+                    continue;
+                }
+
+                where.push(query.alias + '.' + field + '. <= :' + field + '_less_equal');
+
+                bind[field + '_less_equal'] = parseInt(input[field], 10);
+            }
+        }
+
+        if (input = query.raw('modulo')) {
+            for (let field in input) {
+                if (!model.getField(field)) {
+                    continue;
+                }
+
+                where.push(query.alias + '.' + field + ' % :' + field + '_modulo_mod = :' + field + '_modulo_val');
+
+                bind[field + '_modulo_mod'] = parseInt(input[field]['mod'], 10);
+
+                bind[field + '_modulo_val'] = parseInt(input[field]['val'], 10);
+            }
+        }
+
+        query.addWhere(where, bind);
     }
 
     set(model, query) {

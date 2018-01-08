@@ -11,6 +11,7 @@ const ALLOWED_RULES = {
     'type': [
         'Array',
         'Date',
+        'Integer',
         'Number',
         'String',
     ],
@@ -150,6 +151,12 @@ class Sanitize {
                 query.setField(field, new Date(query.getField(field)));
             }
             
+            break;
+        case 'Integer':
+            if (typeof query.getField(field) !== 'number' || query.getField(field) % 1 !== 0) {
+                query.setField(field, parseInt(query.getField(field), 10));
+            }
+
             break;
         case 'Number':
             if (typeof query.getField(field) !== 'number') {
