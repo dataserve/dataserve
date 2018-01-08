@@ -30,7 +30,7 @@ class Server {
             throw new Error("Config file not found: " + this.configPath);
         }
 
-        this.middleware = cli.middleware ? cli.middleware : null;
+        this.middlewarePath = cli.middleware ? cli.middleware : null;
 
         if (this.middlewarePath && !fs.existsSync(this.middlewarePath)) {
             throw new Error("Middleware file not found: " + this.middlewarePath);

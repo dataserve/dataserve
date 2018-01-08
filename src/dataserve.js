@@ -1,17 +1,17 @@
-"use strict";
+'use strict';
 
-const Promise = require("bluebird");
-const { MiddlewareManager: Manager } = require("js-middleware");
-const util = require("util");
+const Promise = require('bluebird');
+const { MiddlewareManager: Manager } = require('js-middleware');
+const util = require('util');
 
-const Cache = require("./cache");
-const Config = require("./config");
-const DB = require("./db");
-const Log = require("./log");
-const Model = require("./model");
-const { middlewareHandler } = require("./middleware");
-const { queryHandler } = require("./query");
-const { camelize } = require("./util");
+const Cache = require('./cache');
+const Config = require('./config');
+const DB = require('./db');
+const Log = require('./log');
+const Model = require('./model');
+const { middlewareHandler } = require('./middleware');
+const { queryHandler } = require('./query');
+const { camelize } = require('./util');
 
 class Dataserve {
 
@@ -29,9 +29,9 @@ class Dataserve {
         
         this.cache = new Cache(this.config, this.log);
 
-        this.middlewareLookup = middlewarePath ? require(this.middlewareLookup) : null;
+        this.middlewareLookup = middlewarePath ? require(middlewarePath) : null;
 
-        this.debug = require("debug")("dataserve");
+        this.debug = require('debug')('dataserve');
 
         this.lock = lock;
 
@@ -41,19 +41,19 @@ class Dataserve {
     }
 
     dbTable(dbTable) {
-        if (dbTable.split(".").length == 1) {
+        if (dbTable.split('.').length == 1) {
             if (!this.config.dbDefault) {
-                throw new Error("No DB specified & config missing default DB, check environment variables or specify .env path");
+                throw new Error('No DB specified & config missing default DB, check environment variables or specify .env path');
             }
             
-            return this.config.dbDefault + "." + dbTable;
+            return this.config.dbDefault + '.' + dbTable;
         }
         
         return dbTable;
     }
 
     initDbTable(dbTable) {
-        let [dbName, tableName] = dbTable.split(".");
+        let [dbName, tableName] = dbTable.split('.');
 
         let db = this.db.getDb(dbName);
 
@@ -69,7 +69,7 @@ class Dataserve {
 
         this.manager[dbTable].use('run', middlewareHandler(this.middlewareLookup));
 
-        this.debug("Created dbTable " + dbTable);
+        this.debug(`Created dbTable '${dbTable}'`);
     }
 
     getManager(dbTable) {
@@ -89,17 +89,17 @@ class Dataserve {
     }
     
     run(dbTableCommand, input){
-        let [dbTable, command] = dbTableCommand.split(":");
+        let [dbTable, command] = dbTableCommand.split(':');
         
         command = camelize(command);
 
         //TODO: FIX
-        if (command === "outputDbSchema") {
+        if (command === 'outputDbSchema') {
             return this.getDb().outputDbSchema(this.dbName, this.dbConfig, this.dataserve);
         }
         
         //TODO: FIX
-        if (["flushCache", "outputCache"].indexOf(command) !== -1) {
+        if (['flushCache', 'outputCache'].indexOf(command) !== -1) {
             return this[command]();
         }
         

@@ -1,74 +1,74 @@
-"use strict";
+'use strict';
 
-const Promise = require("bluebird");
+const Promise = require('bluebird');
 
-const { camelize } = require("../util");
+const { camelize, r } = require('../util');
 
 const ALLOWED_RULES = {
-    "email": [
-        "String",
+    'email': [
+        'String',
     ],
-    "exists": [
-        "Date",
-        "Number",
-        "String",
+    'exists': [
+        'Date',
+        'Number',
+        'String',
     ],
-    "in": [
-        "Array",
-        "Number",
-        "String",
+    'in': [
+        'Array',
+        'Number',
+        'String',
     ],
-    "ipAddress": [
-        "String",
+    'ipAddress': [
+        'String',
     ],
-    "ipAddressV4": [
-        "String",
+    'ipAddressV4': [
+        'String',
     ],
-    "ipAddressV6": [
-        "String",
+    'ipAddressV6': [
+        'String',
     ],
-    "min": [
-        "Array",
-        "Date",
-        "Number",
-        "String",
+    'min': [
+        'Array',
+        'Date',
+        'Number',
+        'String',
     ],
-    "max": [
-        "Array",
-        "Date",
-        "Number",
-        "String",
+    'max': [
+        'Array',
+        'Date',
+        'Number',
+        'String',
     ],
-    "required": null,
-    "unique": [
-        "Date",
-        "Number",
-        "String",
+    'required': null,
+    'unique': [
+        'Date',
+        'Number',
+        'String',
     ],
-    "unsigned": [
-        "Number",
+    'unsigned': [
+        'Number',
     ],
 };
 
 const PROMISE_RULES = [
-    "exists",
-    "unique",
+    'exists',
+    'unique',
 ];
 
 const REASON = {
-    "_invalidRule": "Invalid rule :rule for field :field",
-    "_invalidType": "Invalid value type :type for field :field",
-    "email": ":field must be a valid email address",
-    "exists": ":field does not exist",
-    "in": ":field must be one of :extra",
-    "ipAddress": ":field must be a valid ip address",
-    "ipAddressV4": ":field must be a valid v4 ip address",
-    "ipAddressV6": ":field must be a valid v6 ip address",
-    "min": ":field must be at least :extra",
-    "max": ":field must be under :extra",
-    "no": ":field not allowed",
-    "required": ":field is required",
-    "unique": ":field already exists",
+    '_invalidRule': 'Invalid rule :rule for field :field',
+    '_invalidType': 'Invalid value type :type for field :field',
+    'email': ':field must be a valid email address',
+    'exists': ':field does not exist',
+    'in': ':field must be one of :extra',
+    'ipAddress': ':field must be a valid ip address',
+    'ipAddressV4': ':field must be a valid v4 ip address',
+    'ipAddressV6': ':field must be a valid v6 ip address',
+    'min': ':field must be at least :extra',
+    'max': ':field must be under :extra',
+    'no': ':field not allowed',
+    'required': ':field is required',
+    'unique': ':field already exists',
 };
 
 class Validate {
@@ -81,24 +81,60 @@ class Validate {
         this.ip = require('ip');
     }
 
-    check(field, val, rules, errors) {
+    populate(addPre, addPost) {
+        addPre(({ command, query }) => {
+            let errors = {}, promises = [];
+            
+            for (let field in query.fields) {
+                let rules = this.model.getField(field).validate;
+
+                if (typeof rules === 'object') {
+                    rules = rules[command];
+                }
+
+                if (typeof rules !== 'string' || !rules.length) {
+                    continue;
+                }
+                
+                let promise = this.validate(field, query.fields[field], rules, errors);
+                
+                if (promise.length) {
+                    promises = promises.concat(promise);
+                }
+            }
+            
+            if (!promises.length) {
+                promises = Promise.resolve();
+            } else {
+                promises = Promise.all(promises);
+            }
+            
+            return promises.then(() => {
+                if (Object.keys(errors).length) {
+                    return Promise.reject(r(false, 'Validation failed', errors));
+                }
+            });
+        });
+    }
+
+    validate(field, val, rules, errors) {
         let promiseRun = [];
         
-        rules = rules.split("|");
+        rules = rules.split('|');
 
         for (let split of rules) {
-            let [rule, extra] = split.split(":");
+            let [rule, extra] = split.split(':');
             
-            if (rule === "required") {
-                if (typeof val === "undefined" || val === null) {
+            if (rule === 'required') {
+                if (typeof val === 'undefined' || val === null) {
                     this.addError(rule, extra, field, val, null, errors);
                 }
 
                 continue;
             }
 
-            if (rule === "no") {
-                if (typeof val !== "undefined") {
+            if (rule === 'no') {
+                if (typeof val !== 'undefined') {
                     this.addError(rule, extra, field, val, null, errors);
                 }
 
@@ -108,7 +144,7 @@ class Validate {
             rule = camelize(rule);
             
             if (!ALLOWED_RULES[rule]) {
-                this.addError("_invalidRule", rule, field, val, null, errors);
+                this.addError('_invalidRule', rule, field, val, null, errors);
                 
                 continue;
             }
@@ -116,12 +152,12 @@ class Validate {
             let type = this.model.getFieldValidateType(field);
             
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
-                this.addError("_invalidType", rule, field, val, null, errors);
+                this.addError('_invalidType', rule, field, val, null, errors);
                 
                 continue;
             }
             
-            let handler = "validate" + rule.charAt(0).toUpperCase() + rule.slice(1);
+            let handler = 'validate' + rule.charAt(0).toUpperCase() + rule.slice(1);
             
             if (PROMISE_RULES.indexOf(rule) !== -1) {
                 promiseRun.push([this[handler], [extra, field, val, type, errors]]);
@@ -152,7 +188,7 @@ class Validate {
         reason = reason.replace(':field', field)
             .replace(':extra', extra);
 
-        if (rule.substr(0, 1) === "_") {
+        if (rule.substr(0, 1) === '_') {
             rule = extra;
         }
         
@@ -171,30 +207,31 @@ class Validate {
     }
 
     validateExists(extra, field, val, type, errors) {
-        let [table, column] = extra.split(",");
+        let [table, column] = extra.split(',');
         
         let input = {
-            "=": {
-                [field]: val,
+            where: `${field}=:${field}`,
+            bind: {
+                [field]: val
             },
-            outputStyle: "LOOKUP_RAW",
+            outputStyle: 'LOOKUP_RAW',
             page: 1,
             limit: 1
         };
         
-        return this.model.dataserve.run(table + ":lookup", input)
+        return this.model.dataserve.run(table + ':lookup', input)
             .then(res => {
                 if (!res.result.length) {
-                    this.addError("exists", extra, field, val, type, errors);
+                    this.addError('exists', extra, field, val, type, errors);
                 }
             });
     }
     
     validateIn(extra, field, val, type) {
-        extra = extra.split(",");
+        extra = extra.split(',');
         
         switch (type) {
-        case "Array":
+        case 'Array':
             if (!Array.isArray(val)) {
                 val = [val];
             }
@@ -206,8 +243,8 @@ class Validate {
             }
             
             break;
-        case "Number":
-        case "String":
+        case 'Number':
+        case 'String':
             if (extra.indexOf(val) === -1) {
                 return false;
             }
@@ -244,7 +281,7 @@ class Validate {
 
     validateMin(extra, field, val, type) {
         switch (type) {
-        case "Array":
+        case 'Array':
             if (!Array.isArray(val)) {
                 val = [val];
             }
@@ -254,19 +291,19 @@ class Validate {
             }
             
             break;
-        case "String":
+        case 'String':
             if (String(val).length < extra) {
                 return false;
             }
             
             break;
-        case "Date":
+        case 'Date':
             if (val < new Date(extra)) {
                 return false;
             }
             
             break;
-        case "Number":
+        case 'Number':
             if (Number(val) < extra) {
                 return false;
             }
@@ -279,7 +316,7 @@ class Validate {
 
     validateMax(extra, field, val, type) {
         switch (type) {
-        case "Array":
+        case 'Array':
             if (!Array.isArray(val)) {
                 val = [val];
             }
@@ -289,19 +326,19 @@ class Validate {
             }
 
             break;
-        case "String":
+        case 'String':
             if (extra < String(val).length) {
                 return false;
             }
             
             break;
-        case "Date":
+        case 'Date':
             if (new Date(extra) < val) {
                 return false;
             }
             
             break;
-        case "Number":
+        case 'Number':
             if (extra < Number(val)) {
                 return false;
             }
@@ -313,28 +350,29 @@ class Validate {
     }
 
     validateUnique(extra, field, val, type, errors) {
-        let [table, column] = extra.split(",");
+        let [table, column] = extra.split(',');
         
         let input = {
-            "=": {
-                [field]: val,
+            where: `${field}=:${field}`,
+            bind: {
+                [field]: val
             },
-            outputStyle: "LOOKUP_RAW",
+            outputStyle: 'LOOKUP_RAW',
             page: 1,
             limit: 1
         };
         
-        return this.model.dataserve.run(table + ":lookup", input)
+        return this.model.dataserve.run(table + ':lookup', input)
             .then(res => {
                 if (res.result.length) {
-                    this.addError("unique", extra, field, val, type, errors);
+                    this.addError('unique', extra, field, val, type, errors);
                 }
             });
     }
 
     validateUnsigned(extra, field, val, type) {
         switch (type) {
-        case "Number":
+        case 'Number':
             if (Number(val) < 0) {
                 return false;
             }

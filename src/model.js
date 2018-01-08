@@ -29,14 +29,6 @@ class Model {
         
         this.cache = cache;
 
-        /*
-        this.middleware = null;
-
-        if (tableConfig.middleware) {
-            this.middleware = new Middleware(this, tableConfig.middleware, middlewareLookup);
-        }
-        */
-        
         this.log = log;
 
         this.lock = lock;
@@ -47,9 +39,7 @@ class Model {
         
         this.model = null;
         
-        this.type = null;
-        
-        this.media = null;
+        this.middleware = [];
 
         this.setInsert = null;
         
@@ -115,6 +105,10 @@ class Model {
             if (this.setInsert && !this.fields[this.primaryKey].fillable) {
                 throw new Error("Primary key must be fillable when `setInsert` is set to true");
             }
+        }
+
+        if (this.tableConfig.middleware) {
+            this.addMiddleware(this.tableConfig.middleware);
         }
         
         if (typeof this.tableConfig.timestamps !== "undefined") {
@@ -253,6 +247,18 @@ class Model {
         }
         
         this.relationships[type][table] = true;
+    }
+
+    addMiddleware(arr) {
+        if (!Array.isArray(arr)) {
+            arr = [arr];
+        }
+        
+        this.middleware = [...new Set(this.middleware.concat(arr))];
+    }
+
+    getMiddleware() {
+        return this.middleware;
     }
 
     add(query){

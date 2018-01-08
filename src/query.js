@@ -1,13 +1,13 @@
-"use strict";
+'use strict';
 
 const Type = require('type-of-is');
 
 const ALLOWED_OUTPUT_STYLE = [
-    "RETURN_ADD",
-    "BY_ID",
-    "INCLUDE_FOUND",
-    "FOUND_ONLY",
-    "LOOKUP_RAW",
+    'RETURN_ADD',
+    'BY_ID',
+    'INCLUDE_FOUND',
+    'FOUND_ONLY',
+    'LOOKUP_RAW',
 ];
 
 module.exports.queryHandler = model => next => obj => {
@@ -21,7 +21,7 @@ class Query {
     constructor(model, command, input) {
         this.model = model;
         
-        this.alias = "";
+        this.alias = '';
         
         this.get = {
             field: null,
@@ -72,7 +72,7 @@ class Query {
         }
         
         if (!Type.is(input, Object)) {
-            throw new Error("Invalid input, must be an object or primaryKey value, received: " + JSON.stringify(input));
+            throw new Error('Invalid input, must be an object or primaryKey value, received: ' + JSON.stringify(input));
         }
         
         if (input.alias) {
@@ -134,13 +134,13 @@ class Query {
         }
 
         switch (command) {
-        case "add":
+        case 'add':
             for (let field in input) {
                 this.setField(field, input[field]);
             }
             
             break;
-        case "get":
+        case 'get':
             if (this.primaryKey) {
                 this.setGet(this.model.getPrimaryKey(), this.primaryKey);
             } else {
@@ -150,15 +150,15 @@ class Query {
             }
             
             break;
-        case "getMulti":
+        case 'getMulti':
             for (let field in input) {
                 this.setGetMulti(field, input[field]);
             }
             
             break;
-        case "lookup":
+        case 'lookup':
             break;
-        case "set":
+        case 'set':
             for (let field in input) {
                 this.setField(field, input[field]);
             }
@@ -220,6 +220,18 @@ class Query {
     hasGetMulti() {
         return this.getMulti.field ? true : false;
     }
+
+    hasFields() {
+        return Object.keys(this.fields).length ? true: false;
+    }
+
+    getFields() {
+        return this.fields;
+    }
+
+    getField(field) {
+        return this.fields[field];
+    }
     
     setField(field, val) {
         if (!this.model.isFillable(field)) {
@@ -227,10 +239,6 @@ class Query {
         }
         
         this.fields[field] = val;
-    }
-
-    hasFields() {
-        return Object.keys(this.fields).length ? true: false;
     }
 
     addJoin(table, on) {
