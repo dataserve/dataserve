@@ -11,6 +11,7 @@ const Log = require('./log');
 const Model = require('./model');
 const { middlewareHandler } = require('./middleware');
 const { queryHandler } = require('./query');
+const { resultHandler } = require('./result');
 const { camelize, r } = require('./util');
 
 class Dataserve {
@@ -22,14 +23,14 @@ class Dataserve {
         }
         
         this.log = new Log({ maxEntries: 5000 });
+
+        this.middlewareLookup = middlewarePath ? require(middlewarePath) : null;
         
-        this.config = new Config(configPath);
+        this.config = new Config(configPath, this.middlewareLookup);
 
         this.db = new DB(this.config, this.log);
         
         this.cache = new Cache(this.config, this.log);
-
-        this.middlewareLookup = middlewarePath ? require(middlewarePath) : null;
 
         this.debug = require('debug')('dataserve');
 
@@ -65,6 +66,8 @@ class Dataserve {
 
         this.manager[dbTable] = new Manager(this.model[dbTable]);
 
+        this.manager[dbTable].use('run', resultHandler);
+        
         this.manager[dbTable].use('run', queryHandler);
 
         this.manager[dbTable].use('run', middlewareHandler(this.middlewareLookup));

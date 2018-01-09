@@ -47,17 +47,12 @@ class Middleware {
         let hooks = this.getHooks(obj.command);
 
         return hooks.runPre(obj)
-            .then(output => {
+            .then(() => {
                 return next(obj)
-                    .then(output => {
-                        if (typeof output.status !== "undefined" && !output.status) {
-                            return output;
-                        }
-                        
-                        return hooks.runPost(output);
-                    });
             })
-            .catch(output => output);
+            .then((result) => {
+                return hooks.runPost(obj, result);
+            });
     }
 
     getHooks(command) {

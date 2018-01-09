@@ -117,7 +117,7 @@ class Validate {
             
             return promises.then(() => {
                 if (Object.keys(errors).length) {
-                    return Promise.reject(r(false, 'Validation failed', errors));
+                    return Promise.reject(['Validation failed', errors]);
                 }
             });
         });

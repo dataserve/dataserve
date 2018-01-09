@@ -16,8 +16,8 @@ const util = require('util');
 
 const Dataserve = require('./dataserve');
 const { version } = require('../package.json');
+const { Result } = require('./result');
 const { Response } = require('./server/encoder');
-const { r } = require('./util');
 
 class Server {
     
@@ -156,7 +156,9 @@ class Server {
         const command = input[0].toLowerCase();
         
         if (command === 'ds_log') {
-            return response.encode(JSON.stringify(r(true, this.dataserve.log.getAll())));
+            let result = new Result().setSuccess(this.dataserve.log.getAll());
+            
+            return response.encode(JSON.stringify(result.getResult()));
         }
 
         if (command === 'command') {
@@ -189,7 +191,11 @@ class Server {
         let dbTable = input[1], payload = {};
 
         if (!dbTable) {
-            response.encode(JSON.stringify(r(false, 'Command missing dbTable')));
+            let result = new Result().setError('Command missing dbTable');
+            
+            response.encode(JSON.stringify(result.getResult()));
+
+            return;
         }
 
         try {
@@ -201,26 +207,33 @@ class Server {
         this.debug('CALL:', dbTableCommand, payload);
         
         this.dataserve.run(dbTableCommand, payload)
-            .then(output => {
+            .then(result => {
                 let timeRun = (microtime.now() - timeStart) / 1000000;
                 
-                if (output && output.status) {
-                    this.debug(timeRun, 'CALL SUCCESS', dbTableCommand);
-                } else {
-                    this.debug(timeRun, 'CALL FAIL', output);//, util.inspect(output, false, null));
-                }
-
-                if (typeof output === 'undefined' || typeof output.status === 'undefined') {
-                    response.encode(JSON.stringify(r(false, 'Unknown error 1')));
+                if (typeof result === 'undefined' || !(result instanceof Result)) {
+                    result = new Result().setError('Unknown error 1');
+                    
+                    response.encode(JSON.stringify(result.getResult()));
+                    
                     return;
                 }
+
+                if (result.isSuccess()) {
+                    this.debug(timeRun, 'CALL SUCCESS', dbTableCommand);
+                } else {
+                    this.debug(timeRun, 'CALL FAIL', result.getResult());//, util.inspect(output, false, null));
+                }
                 
-                response.encode(JSON.stringify(output));
+                response.encode(JSON.stringify(result.getResult()));
             })
             .catch(err => {
                 this.debug('CALL FAIL:', err);
+
+                let result = new Result().setError('Unknown error 2');
                 
-                response.encode(JSON.stringify(r(false, 'Unknown error 2')));
+                response.encode(JSON.stringify(result.getResult()));
+
+                return;
             });
     }
 
@@ -249,8 +262,10 @@ class Server {
 
     handleCommandUnknown(input, command, response) {
         this.debug('Command not understood: ' + command);
-            
-        response.encode(JSON.stringify(r(false, 'Command not understood: ' + command)));
+
+        let result = new Result().setError('Command not understood: ' + command);
+        
+        response.encode(JSON.stringify(result.getResult()));
     }
 
 }

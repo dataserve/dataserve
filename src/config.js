@@ -4,21 +4,22 @@ const _array = require('lodash/array');
 const _object = require('lodash/object');
 const path = require('path');
 const Type = require('type-of-is');
-const SqlSchemaModulizer = require('sql-schema-modulizer');
+const SqlSchemaModulizer = require('../../sql-schema-modulizer');
 
 const { loadJson } = require('./util');
 
 class Config {
     
-    constructor(configPath, dbDefault) {
+    constructor(configPath, middlewareLookup) {
         this.configDir = path.dirname(configPath);
 
-        this.dbDefault = dbDefault;
+        this.dbDefault = null;
 
         let opt = {
             cascadeDown: {
                 middleware: '',
             },
+            cascadeExpand: middlewareLookup,
         };
         
         this.config = new SqlSchemaModulizer(opt);

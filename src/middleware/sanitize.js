@@ -36,7 +36,7 @@ class Sanitize {
             let errors = {}, promises = [];
             
             for (let field in query.getFields()) {
-                let rules = this.model.getField(field).sanitize;
+                let rules = this.model.getField(field).sanitize || this.model.getTableConfig('sanitize');
 
                 if (typeof rules === 'object') {
                     rules = rules[command];
@@ -61,7 +61,7 @@ class Sanitize {
             
             return promises.then(() => {
                 if (Object.keys(errors).length) {
-                    return Promise.reject(r(false, 'Sanitize failed', errors));
+                    return Promise.reject('Sanitize failed', errors);
                 }
             });
         });
@@ -86,7 +86,7 @@ class Sanitize {
             let type = this.model.getFieldValidateType(field);
            
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
-                this.addError('_invalidType', rule, field, val, null, errors);
+                //this.addError('_invalidType', rule, field, val, null, errors);
                 
                 continue;
             }

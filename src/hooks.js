@@ -31,18 +31,18 @@ class Hooks {
         this.post.push(func);
     }
 
-    runPost(result, meta){
+    runPost(obj, result){
         let promises = [];
         
         for (let hook of this.post) {
-            promises.push(hook(result));
+            promises.push(hook(obj, result));
         }
         
         return Promise.all(promises)
-            .then(output => {
-                for (let out of output) {
-                    if (out && typeof out.status !== 'undefined' && !out.status) {
-                        return out;
+            .then(results => {
+                for (let result of results) {
+                    if (result.isError()) {
+                        return result;
                     }
                 }
                 

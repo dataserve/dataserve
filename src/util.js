@@ -22,6 +22,7 @@ module.exports.intArray = function(arr, allowZero=true) {
     return _array.uniq(arr);
 }
 
+/*
 module.exports.r = function(success, result=null, meta={}){
     if (success) {
         return {
@@ -44,6 +45,7 @@ module.exports.r = function(success, result=null, meta={}){
         meta: meta,
     };
 }
+*/
 
 module.exports.paramF = function(arr, param, def) {
     return arr[param] ? arr[param] : def;

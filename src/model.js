@@ -3,7 +3,8 @@
 const Promise = require('bluebird');
 const _object = require('lodash/object');
 
-const { camelize, paramFo, r } = require('./util');
+const { Result } = require('./result');
+const { camelize, paramFo } = require('./util');
 
 const ALLOWED_COMMANDS = [
     'add',
@@ -18,7 +19,7 @@ const ALLOWED_COMMANDS = [
 
 class Model {
 
-    constructor(dataserve, dbTable, tableConfig, db, cache, log, lock){
+    constructor(dataserve, dbTable, tableConfig, db, cache, log, lock) {
         this.dataserve = dataserve;
 
         this.dbTable = dbTable;
@@ -80,7 +81,7 @@ class Model {
         }
     }
 
-    parseConfig(){
+    parseConfig() {
         [this.dbName, this.tableName] = this.dbTable.split('.');
         
         if (!this.dbName || !this.tableName) {
@@ -134,18 +135,14 @@ class Model {
         }
     }
 
-    getTableConfig() {
+    getTableConfig(field) {
+        if (field) {
+            return this.tableConfig[field];
+        }
+        
         return this.tableConfig;
     }
-
-    run({ command, query }) {
-        if (ALLOWED_COMMANDS.indexOf(command) === -1) {
-            return Promise.resolve(r(false, 'invalid command: ' + command));
-        }
-
-        return this[command](query);
-    }
-    
+   
     getField(field) {
         if (typeof this.fields[field] === 'undefined') {
             return null;
@@ -199,7 +196,7 @@ class Model {
         return this.fillable.indexOf(field) !== -1;
     }
     
-    addFillable(arr){
+    addFillable(arr) {
         if (!Array.isArray(arr)) {
             arr = [arr];
         }
@@ -211,7 +208,7 @@ class Model {
         return this.unique.indexOf(field) !== -1;
     }
     
-    addUnique(arr){
+    addUnique(arr) {
         if (!Array.isArray(arr)) {
             arr = [arr];
         }
@@ -223,7 +220,7 @@ class Model {
         return this.getMulti.indexOf(field) !== -1;
     }
     
-    addGetMulti(arr){
+    addGetMulti(arr) {
         if (!Array.isArray(arr)) {
             arr = [arr];
         }
@@ -231,7 +228,7 @@ class Model {
         this.getMulti = [...new Set(this.getMulti.concat(arr))];
     }
     
-    addRelationship(type, table){
+    addRelationship(type, table) {
         type = camelize(type);
         
         if (['belongsTo', 'hasOne'].indexOf(type) == -1) {
@@ -257,9 +254,17 @@ class Model {
         return this.middleware;
     }
 
-    add(query){
+    run({ command, query }) {
+        if (ALLOWED_COMMANDS.indexOf(command) === -1) {
+            return Promise.reject('invalid command: ' + command);
+        }
+
+        return this[command](query);
+    }
+
+    add(query) {
         if (!query.hasFields()) {
-            return Promise.resolve(r(false, 'missing fields'));
+            return Promise.reject('missing fields');
         }
         
         var primaryKeyVal = null;
@@ -284,14 +289,13 @@ class Model {
                     });
                 }
                 
-                return r(true);
-            })
-            .catch(this.catchDefault);
+                return Promise.resolve();
+            });
     }
     
-    get(query){
+    get(query) {
         if (!query.hasGet()) {
-            return Promise.resolve(r(false, 'missing param:'+JSON.stringify(query.input)));
+            return Promise.reject('missing param:'+JSON.stringify(query.input));
         }
 
         var cacheRows = {}, cachePromise = null;
@@ -356,16 +360,15 @@ class Model {
                         return r(true, rows[id], extra);
                     }
                     
-                    return r(true, {});
+                    return Promise.resolve({});
                 }
                 
                 if (query.isOutputStyle('BY_ID')) {
-                    return r(true, rows, extra);
+                    return Promise.resolve([rows, extra]);
                 }
                 
-                return r(true, _object.pick(rows, query.get.vals), extra);
-            })
-            .catch(this.catchDefault);
+                return Promise.resolve([_object.pick(rows, query.get.vals), extra]);
+            });
     }
 
     getCount(query) {
@@ -375,14 +378,13 @@ class Model {
         
         return this.run('lookup', query)
             .then(output => {
-                return output.status ? r(true, output.meta.found) : output;
-            })
-            .catch(this.catchDefault);
+                return output.status ? Promise.resolve(output.meta.found) : Promise.reject(output);
+            });
     }
 
-    getMulti(query){
+    getMulti(query) {
         if (!query.hasGetMulti()) {
-            return Promise.resolve(r(false, 'missing param'));
+            return Promise.reject('missing param');
         }
 
         return this.log.add('db,db:getMulti', () => {
@@ -424,18 +426,17 @@ class Model {
                     output[id] = r;
                 }
                 
-                return r(true, output);
-            })
-            .catch(this.catchDefault);
+                return Promise.resolve(output);
+            });
     }
 
     inc(query) {
         if (!query.primaryKey) {
-            Promise.resolve(r(false, 'missing primary field:'+JSON.stringify(query.input)));
+            Promise.reject('missing primary field:'+JSON.stringify(query.input));
         }
         
         if (!query.hasFields()) {
-            return Promise.resolve(r(false, 'missing update fields'));
+            return Promise.reject('missing update fields');
         }
         
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
@@ -450,8 +451,7 @@ class Model {
                     return rows;
                 });
         })
-            .then(rows => r(true))
-            .catch(this.catchDefault);
+            .then(rows => Promise.resolve());
     }
 
     lookup(query) {
@@ -472,18 +472,18 @@ class Model {
                 
                 if (!ids.length) {
                     if (query.isOutputStyle('BY_ID')) {
-                        return Promise.reject(r(true, {}));
+                        return Promise.reject(new Result(true, {}));
                     }
-                    
-                    return Promise.reject(r(true, []));
+
+                    return Promise.reject(new Result(true, []));
                 }
                 
                 if (query.isOutputStyle('LOOKUP_RAW')) {
                     if (query.isOutputStyle('BY_ID')) {
-                        return Promise.reject(r(true, rows));
+                        return Promise.reject(new Result(true, rows));
                     }
-                    
-                    return Promise.reject(r(true, Object.values(rows)));
+
+                    return Promise.reject(new Result(true, Object.values(rows)));
                 }
                 
                 return this.run('get', {
@@ -502,16 +502,15 @@ class Model {
                 
                 return Object.values(result.result);
             })
-            .then(result => r(true, result, meta))
-            .catch(this.catchDefault);
+            .then(result => Promise.resolve([result, meta]));
     }
 
     set(query) {
         if (!query.primaryKey) {
-            return Promise.resolve(r(false, 'missing primary key'));
+            return Promise.reject('missing primary key');
         }
         if (!query.fields) {
-            return Promise.resolve(r(false, 'missing update fields'));
+            return Promise.reject('missing update fields');
         }
 
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
@@ -526,13 +525,12 @@ class Model {
                     return rows;
                 })
         })
-            .then(rows => r(true))
-            .catch(this.catchDefault);
+            .then(rows => Promise.resolve());
     }
 
-    remove(query){
+    remove(query) {
         if (!query.primaryKey) {
-            return Promise.resolve(r(false, 'primary key value required'));
+            return Promise.reject('primary key value required');
         }
         
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
@@ -545,19 +543,10 @@ class Model {
                     }
                 })
         })
-            .then(() => r(true))
-            .catch(this.catchDefault);
+            .then(() => Promise.resolve());
     }
 
-    catchDefault(output) {
-        if (!output || typeof output.status === 'undefined') {
-            return r(false, output);
-        }
-        
-        return output;
-    }
-
-    getTableName(){
+    getTableName() {
         return this.tableName;
     }
 
@@ -651,13 +640,11 @@ class Model {
     }
 
     flushCache() {
-        return this.cache.delAll()
-            .then(result => r(true, result));
+        return this.cache.delAll();
     }
 
     outputCache() {
-        return this.cache.getAll()
-            .then(result => r(true, result));
+        return this.cache.getAll();
     }
 
     getDb() {
