@@ -22,31 +22,6 @@ module.exports.intArray = function(arr, allowZero=true) {
     return _array.uniq(arr);
 }
 
-/*
-module.exports.r = function(success, result=null, meta={}){
-    if (success) {
-        return {
-            status: true,
-            result: result,
-            meta: meta,
-        };
-    }
-    
-    let error = result ? (result.error || result) : result;
-    
-    if (result instanceof Error) {
-        //error = result.toString();
-        error = result.stack;
-    }
-    
-    return {
-        status: false,
-        error: error,
-        meta: meta,
-    };
-}
-*/
-
 module.exports.paramF = function(arr, param, def) {
     return arr[param] ? arr[param] : def;
 }
