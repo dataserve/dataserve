@@ -2,7 +2,13 @@
 
 const Promise = require('bluebird');
 
-const { camelize, r } = require('../util');
+const { camelize } = require('../util');
+
+module.exports = model => next => obj => {
+    let sanitize = new Sanitize(model);
+
+    return sanitize.run(obj).then(() => next(obj));
+}
 
 const ALLOWED_RULES = {
     'trim': [
@@ -30,40 +36,37 @@ class Sanitize {
         this.model = model;
     }
 
+    run({ command, query }) {
+        let errors = {}, promises = [];
+        
+        for (let field in query.getFields()) {
+            let rules = this.model.getField(field).sanitize || this.model.getTableConfig('sanitize');
 
-    populate(addPre, addPost) {
-        addPre(({ command, query }) => {
-            let errors = {}, promises = [];
-            
-            for (let field in query.getFields()) {
-                let rules = this.model.getField(field).sanitize || this.model.getTableConfig('sanitize');
-
-                if (typeof rules === 'object') {
-                    rules = rules[command];
-                }
-
-                if (typeof rules !== 'string' || !rules.length) {
-                    continue;
-                }
-
-                let promise = this.sanitize(query, field, rules, errors);
-                
-                if (promise.length) {
-                    promises = promises.concat(promise);
-                }
+            if (typeof rules === 'object') {
+                rules = rules[command];
             }
-            
-            if (!promises.length) {
-                promises = Promise.resolve();
-            } else {
-                promises = Promise.all(promises);
+
+            if (typeof rules !== 'string' || !rules.length) {
+                continue;
             }
+
+            let promise = this.sanitize(query, field, rules, errors);
             
-            return promises.then(() => {
-                if (Object.keys(errors).length) {
-                    return Promise.reject('Sanitize failed', errors);
-                }
-            });
+            if (promise.length) {
+                promises = promises.concat(promise);
+            }
+        }
+        
+        if (!promises.length) {
+            promises = Promise.resolve();
+        } else {
+            promises = Promise.all(promises);
+        }
+        
+        return promises.then(() => {
+            if (Object.keys(errors).length) {
+                return Promise.reject('Sanitize failed', errors);
+            }
         });
     }
 
@@ -176,5 +179,3 @@ class Sanitize {
     }
     
 }
-
-module.exports = Sanitize;

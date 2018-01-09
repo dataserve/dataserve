@@ -9,7 +9,6 @@ const Config = require('./config');
 const DB = require('./db');
 const Log = require('./log');
 const Model = require('./model');
-const { middlewareHandler } = require('./middleware');
 const { queryHandler } = require('./query');
 const { resultHandler } = require('./result');
 const { camelize, r } = require('./util');
@@ -70,7 +69,17 @@ class Dataserve {
         
         this.manager[dbTable].use('run', queryHandler);
 
-        this.manager[dbTable].use('run', middlewareHandler(this.middlewareLookup));
+        let middleware = this.model[dbTable].getMiddleware();
+        
+        if (middleware) {
+            for (let mw of middleware) {
+                if (!this.middlewareLookup || !this.middlewareLookup[mw]) {
+                    throw new Error(`missing middlware definition for '${mw}'`);
+                }
+            
+                this.manager[dbTable].use('run', this.middlewareLookup[mw]);
+            }
+        }
 
         this.debug(`Created dbTable '${dbTable}'`);
     }
@@ -105,11 +114,11 @@ class Dataserve {
         }
 
         if (command === 'outputDbSchema') {
-            return Promise.resolve(r(true, this.config.getDbSchema(dbName)));
+            return Promise.resolve(this.config.getDbSchema(dbName));
         }
 
         if (command == 'outputTableSchema') {
-            return Promise.resolve(r(true, this.config.getTableSchema(dbName, tableName)));
+            return Promise.resolve(this.config.getTableSchema(dbName, tableName));
         }
 
         return this.getModel(dbTable).run({

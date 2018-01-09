@@ -2,7 +2,13 @@
 
 const Promise = require('bluebird');
 
-const { camelize, r } = require('../util');
+const { camelize } = require('../util');
+
+module.exports = model => next => obj => {
+    let validate = new Validate(model);
+
+    return validate.run(obj).then(() => next(obj));
+}
 
 const ALLOWED_RULES = {
     'email': [
@@ -87,39 +93,37 @@ class Validate {
         this.ip = require('ip');
     }
 
-    populate(addPre, addPost) {
-        addPre(({ command, query }) => {
-            let errors = {}, promises = [];
-            
-            for (let field in query.fields) {
-                let rules = this.model.getField(field).validate;
+    run({ command, query }) {
+        let errors = {}, promises = [];
+        
+        for (let field in query.fields) {
+            let rules = this.model.getField(field).validate;
 
-                if (typeof rules === 'object') {
-                    rules = rules[command];
-                }
+            if (typeof rules === 'object') {
+                rules = rules[command];
+            }
 
-                if (typeof rules !== 'string' || !rules.length) {
-                    continue;
-                }
-                
-                let promise = this.validate(field, query.fields[field], rules, errors);
-                
-                if (promise.length) {
-                    promises = promises.concat(promise);
-                }
+            if (typeof rules !== 'string' || !rules.length) {
+                continue;
             }
             
-            if (!promises.length) {
-                promises = Promise.resolve();
-            } else {
-                promises = Promise.all(promises);
-            }
+            let promise = this.validate(field, query.fields[field], rules, errors);
             
-            return promises.then(() => {
-                if (Object.keys(errors).length) {
-                    return Promise.reject(['Validation failed', errors]);
-                }
-            });
+            if (promise.length) {
+                promises = promises.concat(promise);
+            }
+        }
+        
+        if (!promises.length) {
+            promises = Promise.resolve();
+        } else {
+            promises = Promise.all(promises);
+        }
+        
+        return promises.then(() => {
+            if (Object.keys(errors).length) {
+                return Promise.reject(['Validation failed', errors]);
+            }
         });
     }
 
@@ -409,5 +413,3 @@ class Validate {
         return true;
     }
 }
-
-module.exports = Validate;
