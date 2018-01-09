@@ -21,7 +21,7 @@ class Dataserve {
             require('dotenv').config({path: dotenvPath});
         }
         
-        this.log = new Log;
+        this.log = new Log({ maxEntries: 5000 });
         
         this.config = new Config(configPath);
 

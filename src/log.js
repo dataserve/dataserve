@@ -4,11 +4,17 @@ const microtime = require('microtime');
 
 class Log {
 
-    constructor() {
+    constructor(opt) {
+        this.opt = opt || {};
+        
         this.log = {};
     }
 
     add(types, func) {
+        if (this.opt.disabled) {
+            return func();
+        }
+        
         types = types.split(',');
         
         let timeStart = microtime.now();
@@ -22,8 +28,10 @@ class Log {
                         entries: [],
                     };
                 }
-                
-                this.log[type].entries.push(timeRun);
+
+                if (!this.opt.maxEntries || this.log[type].entries.length < this.opt.maxEntries) {
+                    this.log[type].entries.push(timeRun);
+                }
             };
             
             return res;
@@ -43,6 +51,10 @@ class Log {
             if (!this.log[type]) {
                 continue;
             }
+
+            this.log[type].max = Math.max(...this.log[type].entries);
+
+            this.log[type].min = Math.min(...this.log[type].entries);
             
             this.log[type].sum = this.log[type].entries.reduce((sum, val) => {
                 return sum + val;

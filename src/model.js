@@ -318,7 +318,9 @@ class Model {
                 }
                 
                 return this.getReadLock(query.get.field, getVals, () => {
-                    return this.getDb().get(this, query, getVals)
+                    return this.log.add('db,db:get', () => {
+                        return this.getDb().get(this, query, getVals);
+                    })
                         .then(rows => {
                             if (this.cache) {
                                 //set cache to null for vals that didn't exist in DB
@@ -383,7 +385,9 @@ class Model {
             return Promise.resolve(r(false, 'missing param'));
         }
 
-        return this.getDb().getMulti(this, query)
+        return this.log.add('db,db:getMulti', () => {
+            return this.getDb().getMulti(this, query);
+        })
             .then(result => {
                 let ids = [];
                 
@@ -435,7 +439,9 @@ class Model {
         }
         
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
-            return this.getDb().inc(this, query, vals)
+            return this.log.add('db,db:inc', () => {
+                return this.getDb().inc(this, query, vals);
+            })
                 .then(rows => {
                     if (this.cache) {
                         return this.cacheDeletePrimary(vals);
@@ -451,7 +457,9 @@ class Model {
     lookup(query) {
         var meta = {};
         
-        return this.getDb().lookup(this, query)
+        return this.log.add('db,db:lookup', () => {
+            return this.getDb().lookup(this, query);
+        })
             .then(args => {
                 let [rows, found] = args;
                 
@@ -507,7 +515,9 @@ class Model {
         }
 
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
-            return this.getDb().set(this, query)
+            return this.log.add('db,db:set', () => {
+                return this.getDb().set(this, query);
+            })
                 .then(rows => {
                     if (this.cache) {
                         return this.cacheDeletePrimary(query.primaryKey);
@@ -526,7 +536,9 @@ class Model {
         }
         
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
-            return this.getDb().remove(this, query)
+            return this.log.add('db,db:remove', () => {
+                return this.getDb().remove(this, query);
+            })
                 .then(res => {
                     if (this.cache) {
                         return this.cacheDeletePrimary(vals);
