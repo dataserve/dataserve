@@ -14,8 +14,14 @@ class Config {
         this.configDir = path.dirname(configPath);
 
         this.dbDefault = dbDefault;
+
+        let opt = {
+            cascadeDown: {
+                middleware: '',
+            },
+        };
         
-        this.config = new SqlSchemaModulizer();
+        this.config = new SqlSchemaModulizer(opt);
 
         this.config.buildFromPath(configPath);
 
