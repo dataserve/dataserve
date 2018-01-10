@@ -11,7 +11,9 @@ const ALLOWED_OUTPUT_STYLE = [
 ];
 
 module.exports.queryHandler = model => next => obj => {
-    obj.query = new Query(model, obj.command, obj.input);
+    if (!obj.query) {
+        obj.query = new Query(model, obj.command, obj.input);
+    }
     
     return next(obj);
 }

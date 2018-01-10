@@ -283,9 +283,12 @@ class Model {
             })
             .then(res => {
                 if (query.isOutputStyle('RETURN_ADD')) {
-                    return this.run('get', {
-                        [this.primaryKey]: primaryKeyVal,
-                        fillin: query.fillin,
+                    return this.run({
+                        command: 'get',
+                        input: {
+                            [this.primaryKey]: primaryKeyVal,
+                            fillin: query.fillin,
+                        },
                     });
                 }
                 
@@ -376,7 +379,10 @@ class Model {
         
         query.setOutputStyle('FOUND_ONLY');
         
-        return this.run('lookup', query)
+        return this.run({
+            command: 'lookup',
+            query: query,
+        })
             .then(output => {
                 return output.status ? Promise.resolve(output.meta.found) : Promise.reject(output);
             });
@@ -486,9 +492,12 @@ class Model {
                     return Promise.reject(new Result(true, Object.values(rows)));
                 }
                 
-                return this.run('get', {
-                    [this.primaryKey]: ids,
-                    fillin: query.fillin,
+                return this.run({
+                    command: 'get',
+                    input: {
+                        [this.primaryKey]: ids,
+                        fillin: query.fillin,
+                    },
                 });
             })
             .then(result => {
@@ -583,7 +592,10 @@ class Model {
                 if (type == 'hasMany') {
                     inp[this.model + '_id'] = ids;
                     
-                    promises.push(this.dataserve.run(`${this.dbName}.${table}:getMulti`, inp));
+                    promises.push(this.dataserve.run({
+                        command: `${this.dbName}.${table}:getMulti`,
+                        input: inp,
+                    }));
                 } else {
                     if (type == 'hasOne') {
                         inp[this.model + '_id'] = ids;
@@ -591,7 +603,10 @@ class Model {
                         inp['id'] = Object.keys(rows).map(key => rows[key][table+'_id']);
                     }
                     
-                    promises.push(this.dataserve.run(`${this.dbName}.${table}:get`, inp));
+                    promises.push(this.dataserve.run({
+                        command: `${this.dbName}.${table}:get`,
+                        input: inp,
+                    }));
                 }
                 
                 promiseMap[table] = type;

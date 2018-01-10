@@ -76,7 +76,7 @@ class Dataserve {
                 if (!this.middlewareLookup || !this.middlewareLookup[mw]) {
                     throw new Error(`missing middlware definition for '${mw}'`);
                 }
-            
+
                 this.manager[dbTable].use('run', this.middlewareLookup[mw]);
             }
         }

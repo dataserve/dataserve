@@ -114,6 +114,8 @@ class MySql {
     }
 
     validateType(type) {
+        type = type.split(':')[0];
+        
         switch (type) {
         case 'int':
         case 'tinyint':

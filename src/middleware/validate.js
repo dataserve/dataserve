@@ -196,7 +196,8 @@ class Validate {
         let reason = REASON[rule];
 
         reason = reason.replace(':field', field)
-            .replace(':extra', extra);
+            .replace(':extra', extra)
+            .replace(':type', type);
 
         if (rule.substr(0, 1) === '_') {
             rule = extra;
