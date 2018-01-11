@@ -33,7 +33,7 @@ class Log {
                     this.log[type].entries.push(timeRun);
                 }
             };
-            
+
             return res;
         });
     }

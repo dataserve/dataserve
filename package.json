@@ -21,7 +21,7 @@
     "memcached": "^2.2.2",
     "microtime": "^2.1.6",
     "mysql": "^2.13.0",
-    "readwrite-lock": "^1.0.4",
+    "readwrite-lock": "^1.0.5",
     "redis": "^2.7.1",
     "redis-clustr": "^1.5.2",
     "redis-parser": "^3.0.0",

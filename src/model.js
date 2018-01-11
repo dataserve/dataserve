@@ -269,7 +269,7 @@ class Model {
         
         var primaryKeyVal = null;
         
-        return this.log.add('db,db:add', () => {
+        return this.log.add('model,model:add', () => {
             return this.getDb().add(this, query);
         })
             .then(primaryKeyValTmp => {
@@ -291,8 +291,8 @@ class Model {
                         },
                     });
                 }
-                
-                return Promise.resolve();
+
+                return null;
             });
     }
     
@@ -323,9 +323,9 @@ class Model {
                 if (!Array.isArray(getVals)) {
                     getVals = [getVals];
                 }
-                
+
                 return this.getReadLock(query.get.field, getVals, () => {
-                    return this.log.add('db,db:get', () => {
+                    return this.log.add('model,model:get', () => {
                         return this.getDb().get(this, query, getVals);
                     })
                         .then(rows => {
@@ -333,6 +333,7 @@ class Model {
                                 //set cache to null for vals that didn't exist in DB
                                 let cache = Object.assign(getVals.reduce((obj, val) => {
                                     obj[val] = null;
+                                    
                                     return obj;
                                 }, {}), rows);
 
@@ -360,17 +361,17 @@ class Model {
                 
                 if (query.singleRowResult) {
                     for (let id in rows) {
-                        return r(true, rows[id], extra);
+                        return [rows[id], extra];
                     }
                     
-                    return Promise.resolve({});
+                    return {};
                 }
                 
                 if (query.isOutputStyle('BY_ID')) {
-                    return Promise.resolve([rows, extra]);
+                    return [rows, extra];
                 }
                 
-                return Promise.resolve([_object.pick(rows, query.get.vals), extra]);
+                return [_object.pick(rows, query.get.vals), extra];
             });
     }
 
@@ -384,7 +385,7 @@ class Model {
             query: query,
         })
             .then(output => {
-                return output.status ? Promise.resolve(output.meta.found) : Promise.reject(output);
+                return output.status ? output.meta.found : Promise.reject(output);
             });
     }
 
@@ -393,7 +394,7 @@ class Model {
             return Promise.reject('missing param');
         }
 
-        return this.log.add('db,db:getMulti', () => {
+        return this.log.add('model,model:getMulti', () => {
             return this.getDb().getMulti(this, query);
         })
             .then(result => {
@@ -432,7 +433,7 @@ class Model {
                     output[id] = r;
                 }
                 
-                return Promise.resolve(output);
+                return output;
             });
     }
 
@@ -446,7 +447,7 @@ class Model {
         }
         
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
-            return this.log.add('db,db:inc', () => {
+            return this.log.add('model,model:inc', () => {
                 return this.getDb().inc(this, query, vals);
             })
                 .then(rows => {
@@ -457,13 +458,13 @@ class Model {
                     return rows;
                 });
         })
-            .then(rows => Promise.resolve());
+            .then(rows => null);
     }
 
     lookup(query) {
         var meta = {};
         
-        return this.log.add('db,db:lookup', () => {
+        return this.log.add('model,model:lookup', () => {
             return this.getDb().lookup(this, query);
         })
             .then(args => {
@@ -511,7 +512,7 @@ class Model {
                 
                 return Object.values(result.result);
             })
-            .then(result => Promise.resolve([result, meta]));
+            .then(result => [result, meta]);
     }
 
     set(query) {
@@ -523,7 +524,7 @@ class Model {
         }
 
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
-            return this.log.add('db,db:set', () => {
+            return this.log.add('model,model:set', () => {
                 return this.getDb().set(this, query);
             })
                 .then(rows => {
@@ -534,7 +535,7 @@ class Model {
                     return rows;
                 })
         })
-            .then(rows => Promise.resolve());
+            .then(rows => null);
     }
 
     remove(query) {
@@ -543,7 +544,7 @@ class Model {
         }
         
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
-            return this.log.add('db,db:remove', () => {
+            return this.log.add('model,model:remove', () => {
                 return this.getDb().remove(this, query);
             })
                 .then(res => {
@@ -552,7 +553,7 @@ class Model {
                     }
                 })
         })
-            .then(() => Promise.resolve());
+            .then(() => null);
     }
 
     getTableName() {
