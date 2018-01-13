@@ -15,12 +15,7 @@ const { camelize, r } = require('./util');
 
 class Dataserve {
 
-    constructor(configPath, middlewarePath, dotenvPath, lock){
-        //required if dotenv file not already loaded
-        if (dotenvPath) {
-            require('dotenv').config({path: dotenvPath});
-        }
-        
+    constructor(configPath, middlewarePath, lock){
         this.log = new Log({ maxEntries: 5000 });
 
         this.middlewareLookup = middlewarePath ? require(middlewarePath) : null;

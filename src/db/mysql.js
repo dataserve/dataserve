@@ -6,7 +6,7 @@ const mysql = require('mysql');
 const Type = require('type-of-is');
 const util = require('util');
 
-const { intArray, r } = require('../util');
+const { intArray } = require('../util');
 
 class MySql {
     
@@ -46,12 +46,11 @@ class MySql {
         
         this.pool = mysql.createPool(opt);
         
-        this._query("SHOW VARIABLES LIKE 'max_connections'")
-            .then(rows => {
-                if (rows[0].Value < config.connectionLimit) {
-                    throw new Error(`Mysql max_connections less than connectionLimit, ${rows[0].Value} < ${config.connectionLimit}`);
-                }
-            });
+        this._query("SHOW VARIABLES LIKE 'max_connections'").then(rows => {
+            if (rows[0].Value < config.connectionLimit) {
+                throw new Error(`Mysql max_connections less than connectionLimit, ${rows[0].Value} < ${config.connectionLimit}`);
+            }
+        });
     }
 
     configReplicated(dbName, config){
@@ -79,12 +78,11 @@ class MySql {
         
         this.pools.write = mysql.createPool(opt);
         
-        this._query("SHOW VARIABLES LIKE 'max_connections'")
-            .then(rows => {
-                if (rows[0].Value < config.write.connectionLimit) {
-                    throw new Error(`Mysql WRITE: max_connections less than connectionLimit, ${rows[0].Value} < ${config.write.connectionLimit}`);
-                }
-            });
+        this._query("SHOW VARIABLES LIKE 'max_connections'").then(rows => {
+            if (rows[0].Value < config.write.connectionLimit) {
+                throw new Error(`Mysql WRITE: max_connections less than connectionLimit, ${rows[0].Value} < ${config.write.connectionLimit}`);
+            }
+        });
         
         if (!config.read.connectionLimit) {
             config.read.connectionLimit = 10;
@@ -105,12 +103,11 @@ class MySql {
         
         this.pools.read = mysql.createPool(opt);
         
-        this._query("SHOW VARIABLES LIKE 'max_connections'")
-            .then(rows => {
-                if (rows[0].Value < config.read.connectionLimit) {
-                    throw new Error(`Mysql READ: max_connections less than connectionLimit, ${rows[0].Value} < ${config.read.connectionLimit}`);
-                }
-            });
+        this._query("SHOW VARIABLES LIKE 'max_connections'").then(rows => {
+            if (rows[0].Value < config.read.connectionLimit) {
+                throw new Error(`Mysql READ: max_connections less than connectionLimit, ${rows[0].Value} < ${config.read.connectionLimit}`);
+            }
+        });
     }
 
     validateType(type) {
@@ -149,45 +146,54 @@ class MySql {
         return null;
     }
 
-    add(model, query) {
+    add(model, query, fieldsIndex=0) {
         if (model.getField(model.primaryKey).setInsert) {
             return Promise.reject('Cannot `add` on a setInsert table, use `set` command instead');
         }
 
         let cols = [], vals = [], bind = [], primaryKeyVal = null;
         
-        for (let field in query.fields) {
+        for (let field in query.getFields(fieldsIndex)) {
             cols.push(field);
             
             if (model.getField(field).type == 'int') {
-                vals.push(parseInt(query.fields[field], 10));
+                vals.push(parseInt(query.getField(fieldsIndex, field), 10));
             } else {
                 vals.push(':' + field);
                 
-                bind[field] = query.fields[field];
+                bind[field] = query.getField(fieldsIndex, field);
             }
         }
         
         if (!model.getField(model.primaryKey).autoInc) {
-            if (typeof query.fields[model.primaryKey] === 'undefined') {
-                return Promise.reject(r(false, 'primary key required when not autoIncrementing'));
-            }
+            primaryKeyVal = query.getField(fieldsIndex, model.primaryKey);
             
-            primaryKeyVal = query.fields[model.primaryKey];
+            if (typeof primaryKeyVal === 'undefined') {
+                return Promise.reject('primary key required when not autoIncrementing');
+            }
         }
         
         let sql = 'INSERT INTO ' + model.getTableName() + ' (' + cols.join(',') + ') VALUES (' + vals.join(',') + ')';
         
         return this.log.add('db,db:add', () => {
             return this.query(sql, bind);
-        })
-            .then(res => {
-                if (!primaryKeyVal) {
-                    primaryKeyVal = res.insertId;
-                }
+        }).then(res => {
+            if (!primaryKeyVal) {
+                primaryKeyVal = res.insertId;
+            }
                 
-                return primaryKeyVal;
-            });
+            return primaryKeyVal;
+        });
+    }
+
+    addMulti(model, query) {
+        let promiseRun = [];
+        
+        for (let fieldsIndex = 0; fieldsIndex < query.getFieldsCnt(); ++fieldsIndex) {
+            promiseRun.push(this.add(model, query, fieldsIndex));
+        }
+
+        return Promise.all(promiseRun).then((primaryKeyVal) => primaryKeyVal);
     }
 
     get(model, query, getVals) {
@@ -242,15 +248,16 @@ class MySql {
         } else if (model.getField(query.getMulti.field) == 'string') {
             //TODO
         } else {
-            return Promise.resolve(r(false, 'invalid field type for multi get:' + model.getField(query.getMulti.field)));
+            return Promise.reject('invalid field type for multi get:' + model.getField(query.getMulti.field));
         }
+        
         return this.log.add('db,db:getMulti', () => {
             return this.queryMulti(queries);
         });
     }
 
-    inc(model, query) {
-        let vals = query.primaryKey;
+    inc(model, query, fieldsIndex=0) {
+        let vals = query.primaryKey[fieldsIndex];
         
         if (!Array.isArray(vals)) {
             vals = [vals];
@@ -260,8 +267,8 @@ class MySql {
         
         let updates = [];
         
-        for (let key in query.fields) {
-            updates.push(key + '=' + key + ' + ' + parseInt(query.fields[key], 10));
+        for (let field in query.getFields(fieldsIndex)) {
+            updates.push(field + '=' + field + ' + ' + parseInt(query.getField(fieldIndex, field), 10));
         }
         
         let sql = 'UPDATE ' + model.getTableName() + ' SET ';
@@ -273,6 +280,16 @@ class MySql {
         return this.log.add('db,db:inc', () => {
             return this.query(sql);
         });
+    }
+
+    incMulti(model, query) {
+        let promiseRun = [];
+        
+        for (let fieldsIndex = 0; fieldsIndex < query.getFieldsCnt(); ++fieldsIndex) {
+            promiseRun.push(this.inc(model, query, fieldsIndex));
+        }
+
+        return Promise.all(promiseRun);
     }
     
     lookup(model, query) {
@@ -315,29 +332,27 @@ class MySql {
         if (query.isOutputStyle('FOUND_ONLY')) {
             return this.log.add('db,db:lookup:found', () => {
                 return this.query(sqlCnt, query.bind, true);
-            })
-                .then(row => {
-                    let meta = {
-                        pages: query.limit.limit ? Math.ceil(row.cnt/query.limit.limit) : null,
-                        found: row.cnt,
-                    };
+            }).then(row => {
+                let meta = {
+                    pages: query.limit.limit ? Math.ceil(row.cnt/query.limit.limit) : null,
+                    found: row.cnt,
+                };
                     
-                    return Promise.reject(r(true, [], meta));
+                return Promise.reject(new Result(true, [], meta));
             });
         }
         
         return this.log.add('db,db:lookup', () => {
             return this.query(sqlRows, query.bind, model.primaryKey)
-        })
-            .then(rows => {
-                if (query.isOutputStyle('INCLUDE_FOUND')) {
-                    return this.log.add('db,db:lookup:found', () => {
-                        return this.query(sqlCnt, query.bind, true).then(found => [rows, found['cnt']]);
-                    });
-                } else {
-                    return [rows, null];
-                }
-            });
+        }).then(rows => {
+            if (query.isOutputStyle('INCLUDE_FOUND')) {
+                return this.log.add('db,db:lookup:found', () => {
+                    return this.query(sqlCnt, query.bind, true).then(found => [rows, found['cnt']]);
+                });
+            } else {
+                return [rows, null];
+            }
+        });
     }
 
     buildLookup(model, query) {
@@ -478,22 +493,26 @@ class MySql {
         query.addWhere(where, bind);
     }
 
-    set(model, query) {
+    set(model, query, fieldsIndex=0) {
         var sql = '', updates = [], bind = {};
         
         if (model.getField(model.primaryKey).setInsert) {
-            query.fields[model.primaryKey] = query.primaryKey;
-            
+            let primaryKey = query.getField(fieldsIndex, model.primaryKey);
+
+            if (typeof primaryKey === 'undefined') {
+                return Promise.reject('Missing primary key on setInsert table');
+            }
+
             let cols = [], vals = [];
             
-            for (let field in query.fields) {
+            for (let field in query.getFields(fieldsIndex)) {
                 cols.push(field);
                 
                 if (model.getField(field).type == 'int') {
-                    vals.push(parseInt(query.fields[field], 10));
+                    vals.push(parseInt(query.getField(fieldsIndex, field), 10));
                     
                     if (field != model.primaryKey) {
-                        updates.push(field + '=' + parseInt(query.fields[field], 10) + ' ');
+                        updates.push(field + '=' + parseInt(query.getField(fieldsIndex, field), 10) + ' ');
                     }
                 } else {
                     vals.push(':' + field);
@@ -502,7 +521,7 @@ class MySql {
                         updates.push(field + '=:' + field + ' ');
                     }
                     
-                    bind[field] = query.fields[field];
+                    bind[field] = query.getField(fieldsIndex, field);
                 }
             }
             
@@ -510,13 +529,13 @@ class MySql {
         } else {
             sql = 'UPDATE ' + model.getTableName() + ' SET ';
             
-            for (let field in query.fields) {
+            for (let field in query.getFields(fieldsIndex)) {
                 if (model.getField(field).type == 'int') {
-                    updates.push(field + '=' + parseInt(query.fields[field], 10));
+                    updates.push(field + '=' + parseInt(query.getField(fieldsIndex, field), 10));
                 } else {
                     updates.push(field + '=:' + field);
                     
-                    bind[field] = query.fields[field];
+                    bind[field] = query.getField(fieldsIndex, field);
                 }
             }
             
@@ -531,17 +550,27 @@ class MySql {
             }
             
             if (model.getField(model.primaryKey).type == 'int') {
-                sql += 'WHERE ' + model.primaryKey + '=' + parseInt(query.primaryKey, 10);
+                sql += 'WHERE ' + model.primaryKey + '=' + parseInt(query.primaryKey[fieldsIndex], 10);
             } else {
                 sql += 'WHERE ' + model.primaryKey + '=:' + model.primaryKey;
                 
-                bind[model.primaryKey] = query.primaryKey;
+                bind[model.primaryKey] = query.primaryKey[fieldsIndex];
             }
         }
         
         return this.log.add('db,db:set', () => {
             return this.query(sql, bind);
         });
+    }
+
+    setMulti(model, query) {
+        let promiseRun = [];
+        
+        for (let fieldsIndex = 0; fieldsIndex < query.getFieldsCnt(); ++fieldsIndex) {
+            promiseRun.push(this.set(model, query, fieldsIndex));
+        }
+
+        return Promise.all(promiseRun);
     }
 
     remove(model, query) {
@@ -665,54 +694,53 @@ class MySql {
             queryType = null;
         }
 
-        return this._query(sql, bind, forceEndpoint)
-            .then(rows => {
-                if (queryType == 'SELECT') {
-                    if (typeof(retType) === 'boolean' && retType) {
-                        if (!rows.length) {
-                            return {};
-                        }
-                        
-                        return rows[0];
+        return this._query(sql, bind, forceEndpoint).then(rows => {
+            if (queryType == 'SELECT') {
+                if (typeof(retType) === 'boolean' && retType) {
+                    if (!rows.length) {
+                        return {};
                     }
                     
-                    if (typeof(retType) === 'string') {
-                        if (!rows.length) {
-                            return {};
-                        }
-                        
-                        let res = {};
-                        
-                        for (let row in rows) {
-                            res[rows[row][retType]] = rows[row];
-                        }
-                        
-                        return res;
+                    return rows[0];
+                }
+                
+                if (typeof(retType) === 'string') {
+                    if (!rows.length) {
+                        return {};
                     }
-                    return rows;
+                    
+                    let res = {};
+                    
+                    for (let row in rows) {
+                        res[rows[row][retType]] = rows[row];
+                    }
+                    
+                    return res;
                 }
-                
-                if (queryType == 'INSERT') {
-                    return {
-                        insertId: rows.insertId,
-                    };
-                }
-                
-                if (queryType == 'DELETE') {
-                    return {
-                        affectedRows: rows.affectedRows,
-                    };
-                }
-                
-                if (queryType == 'UPDATE' || queryType == 'REPLACE') {
-                    return {
-                        affectedRows: rows.affectedRows,
-                        changedRows: rows.changedRows,
-                    };
-                }
-                
-                return null;
-            });
+                return rows;
+            }
+            
+            if (queryType == 'INSERT') {
+                return {
+                    insertId: rows.insertId,
+                };
+            }
+            
+            if (queryType == 'DELETE') {
+                return {
+                    affectedRows: rows.affectedRows,
+                };
+            }
+            
+            if (queryType == 'UPDATE' || queryType == 'REPLACE') {
+                return {
+                    affectedRows: rows.affectedRows,
+                    changedRows: rows.changedRows,
+                };
+            }
+            
+            return null;
+        });
     }
 
     queryMulti(input, bind={}, forceEndpoint=null) {
@@ -765,79 +793,79 @@ class MySql {
             
             lastQueryType = queryType;
         }
-        return this._query(sqlConcat.join(';'), bind, forceEndpoint)
-            .then(results => {
-                var output = [];
+        
+        return this._query(sqlConcat.join(';'), bind, forceEndpoint).then(results => {
+            var output = [];
+            
+            for (let index in results) {
+                let query = queries[index];
                 
-                for (let index in results) {
-                    let query = queries[index];
-                    
-                    let rows = results[index];
-                    
-                    if (query.type == 'SELECT') {
-                        if (typeof(retType) === 'boolean' && retType) {
-                            if (rows.length) {
-                                output.push(rows[0]);
-                            } else {
-                                output.push(rows);
-                            }
-                            
-                            continue;
+                let rows = results[index];
+                
+                if (query.type == 'SELECT') {
+                    if (typeof(retType) === 'boolean' && retType) {
+                        if (rows.length) {
+                            output.push(rows[0]);
+                        } else {
+                            output.push(rows);
                         }
                         
-                        if (typeof(retType) === 'string') {
-                            if (!rows.length) {
-                                output.push({});
-                            } else {
-                                let res = {};
-                                
-                                for (let row in rows) {
-                                    res[rows[row][retType]] = rows[row];
-                                }
-                                
-                                output.push(res);
+                        continue;
+                    }
+                    
+                    if (typeof(retType) === 'string') {
+                        if (!rows.length) {
+                            output.push({});
+                        } else {
+                            let res = {};
+                            
+                            for (let row in rows) {
+                                res[rows[row][retType]] = rows[row];
                             }
                             
-                            continue;
+                            output.push(res);
                         }
                         
-                        output.push(rows);
-                        
                         continue;
                     }
                     
-                    if (query.type == 'INSERT') {
-                        output.push({
-                            insertId: rows.insertId,
-                        });
-                        
-                        continue;
-                    }
-                    
-                    if (query.type == 'DELETE') {
-                        output.push({
-                            affectedRows: rows.affectedRows,
-                        });
-                        
-                        continue;
-                    }
-                    
-                    if (query.type == 'UPDATE' || query.type == 'REPLACE') {
-                        output.push({
-                            affectedRows: rows.affectedRows,
-                            changedRows: rows.changedRows,
-                        });
-                        
-                        continue;
-                    }
-                    
-                    output.push(null);
+                    output.push(rows);
                     
                     continue;
                 }
                 
-                return output;
-            });
+                if (query.type == 'INSERT') {
+                    output.push({
+                        insertId: rows.insertId,
+                    });
+                    
+                    continue;
+                }
+                
+                if (query.type == 'DELETE') {
+                    output.push({
+                        affectedRows: rows.affectedRows,
+                    });
+                    
+                    continue;
+                }
+                
+                if (query.type == 'UPDATE' || query.type == 'REPLACE') {
+                    output.push({
+                        affectedRows: rows.affectedRows,
+                        changedRows: rows.changedRows,
+                    });
+                    
+                    continue;
+                }
+                
+                output.push(null);
+                
+                continue;
+            }
+            
+            return output;
+        });
     }
     
     _query(sql, bind, forceEndpoint){

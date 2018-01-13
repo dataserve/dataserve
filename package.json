@@ -12,6 +12,7 @@
     "bluebird": "^3.5.0",
     "cluster-readwrite-lock": "0.0.1",
     "commander": "^2.11.0",
+    "dataserve-client": "^1.0.2",
     "debug": "^2.6.8",
     "dotenv": "^4.0.0",
     "ip": "^1.1.5",
@@ -27,6 +28,7 @@
     "redis-parser": "^3.0.0",
     "sql-schema-modulizer": "^1.1.1",
     "type-of-is": "^3.5.1",
+    "uuid": "^3.1.0",
     "validator": "^8.0.0"
   },
   "homepage": "https://github.com/dataserve/dataserve",

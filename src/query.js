@@ -2,8 +2,10 @@
 
 const Type = require('type-of-is');
 
+const { intArray } = require('./util');
+
 const ALLOWED_OUTPUT_STYLE = [
-    'RETURN_ADD',
+    'RETURN_CHANGES',
     'BY_ID',
     'INCLUDE_FOUND',
     'FOUND_ONLY',
@@ -12,7 +14,11 @@ const ALLOWED_OUTPUT_STYLE = [
 
 module.exports.queryHandler = model => next => obj => {
     if (!obj.query) {
-        obj.query = new Query(model, obj.command, obj.input);
+        try {
+            obj.query = new Query(model, obj.command, obj.input);
+        } catch (error) {
+            return Promise.reject(error);
+        }
     }
     
     return next(obj);
@@ -37,7 +43,7 @@ class Query {
         
         this.primaryKey = null;
         
-        this.fields = {};
+        this.fieldsArr = [];
 
         this.join = {};
         
@@ -65,16 +71,12 @@ class Query {
     }
 
     build(command, input) {
+        input = this.parseCommandInput(command, input);
+        
         this.input = input;
-
-        if (!isNaN(parseInt(input, 10))) {
-            this.input = input = {
-                [this.model.getPrimaryKey()]: parseInt(input, 10),
-            };
-        }
         
         if (!Type.is(input, Object)) {
-            throw new Error('Invalid input, must be an object or primaryKey value, received: ' + JSON.stringify(input));
+            throw new Error('Invalid input, must be an object, primaryKey value(s), received: ' + JSON.stringify(input));
         }
         
         if (input.alias) {
@@ -83,21 +85,29 @@ class Query {
             this.setAlias(this.model.getTableName().substring(0, 1));
         }
         
-        if (input.fields) {
-            for (let field in input.fields) {
-                this.setField(field, input.fields[field]);
+        if (input.fieldsArr) {
+            if (!Array.isArray(input.fieldsArr)) {
+                input.fieldsArr = [input.fieldsArr];
+            }
+
+            for (let fieldObj of input.fieldsArr) {
+                let fieldsIndex = this.newField();
+                
+                for (let field in fieldObj) {
+                    this.setField(fieldsIndex, field, fieldObj[field]);
+                }
             }
         }
         
         if (input.join) {
             for (let table in input.join) {
-                this.setField(table, input.join[table]);
+                this.addJoin(table, input.join[table]);
             }
         }
         
         if (input.leftJoin) {
             for (let table in input.leftJoin) {
-                this.setField(table, input.leftJoin[table]);
+                this.addLeftJoin(table, input.leftJoin[table]);
             }
         }
         
@@ -136,12 +146,6 @@ class Query {
         }
 
         switch (command) {
-        case 'add':
-            for (let field in input) {
-                this.setField(field, input[field]);
-            }
-            
-            break;
         case 'get':
             if (this.primaryKey) {
                 this.setGet(this.model.getPrimaryKey(), this.primaryKey);
@@ -158,17 +162,88 @@ class Query {
             }
             
             break;
-        case 'lookup':
+        }
+    }
+
+    parseCommandInput(command, input) {
+        switch (command) {
+        case 'add':
+            if (Array.isArray(input)) {
+                input = {
+                    fieldsArr: input,
+                };
+            } else if (input.fields) {
+                if (Array.isArray(input.fields)) {
+                    input.fieldsArr = input.fields;
+                } else {
+                    input.fieldsArr = [ input.fields ];
+                }
+
+                delete input.fields;
+            }
+
             break;
+        case 'inc':
         case 'set':
-            for (let field in input) {
-                this.setField(field, input[field]);
+            if (Array.isArray(input)) {
+                input = {
+                    fields: input,
+                };
+            }
+
+            if (input.fields) {
+                if (Array.isArray(input.fields)) {
+                    let fieldsArr = input.fields;
+                
+                    let primaryKeys = [];
+                
+                    for (let fields of fieldsArr) {
+                        let primaryKey = fields[this.model.getPrimaryKey()];
+
+                        if (typeof primaryKey === 'undefined') {
+                            throw new Error('primary key missing in fieldsArr');
+                        }
+                    
+                        primaryKeys.push(primaryKey);
+                    }
+
+                    input.fieldsArr = fieldsArr;
+
+                    input[this.model.getPrimaryKey()] = primaryKeys;
+
+                    delete(input.fields);
+                } else {
+                    if (typeof input[this.model.getPrimaryKey()] === 'undefined') {
+                        throw new Error('primary key missing');
+                    }
+
+                    input[this.model.getPrimaryKey()] = [ input[this.model.getPrimaryKey()] ];
+                    
+                    input.fieldsArr = [ input.fields ];
+                
+                    delete(input.fields);
+                }
+            }
+            
+            break;
+        case 'get':
+        case 'remove':
+            if (Array.isArray(input)) {
+                input = {
+                    [this.model.getPrimaryKey()]: input,
+                };
+            } else if (!isNaN(parseInt(input, 10))) {
+                input = {
+                    [this.model.getPrimaryKey()]: input,
+                };
             }
             
             break;
         }
+        
+        return input;
     }
-
+    
     raw(field) {
         return this.input[field];
     }
@@ -223,24 +298,30 @@ class Query {
         return this.getMulti.field ? true : false;
     }
 
-    hasFields() {
-        return Object.keys(this.fields).length ? true: false;
+    getFieldsCnt() {
+        return this.fieldsArr.length;
     }
 
-    getFields() {
-        return this.fields;
+    getFields(index) {
+        return this.fieldsArr[index];
     }
 
-    getField(field) {
-        return this.fields[field];
+    getField(index, field) {
+        return this.fieldsArr[index][field];
+    }
+
+    newField() {
+        let index = this.fieldsArr.length;
+
+        this.fieldsArr.push({});
     }
     
-    setField(field, val) {
+    setField(index, field, val) {
         if (!this.model.isFillable(field)) {
             return;
         }
         
-        this.fields[field] = val;
+        this.fieldsArr[index][field] = val;
     }
 
     addJoin(table, on) {

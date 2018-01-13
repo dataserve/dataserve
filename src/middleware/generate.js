@@ -1,0 +1,219 @@
+'use strict';
+
+const Promise = require('bluebird');
+
+const { camelize, randomString } = require('../util');
+
+module.exports = model => next => obj => {
+    let generate = new Generate(model);
+
+    return generate.run(obj).then(() => next(obj));
+}
+
+const ALLOWED_RULES = {
+    'slug': [
+        'String',
+    ],
+    'slugUnique': [
+        'String',
+    ],
+    'uuid': [
+        'String',
+    ],
+};
+
+const PROMISE_RULES = [
+    'slugUnique',
+];
+
+const REASON = {
+    '_invalidRule': 'Invalid rule :rule for field :field',
+    '_invalidType': 'Invalid value type :type for field :field',
+    'slugUnique': 'Unable to generate unique value for :field',
+};
+
+class Generate {
+
+    constructor(model) {
+        this.model = model;
+
+        this.uuid = require('uuid/v4');
+    }
+
+    run({ command, query }) {
+        let errors = {}, promises = [];
+        
+        for (let field in query.getFields()) {
+            let rules = this.model.getField(field).generate || this.model.getTableConfig('generate');
+
+            if (typeof rules === 'object') {
+                rules = rules[command];
+            }
+
+            if (typeof rules !== 'string' || !rules.length) {
+                continue;
+            }
+
+            let promise = this.generate(query, field, rules, errors);
+            
+            if (promise.length) {
+                promises = promises.concat(promise);
+            }
+        }
+        
+        if (!promises.length) {
+            promises = Promise.resolve();
+        } else {
+            promises = Promise.all(promises);
+        }
+        
+        return promises.then(() => {
+            if (Object.keys(errors).length) {
+                return Promise.reject('Generate failed', errors);
+            }
+        });
+    }
+
+    generate(query, field, rules, errors) {
+        let promiseRun = [];
+        
+        rules = rules.split('|');
+        
+        for (let split of rules) {
+            let [rule, extra] = split.split(':');
+
+            rule = camelize(rule);
+            
+            if (!ALLOWED_RULES[rule]) {
+                this.addError('_invalidRule', rule, field, val, null, errors);
+                
+                continue;
+            }
+            
+            let type = this.model.getFieldValidateType(field);
+           
+            if (ALLOWED_RULES[rule].indexOf(type) === -1) {
+                //this.addError('_invalidType', rule, field, val, null, errors);
+                
+                continue;
+            }
+            
+            let handler = 'generate' + rule.charAt(0).toUpperCase() + rule.slice(1);
+            
+            if (PROMISE_RULES.indexOf(rule) !== -1) {
+                promiseRun.push([this[handler], [extra, query, field, type, errors]]);
+            } else {
+                if (this[handler](extra, query, field, type) === false) {
+                    this.addError(rule, extra, field, val, type, errors);
+                }
+            }
+        }
+
+        //don't run promise validations if errors already found
+        if (promiseRun.length && Object.keys(errors).length) {
+            return [];
+        }
+
+        let promises = [];
+
+        for (let run of promiseRun) {
+            promises.push(run[0].bind(this)(...run[1]));
+        }
+        
+        return promises;
+    }
+
+    addError(rule, extra, field, val, type, errors){
+        let reason = REASON[rule];
+
+        reason = reason.replace(':field', field)
+            .replace(':extra', extra);
+
+        if (rule.substr(0, 1) === '_') {
+            rule = extra;
+        }
+        
+        errors[field] = {
+            rule: rule,
+            reason: reason,
+        };
+    }
+
+    generateSlug(extra, query, field, type, cnt) {
+        let [ slugType, slugOpt ] = extra.split(',');
+
+        if (slugType === 'alpha') {
+            query.setField(field, randomString(slugOpt, 'A'));
+
+            return;
+        }
+
+        if (slugType === 'alphaNum') {
+            query.setField(field, randomString(slugOpt, 'A#'));
+
+            return;
+        }
+        
+        if (slugType === 'field') {
+            if (!query.getField(slugOpt)) {
+                query.setField(field, '');
+            
+                return;
+            }
+
+            let val = query.getField(slugOpt);
+
+            if (cnt && 1 < cnt) {
+                val += ' ' + cnt;
+            }
+        
+            let slug = val
+                .toString()
+                .toLowerCase()
+                .replace(/\s+/g, '-') // Replace spaces with -
+                .replace(/[^\w\-]+/g, '') // Remove all non-word chars
+                .replace(/\-\-+/g, '-') // Replace multiple - with single -
+                .replace(/^-+/, '') // Trim - from start of text
+                .replace(/-+$/, ''); // Trim - from end of text
+        
+            query.setField(field, slug);
+
+            return;
+        }
+    }
+
+    generateSlugUnique(extra, query, field, type, cnt = 0) {
+        return new Promise((resolve, reject) => {
+            let val = this.generateSlug(extra, query, field, type);
+            
+            let input = {
+                '=': {
+                    [field]: val,
+                },
+                outputStyle: 'LOOKUP_RAW',
+                page: 1,
+                limit: 1
+            };
+                
+            return this.model.run({ input })
+                .then(res => {
+                    if (res.result.length) {
+                        if (10 <= cnt) {
+                            this.addError('slugUnique', extra, field, val, type, errors);
+
+                            return;
+                        }
+
+                        return this.generateSlugUnique(extra, query, field, type, cnt + 1);
+                    }
+                    
+                    return val;
+                });
+        });
+    }
+    
+    generateUuid(extra, query, field, type) {
+        query.setField(field, this.uuid());
+    }
+
+}

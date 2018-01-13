@@ -82,7 +82,7 @@ class Model {
     }
 
     parseConfig() {
-        [this.dbName, this.tableName] = this.dbTable.split('.');
+        [ this.dbName, this.tableName ] = this.dbTable.split('.');
         
         if (!this.dbName || !this.tableName) {
             throw new Error('Missing db/table names');
@@ -198,10 +198,10 @@ class Model {
     
     addFillable(arr) {
         if (!Array.isArray(arr)) {
-            arr = [arr];
+            arr = [ arr ];
         }
         
-        this.fillable = [...new Set(this.fillable.concat(arr))];
+        this.fillable = [ ...new Set(this.fillable.concat(arr)) ];
     }
 
     isUnique(field) {
@@ -210,10 +210,10 @@ class Model {
     
     addUnique(arr) {
         if (!Array.isArray(arr)) {
-            arr = [arr];
+            arr = [ arr ];
         }
         
-        this.unique = [...new Set(this.unique.concat(arr))];
+        this.unique = [ ...new Set(this.unique.concat(arr)) ];
     }
 
     isGetMulti(field) {
@@ -222,16 +222,16 @@ class Model {
     
     addGetMulti(arr) {
         if (!Array.isArray(arr)) {
-            arr = [arr];
+            arr = [ arr ];
         }
         
-        this.getMulti = [...new Set(this.getMulti.concat(arr))];
+        this.getMulti = [ ...new Set(this.getMulti.concat(arr)) ];
     }
     
     addRelationship(type, table) {
         type = camelize(type);
         
-        if (['belongsTo', 'hasOne'].indexOf(type) == -1) {
+        if ([ 'belongsTo', 'hasOne' ].indexOf(type) == -1) {
             return;
         }
         
@@ -244,10 +244,10 @@ class Model {
 
     addMiddleware(arr) {
         if (!Array.isArray(arr)) {
-            arr = [arr];
+            arr = [ arr ];
         }
         
-        this.middleware = [...new Set(this.middleware.concat(arr))];
+        this.middleware = [ ...new Set(this.middleware.concat(arr)) ];
     }
 
     getMiddleware() {
@@ -263,37 +263,38 @@ class Model {
     }
 
     add(query) {
-        if (!query.hasFields()) {
+        if (!query.getFieldsCnt()) {
             return Promise.reject('missing fields');
         }
         
         var primaryKeyVal = null;
-        
-        return this.log.add('model,model:add', () => {
-            return this.getDb().add(this, query);
-        })
-            .then(primaryKeyValTmp => {
-                primaryKeyVal = primaryKeyValTmp;
-                
-                if (this.cache) {
-                    return this.getWriteLock(this.primaryKey, primaryKeyVal, () => {
-                        return this.cacheDeletePrimary(primaryKeyVal);
-                    });
-                }
-            })
-            .then(res => {
-                if (query.isOutputStyle('RETURN_ADD')) {
-                    return this.run({
-                        command: 'get',
-                        input: {
-                            [this.primaryKey]: primaryKeyVal,
-                            fillin: query.fillin,
-                        },
-                    });
-                }
 
-                return null;
-            });
+        let addFunc = 'add' + (1 < query.getFieldsCnt() ? 'Multi' : '');
+
+        return this.log.add(`model,model:${addFunc}`, () => {
+            return this.getDb()[addFunc](this, query);
+        }).then(primaryKeyValTmp => {
+            primaryKeyVal = primaryKeyValTmp;
+            
+            if (this.cache) {
+                return this.getWriteLock(this.primaryKey, primaryKeyVal, () => {
+                    return this.cacheDeletePrimary(primaryKeyVal);
+                });
+            }
+        }).then(() => {
+            if (query.isOutputStyle('RETURN_CHANGES')) {
+                return this.run({
+                    command: 'get',
+                    input: {
+                        [this.primaryKey]: primaryKeyVal,
+                        fillin: query.fillin,
+                        outputStyle: query.isOutputStyle('BY_ID') ? 'BY_ID' : null,
+                    },
+                });
+            }
+            
+            return null;
+        });
     }
     
     get(query) {
@@ -309,70 +310,66 @@ class Model {
         if (this.cache && query.get.field == this.primaryKey) {
             cachePromise = this.cacheGetPrimary(getVals);
         } else {
-            cachePromise = Promise.resolve([{}, getVals]);
+            cachePromise = Promise.resolve([ {}, getVals ]);
         }
         
-        return cachePromise
-            .then(result => {
-                [cacheRows, getVals] = result;
-                
-                if (!getVals.length) {
-                    return cacheRows;
-                }
-                
-                if (!Array.isArray(getVals)) {
-                    getVals = [getVals];
-                }
+        return cachePromise.then(result => {
+            [ cacheRows, getVals ] = result;
+            
+            if (!getVals.length) {
+                return cacheRows;
+            }
+            
+            if (!Array.isArray(getVals)) {
+                getVals = [ getVals ];
+            }
 
-                return this.getReadLock(query.get.field, getVals, () => {
-                    return this.log.add('model,model:get', () => {
-                        return this.getDb().get(this, query, getVals);
-                    })
-                        .then(rows => {
-                            if (this.cache) {
-                                //set cache to null for vals that didn't exist in DB
-                                let cache = Object.assign(getVals.reduce((obj, val) => {
-                                    obj[val] = null;
-                                    
-                                    return obj;
-                                }, {}), rows);
-
-                                return this.cacheSetPrimary(cache)
-                                    .then(() => rows);
-                            }
+            return this.getReadLock(query.get.field, getVals, () => {
+                return this.log.add('model,model:get', () => {
+                    return this.getDb().get(this, query, getVals);
+                }).then(rows => {
+                    if (this.cache) {
+                        //set cache to null for vals that didn't exist in DB
+                        let cache = Object.assign(getVals.reduce((obj, val) => {
+                            obj[val] = null;
                             
-                            return rows;
-                        });
-                });
-            })
-            .then(rows => {
-                Object.keys(cacheRows).forEach(key => (cacheRows[key] === null) && delete cacheRows[key]);
-                
-                return Object.assign(cacheRows, rows);
-            })
-            .then(rows => {
-                return this.fillin(query, rows)
-            })
-            .then(rows => {
-                let extra = {
-                    dbName: this.dbName,
-                    tableName: this.tableName,
-                };
-                
-                if (query.singleRowResult) {
-                    for (let id in rows) {
-                        return [rows[id], extra];
+                            return obj;
+                        }, {}), rows);
+                        
+                        return this.cacheSetPrimary(cache)
+                            .then(() => rows);
                     }
                     
-                    return {};
-                }
-                
-                if (query.isOutputStyle('BY_ID')) {
-                    return [rows, extra];
-                }
-                
-                return [_object.pick(rows, query.get.vals), extra];
+                    return rows;
+                });
             });
+        }).then(rows => {
+            Object.keys(cacheRows).forEach(key => (cacheRows[key] === null) && delete cacheRows[key]);
+            
+            return Object.assign(cacheRows, rows);
+        }).then(rows => {
+            return this.fillin(query, rows)
+        }).then(rows => {
+            let extra = {
+                dbName: this.dbName,
+                tableName: this.tableName,
+            };
+            
+            if (query.singleRowResult) {
+                for (let id in rows) {
+                    return [ rows[id], extra ];
+                }
+                
+                return [ {}, extra ];
+            }
+            
+            if (query.isOutputStyle('BY_ID')) {
+                return [ rows, extra ];
+            }
+
+            
+            return [ query.get.vals.map(key => rows[key]), extra];
+        });
     }
 
     getCount(query) {
@@ -383,10 +380,9 @@ class Model {
         return this.run({
             command: 'lookup',
             query: query,
-        })
-            .then(output => {
-                return output.status ? output.meta.found : Promise.reject(output);
-            });
+        }).then(result => {
+            return result.meta.found;
+        });
     }
 
     getMulti(query) {
@@ -396,69 +392,75 @@ class Model {
 
         return this.log.add('model,model:getMulti', () => {
             return this.getDb().getMulti(this, query);
-        })
-            .then(result => {
-                let ids = [];
-                
-                for (let rows of result) {
-                    for (let a of rows) {
-                        ids.push(a[this.primaryKey]);
-                    }
+        }).then(result => {
+            let ids = [];
+            
+            for (let rows of result) {
+                for (let a of rows) {
+                    ids.push(a[this.primaryKey]);
                 }
-                
-                let q = new Query({
+            }
+            
+            return this.run({
+                command: 'get',
+                input: {
                     id: ids,
                     fillin: query.fillin,
                     outputStyle: 'BY_ID',
-                }, 'get', this);
-                
-                return this.get(q);
-            })
-            .then(res => {
-                if (!res.status) {
-                    return Promise.reject(res);
-                }
-                
-                let output = [];
-                
-                for (let id of query.getMulti.vals) {
-                    let rows = result.shift();
-                    
-                    let r = [];
-                    
-                    for (let row of rows) {
-                        r.push(res.result[row['id']]);
-                    }
-                    
-                    output[id] = r;
-                }
-                
-                return output;
+                },
             });
+        }).then(result => {
+            let data = [];
+            
+            for (let id of query.getMulti.vals) {
+                let rows = result.data.shift();
+                
+                let r = [];
+                
+                for (let row of rows) {
+                    r.push(res.result[row['id']]);
+                }
+                
+                data[id] = r;
+            }
+            
+            return data;
+        });
     }
 
     inc(query) {
         if (!query.primaryKey) {
             Promise.reject('missing primary field:'+JSON.stringify(query.input));
         }
-        
-        if (!query.hasFields()) {
+
+        if (!query.getFieldsCnt()) {
             return Promise.reject('missing update fields');
         }
         
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
-            return this.log.add('model,model:inc', () => {
-                return this.getDb().inc(this, query, vals);
-            })
-                .then(rows => {
-                    if (this.cache) {
-                        return this.cacheDeletePrimary(vals);
-                    }
-                    
-                    return rows;
+            let incFunc = 'inc' + (1 < query.getFieldsCnt() ? 'Multi' : '');
+            
+            return this.log.add(`model,model:${incFunc}`, () => {
+                return this.getDb()[incFunc](this, query, vals);
+            }).then(() => {
+                if (this.cache) {
+                    return this.cacheDeletePrimary(vals);
+                }
+            });
+        }).then(() => {
+            if (query.isOutputStyle('RETURN_CHANGES')) {
+                return this.run({
+                    command: 'get',
+                    input: {
+                        [this.primaryKey]: query.primaryKey,
+                        fillin: query.fillin,
+                        outputStyle: query.isOutputStyle('BY_ID') ? 'BY_ID' : null,
+                    },
                 });
-        })
-            .then(rows => null);
+            }
+            
+            return null;
+        });
     }
 
     lookup(query) {
@@ -466,76 +468,76 @@ class Model {
         
         return this.log.add('model,model:lookup', () => {
             return this.getDb().lookup(this, query);
-        })
-            .then(args => {
-                let [rows, found] = args;
+        }).then(args => {
+            let [ rows, found ] = args;
+            
+            meta = {
+                pages: found !== null ? Math.ceil(found / query.limit.limit) : null,
+                found: found,
+            };
+            
+            let ids = rows ? Object.keys(rows) : [];
                 
-                meta = {
-                    pages: found !== null ? Math.ceil(found / query.limit.limit) : null,
-                    found: found,
-                };
-                
-                let ids = rows ? Object.keys(rows) : [];
-                
-                if (!ids.length) {
-                    if (query.isOutputStyle('BY_ID')) {
-                        return Promise.reject(new Result(true, {}));
-                    }
-
-                    return Promise.reject(new Result(true, []));
-                }
-                
-                if (query.isOutputStyle('LOOKUP_RAW')) {
-                    if (query.isOutputStyle('BY_ID')) {
-                        return Promise.reject(new Result(true, rows));
-                    }
-
-                    return Promise.reject(new Result(true, Object.values(rows)));
-                }
-                
-                return this.run({
-                    command: 'get',
-                    input: {
-                        [this.primaryKey]: ids,
-                        fillin: query.fillin,
-                    },
-                });
-            })
-            .then(result => {
-                if (!result.status) {
-                    return Promise.reject(result);
-                }
-                
+            if (!ids.length) {
                 if (query.isOutputStyle('BY_ID')) {
-                    return result.result;
+                    return Promise.reject(new Result(true, {}));
                 }
                 
-                return Object.values(result.result);
-            })
-            .then(result => [result, meta]);
+                return Promise.reject(new Result(true, []));
+            }
+                
+            if (query.isOutputStyle('LOOKUP_RAW')) {
+                if (query.isOutputStyle('BY_ID')) {
+                    return Promise.reject(new Result(true, rows));
+                }
+                
+                return Promise.reject(new Result(true, Object.values(rows)));
+            }
+                
+            return this.run({
+                command: 'get',
+                input: {
+                    [this.primaryKey]: ids,
+                    fillin: query.fillin,
+                    outputStyle: query.isOutputStyle('BY_ID') ? 'BY_ID' : null,
+                },
+            });
+        });
     }
 
     set(query) {
         if (!query.primaryKey) {
             return Promise.reject('missing primary key');
         }
-        if (!query.fields) {
+        
+        if (!query.getFieldsCnt()) {
             return Promise.reject('missing update fields');
         }
 
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
-            return this.log.add('model,model:set', () => {
-                return this.getDb().set(this, query);
-            })
-                .then(rows => {
-                    if (this.cache) {
-                        return this.cacheDeletePrimary(query.primaryKey);
-                    }
-                    
-                    return rows;
-                })
-        })
-            .then(rows => null);
+            let setFunc = 'set' + (1 < query.getFieldsCnt() ? 'Multi' : '');
+
+            return this.log.add(`model,model:${setFunc}`, () => {
+                return this.getDb()[setFunc](this, query);
+            }).then(() => {
+                if (this.cache) {
+                    return this.cacheDeletePrimary(query.primaryKey);
+                }
+            });
+        }).then(() => {
+            if (query.isOutputStyle('RETURN_CHANGES')) {
+                return this.run({
+                    command: 'get',
+                    input: {
+                        [this.primaryKey]: query.primaryKey,
+                        fillin: query.fillin,
+                        outputStyle: query.isOutputStyle('BY_ID') ? 'BY_ID' : null,
+                    },
+                });
+            }
+            
+            return null;
+        });
     }
 
     remove(query) {
@@ -546,14 +548,12 @@ class Model {
         return this.getWriteLock(this.primaryKey, query.primaryKey, () => {
             return this.log.add('model,model:remove', () => {
                 return this.getDb().remove(this, query);
+            }).then(() => {
+                if (this.cache) {
+                    return this.cacheDeletePrimary(vals);
+                }
             })
-                .then(res => {
-                    if (this.cache) {
-                        return this.cacheDeletePrimary(vals);
-                    }
-                })
-        })
-            .then(() => null);
+        }).then(() => null);
     }
 
     getTableName() {
@@ -618,41 +618,40 @@ class Model {
             return Promise.resolve(rows);
         }
         
-        return Promise.all(promises)
-            .then(res => {
-                let fillin = {};
+        return Promise.all(promises).then(res => {
+            let fillin = {};
 
-                for (let promiseRes of res) {
-                    if (!promiseRes.status) {
-                        throw new Error('Fillin call failed: ' + promiseRes.error);
+            for (let promiseRes of res) {
+                if (!promiseRes.status) {
+                    throw new Error('Fillin call failed: ' + promiseRes.error);
+                }
+                
+                fillin[promiseRes.tableName] = {
+                    type: promiseMap[promiseRes.tableName],
+                    result: promiseRes.result,
+                };
+            }
+            
+            if (!fillin) {
+                return rows;
+            }
+
+            for (let index in rows) {
+                for (let table in fillin) {
+                    if (!fillin[table].result) {
+                        continue;
                     }
                     
-                    fillin[promiseRes.tableName] = {
-                        type: promiseMap[promiseRes.tableName],
-                        result: promiseRes.result,
-                    };
-                }
-                
-                if (!fillin) {
-                    return rows;
-                }
-
-                for (let index in rows) {
-                    for (let table in fillin) {
-                        if (!fillin[table].result) {
-                            continue;
-                        }
-                        
-                        if (['hasOne', 'hasMany'].indexOf(fillin[table].type) !== -1) {
-                            rows[index][table] = paramFo(fillin[table].result, rows[index]['id']);
-                        } else if (fillin[table].type == 'belongsTo') {
-                            rows[index][table] = paramFo(fillin[table].result, rows[index][table + '_id']);
-                        }
+                    if (['hasOne', 'hasMany'].indexOf(fillin[table].type) !== -1) {
+                        rows[index][table] = paramFo(fillin[table].result, rows[index]['id']);
+                    } else if (fillin[table].type == 'belongsTo') {
+                        rows[index][table] = paramFo(fillin[table].result, rows[index][table + '_id']);
                     }
                 }
-                
-                return rows;
-            });
+            }
+            
+            return rows;
+        });
     }
 
     flushCache() {
@@ -673,7 +672,7 @@ class Model {
 
     getLock(isWrite, field, val, func) {
         if (!Array.isArray(val)) {
-            val = [val];
+            val = [ val ];
         }
         
         let lockKey = [];
@@ -701,7 +700,7 @@ class Model {
 
     cacheGet(field, keys) {
         if (!Array.isArray(keys)) {
-            keys = [keys];
+            keys = [ keys ];
         }
         
         return this.cache.get(this.dbTable, field, keys).then(cacheRows => {
@@ -713,7 +712,7 @@ class Model {
                 }
             }
             
-            return [cacheRows, ids];
+            return [ cacheRows, ids ];
         });
     }
 
