@@ -14,20 +14,26 @@ const ALLOWED_OUTPUT_STYLE = [
 
 module.exports.queryHandler = model => next => obj => {
     if (!obj.query) {
+        let query = new Query(model);
+        
         try {
-            obj.query = new Query(model, obj.command, obj.input);
+            obj.query = query.build(obj.command, obj.input);
         } catch (error) {
             return Promise.reject(error);
         }
     }
-    
+  
     return next(obj);
 }
 
 class Query {
 
-    constructor(model, command, input) {
+    constructor(model) {
         this.model = model;
+
+        this.command = null;
+        
+        this.input = null;
         
         this.alias = '';
         
@@ -66,18 +72,16 @@ class Query {
         this.outputStyle = [];
 
         this.singleRowResult = false;
-
-        this.build(command, input);
     }
 
     build(command, input) {
         input = this.parseCommandInput(command, input);
         
-        this.input = input;
-        
         if (!Type.is(input, Object)) {
             throw new Error('Invalid input, must be an object, primaryKey value(s), received: ' + JSON.stringify(input));
         }
+
+        this.input = input;
         
         if (input.alias) {
             this.setAlias(input.alias);
@@ -87,7 +91,7 @@ class Query {
         
         if (input.fieldsArr) {
             if (!Array.isArray(input.fieldsArr)) {
-                input.fieldsArr = [input.fieldsArr];
+                input.fieldsArr = [ input.fieldsArr ];
             }
 
             for (let fieldObj of input.fieldsArr) {
@@ -163,6 +167,8 @@ class Query {
             
             break;
         }
+
+        return this;
     }
 
     parseCommandInput(command, input) {
@@ -314,6 +320,8 @@ class Query {
         let index = this.fieldsArr.length;
 
         this.fieldsArr.push({});
+
+        return index;
     }
     
     setField(index, field, val) {
