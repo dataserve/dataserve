@@ -103,7 +103,7 @@ class Model {
         if (typeof this.tableConfig.setInsert !== 'undefined') {
             this.setInsert = this.tableConfig.setInsert;
             
-            if (this.setInsert && !this.fields[this.primaryKey].fillable) {
+            if (this.setInsert && !this.isFillable(this.primaryKey)) {
                 throw new Error('Primary key must be fillable when `setInsert` is set to true');
             }
         }
@@ -550,7 +550,7 @@ class Model {
                 return this.getDb().remove(this, query);
             }).then(() => {
                 if (this.cache) {
-                    return this.cacheDeletePrimary(vals);
+                    return this.cacheDeletePrimary(query.primaryKey);
                 }
             })
         }).then(() => null);
@@ -568,7 +568,7 @@ class Model {
         if (!this.relationships) {
             return Promise.resolve(rows);
         }
-        
+
         let ids = rows ? Object.keys(rows) : [];
 
         let promises = [];
@@ -593,10 +593,10 @@ class Model {
                 if (type == 'hasMany') {
                     inp[this.model + '_id'] = ids;
                     
-                    promises.push(this.dataserve.run({
-                        command: `${this.dbName}.${table}:getMulti`,
-                        input: inp,
-                    }));
+                    promises.push(this.dataserve.run(
+                        `${this.dbName}.${table}:getMulti`,
+                        inp
+                    ));
                 } else {
                     if (type == 'hasOne') {
                         inp[this.model + '_id'] = ids;
@@ -604,10 +604,10 @@ class Model {
                         inp['id'] = Object.keys(rows).map(key => rows[key][table+'_id']);
                     }
                     
-                    promises.push(this.dataserve.run({
-                        command: `${this.dbName}.${table}:get`,
-                        input: inp,
-                    }));
+                    promises.push(this.dataserve.run(
+                        `${this.dbName}.${table}:get`,
+                        inp
+                    ));
                 }
                 
                 promiseMap[table] = type;
@@ -622,30 +622,26 @@ class Model {
             let fillin = {};
 
             for (let promiseRes of res) {
-                if (!promiseRes.status) {
-                    throw new Error('Fillin call failed: ' + promiseRes.error);
-                }
-                
-                fillin[promiseRes.tableName] = {
-                    type: promiseMap[promiseRes.tableName],
-                    result: promiseRes.result,
+                fillin[promiseRes.meta.tableName] = {
+                    type: promiseMap[promiseRes.meta.tableName],
+                    data: promiseRes.data,
                 };
             }
-            
+
             if (!fillin) {
                 return rows;
             }
 
             for (let index in rows) {
                 for (let table in fillin) {
-                    if (!fillin[table].result) {
+                    if (!fillin[table].data) {
                         continue;
                     }
                     
                     if (['hasOne', 'hasMany'].indexOf(fillin[table].type) !== -1) {
-                        rows[index][table] = paramFo(fillin[table].result, rows[index]['id']);
+                        rows[index][table] = paramFo(fillin[table].data, rows[index]['id']);
                     } else if (fillin[table].type == 'belongsTo') {
-                        rows[index][table] = paramFo(fillin[table].result, rows[index][table + '_id']);
+                        rows[index][table] = paramFo(fillin[table].data, rows[index][table + '_id']);
                     }
                 }
             }

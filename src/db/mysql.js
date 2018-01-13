@@ -147,7 +147,7 @@ class MySql {
     }
 
     add(model, query, fieldsIndex=0) {
-        if (model.getField(model.primaryKey).setInsert) {
+        if (model.setInsert) {
             return Promise.reject('Cannot `add` on a setInsert table, use `set` command instead');
         }
 
@@ -496,7 +496,7 @@ class MySql {
     set(model, query, fieldsIndex=0) {
         var sql = '', updates = [], bind = {};
         
-        if (model.getField(model.primaryKey).setInsert) {
+        if (model.setInsert) {
             let primaryKey = query.getField(fieldsIndex, model.primaryKey);
 
             if (typeof primaryKey === 'undefined') {
@@ -605,6 +605,7 @@ class MySql {
             
             sql += 'WHERE ' + model.primaryKey + ' IN (' + wh.join(',') + ')';
         }
+        
         return this.log.add('db,db:remove', () => {
             return this.query(sql, bind);
         });

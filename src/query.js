@@ -136,8 +136,16 @@ class Query {
         }
         
         if (input.fillin) {
-            for (let table in input.fillin) {
-                this.setFillin(table, input.fillin[table]);
+            if (typeof input.fillin === 'string') {
+                this.setFillin(input.fillin, true);
+            } else if (Array.isArray(input.fillin)) {
+                input.fillin.forEach(table => {
+                    this.setFillin(table, true);
+                });
+            } else if (typeof input.fillin === 'object') {
+                for (let table in input.fillin) {
+                    this.setFillin(table, input.fillin[table]);
+                }
             }
         }
         
@@ -219,12 +227,12 @@ class Query {
 
                     delete(input.fields);
                 } else {
+                    input[this.model.getPrimaryKey()] = [ input.fields[this.model.getPrimaryKey()] ];
+                    
                     if (typeof input[this.model.getPrimaryKey()] === 'undefined') {
                         throw new Error('primary key missing');
                     }
 
-                    input[this.model.getPrimaryKey()] = [ input[this.model.getPrimaryKey()] ];
-                    
                     input.fieldsArr = [ input.fields ];
                 
                     delete(input.fields);
@@ -323,10 +331,26 @@ class Query {
 
         return index;
     }
+
+    currentField() {
+        if (!this.fieldsArr.length) {
+            return null;
+        }
+
+        return this.fieldsArr.length - 1;
+    }
     
     setField(index, field, val) {
         if (!this.model.isFillable(field)) {
             return;
+        }
+        
+        if (typeof index === 'undefined' || index === null) {
+            index = this.currentField();
+
+            if (index === null) {
+                index = this.newField();
+            }
         }
         
         this.fieldsArr[index][field] = val;
