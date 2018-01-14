@@ -422,6 +422,37 @@ class Query {
     hasFillin() {
         return Object.keys(this.fillin).length ? true : false;
     }
+
+    findFillin(tableName) {
+        if (!this.hasFillin()) {
+            return null;
+        }
+
+        let found = Object.keys(this.fillin).filter((related) => {
+            let [ relatedTableName, relatedAliasName ] = related.split(':');
+
+            if (relatedTableName === tableName) {
+                return true;
+            }
+
+            return false;
+        });
+
+        if (found.length) {
+            let foundAliasArr = found.map((val) => {
+                let [ foundTableName, foundAliasName ] = val.split(':');
+
+                return foundAliasName || foundTableName;
+            });
+            
+            return {
+                fillin: found,
+                aliasNameArr: foundAliasArr,
+            };
+        }
+
+        return null;
+    }
     
     validOutputStyle(style) {
         if (ALLOWED_OUTPUT_STYLE.indexOf(style) === -1) {

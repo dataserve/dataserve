@@ -128,8 +128,8 @@ class Model {
         
         if (this.tableConfig.relationships) {
             for (let type in this.tableConfig.relationships) {
-                for (let otherTable of this.tableConfig.relationships[type]) {
-                    this.addRelationship(type, otherTable);
+                for (let relatedTableConfig of this.tableConfig.relationships[type]) {
+                    this.addRelationship(type, relatedTableConfig);
                 }
             }
         }
@@ -228,18 +228,43 @@ class Model {
         this.getMulti = [ ...new Set(this.getMulti.concat(arr)) ];
     }
     
-    addRelationship(type, table) {
+    addRelationship(type, relatedTableConfig) {
         type = camelize(type);
         
-        if ([ 'belongsTo', 'hasOne' ].indexOf(type) == -1) {
+        if ([ 'belongsTo', 'belongsToMany', 'hasOne', 'hasMany' ].indexOf(type) === -1) {
             return;
         }
         
         if (!this.relationships[type]) {
             this.relationships[type] = {};
         }
+
+        let [ tableName, relatedConfig ] = relatedTableConfig.split(':');
+
+        relatedConfig = relatedConfig || '';
         
-        this.relationships[type][table] = true;
+        let [ foreignColumnName, localColumnName ] = relatedConfig.split(',');
+
+        if (!foreignColumnName) {
+            if ([ 'belongsTo', 'belongsToMany' ].indexOf(type) !== -1) {
+                foreignColumnName = 'id';
+            } else {
+                foreignColumnName = this.tableName + '_id';
+            }
+        }
+
+        if (!localColumnName) {
+            if ([ 'belongsTo', 'belongsToMany' ].indexOf(type) !== -1) {
+                localColumnName = tableName + '_id';
+            } else {
+                localColumnName = 'id';
+            }
+        }
+        
+        this.relationships[type][tableName] = {
+            foreignColumnName,
+            localColumnName,
+        };
     }
 
     addMiddleware(arr) {
@@ -561,91 +586,90 @@ class Model {
     }
 
     fillin(query, rows) {
-        if (!query.hasFillin()) {
-            return Promise.resolve(rows);
+        if (!Object.keys(rows).length) {
+            return rows;
         }
         
         if (!this.relationships) {
-            return Promise.resolve(rows);
+            return rows;
         }
 
-        let ids = rows ? Object.keys(rows) : [];
+        if (!query.hasFillin()) {
+            return rows;
+        }
+        
+        let ids = Object.keys(rows);
 
         let promises = [];
         
         let promiseMap = {};
-        
+
         for (let type in this.relationships) {
-            for (let table in this.relationships[type]) {
-                if (!query.fillin[table]) {
+            for (let tableName in this.relationships[type]) {
+                let foundFillin = query.findFillin(tableName);
+                
+                if (!foundFillin) {
                     continue;
                 }
+
+                let config = this.relationships[type][tableName];
+
+                let idsTmp = ids;
+
+                if (config.localColumnName !== 'id') {
+                    idsTmp = Object.values(rows).map(row => row[config.localColumnName]);
+                }
                 
-                let inp = {
-                    fillin: query.fillin,
+                let input = {
+                    [config.foreignColumnName]: idsTmp,
+                    fillin: query.fillin[foundFillin.fillin],
                     outputStyle: 'BY_ID',
                 };
                 
-                if (this.relationships[type][table] && typeof this.relationships[type][table] == 'object') {
-                    inp = Object.assign(opts, inp);
-                }
-                
-                if (type == 'hasMany') {
-                    inp[this.model + '_id'] = ids;
-                    
+                if ([ 'hasMany', 'belongsToMany' ].indexOf(type) !== -1) {
                     promises.push(this.dataserve.run(
-                        `${this.dbName}.${table}:getMulti`,
-                        inp
+                        `${this.dbName}.${tableName}:getMulti`,
+                        input
                     ));
                 } else {
-                    if (type == 'hasOne') {
-                        inp[this.model + '_id'] = ids;
-                    } else if (type == 'belongsTo') {
-                        inp['id'] = Object.keys(rows).map(key => rows[key][table+'_id']);
-                    }
-                    
                     promises.push(this.dataserve.run(
-                        `${this.dbName}.${table}:get`,
-                        inp
+                        `${this.dbName}.${tableName}:get`,
+                        input
                     ));
                 }
                 
-                promiseMap[table] = type;
+                promiseMap[tableName] = {
+                    type,
+                    aliasNameArr: foundFillin.aliasNameArr,
+                };
             }
         }
-        
+
         if (!promises.length) {
-            return Promise.resolve(rows);
+            return rows;
         }
         
-        return Promise.all(promises).then(res => {
-            let fillin = {};
+        return Promise.all(promises).then((res) => {
+            let fillin = {}, found = false;
 
             for (let promiseRes of res) {
                 fillin[promiseRes.meta.tableName] = {
-                    type: promiseMap[promiseRes.meta.tableName],
+                    type: promiseMap[promiseRes.meta.tableName].type,
+                    aliasNameArr: promiseMap[promiseRes.meta.tableName].aliasNameArr,
                     data: promiseRes.data,
                 };
             }
 
-            if (!fillin) {
-                return rows;
-            }
-
-            for (let index in rows) {
-                for (let table in fillin) {
-                    if (!fillin[table].data) {
-                        continue;
-                    }
+            Object.keys(fillin).forEach((tableName) => {
+                Object.keys(rows).forEach((rowIndex) => {
+                    let config = this.relationships[fillin[tableName].type][tableName];
                     
-                    if (['hasOne', 'hasMany'].indexOf(fillin[table].type) !== -1) {
-                        rows[index][table] = paramFo(fillin[table].data, rows[index]['id']);
-                    } else if (fillin[table].type == 'belongsTo') {
-                        rows[index][table] = paramFo(fillin[table].data, rows[index][table + '_id']);
-                    }
-                }
-            }
-            
+                    fillin[tableName].aliasNameArr.forEach((aliasName) => {
+                        rows[rowIndex][aliasName] = paramFo(fillin[tableName].data, rows[rowIndex][config.localColumnName]);
+                    });
+                });
+            });
+
             return rows;
         });
     }
