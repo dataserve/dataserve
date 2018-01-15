@@ -67,7 +67,7 @@ class Query {
 
         this.custom = [];
 
-        this.fillin = {};
+        this.fill = {};
         
         this.outputStyle = [];
 
@@ -135,16 +135,16 @@ class Query {
             this.addCustom(input.custom);
         }
         
-        if (input.fillin) {
-            if (typeof input.fillin === 'string') {
-                this.setFillin(input.fillin, true);
-            } else if (Array.isArray(input.fillin)) {
-                input.fillin.forEach(table => {
-                    this.setFillin(table, true);
+        if (input.fill) {
+            if (typeof input.fill === 'string') {
+                this.setFill(input.fill, true);
+            } else if (Array.isArray(input.fill)) {
+                input.fill.forEach(table => {
+                    this.setFill(table, true);
                 });
-            } else if (typeof input.fillin === 'object') {
-                for (let table in input.fillin) {
-                    this.setFillin(table, input.fillin[table]);
+            } else if (typeof input.fill === 'object') {
+                for (let table in input.fill) {
+                    this.setFill(table, input.fill[table]);
                 }
             }
         }
@@ -415,20 +415,20 @@ class Query {
         this.custom = this.custom.concat(custom);
     }
 
-    setFillin(field, val) {
-        this.fillin[field] = val;
+    setFill(field, val) {
+        this.fill[field] = val;
     }
 
-    hasFillin() {
-        return Object.keys(this.fillin).length ? true : false;
+    hasFill() {
+        return Object.keys(this.fill).length ? true : false;
     }
 
-    findFillin(tableName) {
-        if (!this.hasFillin()) {
+    findFill(tableName) {
+        if (!this.hasFill()) {
             return null;
         }
 
-        let found = Object.keys(this.fillin).filter((related) => {
+        let found = Object.keys(this.fill).filter((related) => {
             let [ relatedTableName, relatedAliasName ] = related.split(':');
 
             if (relatedTableName === tableName) {
@@ -446,7 +446,7 @@ class Query {
             });
             
             return {
-                fillin: found,
+                fill: found,
                 aliasNameArr: foundAliasArr,
             };
         }

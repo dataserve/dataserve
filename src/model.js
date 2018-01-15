@@ -312,7 +312,7 @@ class Model {
                     command: 'get',
                     input: {
                         [this.primaryKey]: primaryKeyVal,
-                        fillin: query.fillin,
+                        fill: query.fill,
                         outputStyle: query.isOutputStyle('BY_ID') ? 'BY_ID' : null,
                     },
                 });
@@ -373,7 +373,7 @@ class Model {
             
             return Object.assign(cacheRows, rows);
         }).then(rows => {
-            return this.fillin(query, rows)
+            return this.fill(query, rows)
         }).then(rows => {
             let extra = {
                 dbName: this.dbName,
@@ -430,7 +430,7 @@ class Model {
                 command: 'get',
                 input: {
                     id: ids,
-                    fillin: query.fillin,
+                    fill: query.fill,
                     outputStyle: 'BY_ID',
                 },
             });
@@ -478,7 +478,7 @@ class Model {
                     command: 'get',
                     input: {
                         [this.primaryKey]: query.primaryKey,
-                        fillin: query.fillin,
+                        fill: query.fill,
                         outputStyle: query.isOutputStyle('BY_ID') ? 'BY_ID' : null,
                     },
                 });
@@ -523,7 +523,7 @@ class Model {
                 command: 'get',
                 input: {
                     [this.primaryKey]: ids,
-                    fillin: query.fillin,
+                    fill: query.fill,
                     outputStyle: query.isOutputStyle('BY_ID') ? 'BY_ID' : null,
                 },
             });
@@ -555,7 +555,7 @@ class Model {
                     command: 'get',
                     input: {
                         [this.primaryKey]: query.primaryKey,
-                        fillin: query.fillin,
+                        fill: query.fill,
                         outputStyle: query.isOutputStyle('BY_ID') ? 'BY_ID' : null,
                     },
                 });
@@ -585,7 +585,7 @@ class Model {
         return this.tableName;
     }
 
-    fillin(query, rows) {
+    fill(query, rows) {
         if (!Object.keys(rows).length) {
             return rows;
         }
@@ -594,7 +594,7 @@ class Model {
             return rows;
         }
 
-        if (!query.hasFillin()) {
+        if (!query.hasFill()) {
             return rows;
         }
         
@@ -606,9 +606,9 @@ class Model {
 
         for (let type in this.relationships) {
             for (let tableName in this.relationships[type]) {
-                let foundFillin = query.findFillin(tableName);
+                let foundFill = query.findFill(tableName);
                 
-                if (!foundFillin) {
+                if (!foundFill) {
                     continue;
                 }
 
@@ -622,7 +622,7 @@ class Model {
                 
                 let input = {
                     [config.foreignColumnName]: idsTmp,
-                    fillin: query.fillin[foundFillin.fillin],
+                    fill: query.fill[foundFill.fill],
                     outputStyle: 'BY_ID',
                 };
                 
@@ -640,7 +640,7 @@ class Model {
                 
                 promiseMap[tableName] = {
                     type,
-                    aliasNameArr: foundFillin.aliasNameArr,
+                    aliasNameArr: foundFill.aliasNameArr,
                 };
             }
         }
@@ -650,22 +650,22 @@ class Model {
         }
         
         return Promise.all(promises).then((res) => {
-            let fillin = {}, found = false;
+            let fill = {}, found = false;
 
             for (let promiseRes of res) {
-                fillin[promiseRes.meta.tableName] = {
+                fill[promiseRes.meta.tableName] = {
                     type: promiseMap[promiseRes.meta.tableName].type,
                     aliasNameArr: promiseMap[promiseRes.meta.tableName].aliasNameArr,
                     data: promiseRes.data,
                 };
             }
 
-            Object.keys(fillin).forEach((tableName) => {
+            Object.keys(fill).forEach((tableName) => {
                 Object.keys(rows).forEach((rowIndex) => {
-                    let config = this.relationships[fillin[tableName].type][tableName];
+                    let config = this.relationships[fill[tableName].type][tableName];
                     
-                    fillin[tableName].aliasNameArr.forEach((aliasName) => {
-                        rows[rowIndex][aliasName] = paramFo(fillin[tableName].data, rows[rowIndex][config.localColumnName]);
+                    fill[tableName].aliasNameArr.forEach((aliasName) => {
+                        rows[rowIndex][aliasName] = paramFo(fill[tableName].data, rows[rowIndex][config.localColumnName]);
                     });
                 });
             });
