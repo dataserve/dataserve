@@ -36,21 +36,23 @@ class Encrypt {
     run({ command, query }) {
         let errors = {}, promises = [];
         
-        for (let field in query.getFields()) {
-            let rules = this.model.getField(field).encrypt || this.model.getTableConfig('encrypt');
+        for (let fieldIndex = 0; fieldIndex < query.getFieldsCnt(); ++fieldIndex) {
+            for (let field in query.getFields(fieldIndex)) {
+                let rules = this.model.getField(field).encrypt || this.model.getTableConfig('encrypt');
 
-            if (typeof rules === 'object') {
-                rules = rules[command];
-            }
+                if (typeof rules === 'object') {
+                    rules = rules[command];
+                }
 
-            if (typeof rules !== 'string' || !rules.length) {
-                continue;
-            }
+                if (typeof rules !== 'string' || !rules.length) {
+                    continue;
+                }
 
-            let promise = this.encrypt(query, field, rules, errors);
-            
-            if (promise.length) {
-                promises = promises.concat(promise);
+                let promise = this.encrypt(query, fieldIndex, field, rules, errors);
+                
+                if (promise.length) {
+                    promises = promises.concat(promise);
+                }
             }
         }
         
@@ -67,7 +69,7 @@ class Encrypt {
         });
     }
 
-    encrypt(query, field, rules, errors) {
+    encrypt(query, fieldIndex, field, rules, errors) {
         let promiseRun = [];
         
         rules = rules.split('|');
@@ -94,9 +96,9 @@ class Encrypt {
             let handler = 'encrypt' + rule.charAt(0).toUpperCase() + rule.slice(1);
             
             if (PROMISE_RULES.indexOf(rule) !== -1) {
-                promiseRun.push([this[handler], [extra, query, field, type, errors]]);
+                promiseRun.push([this[handler], [extra, query, fieldIndex, field, type, errors]]);
             } else {
-                if (this[handler](extra, query, field, type) === false) {
+                if (this[handler](extra, query, fieldIndex, field, type) === false) {
                     this.addError(rule, extra, field, val, type, errors);
                 }
             }
@@ -132,7 +134,7 @@ class Encrypt {
         };
     }
 
-    encryptBcrypt(extra, query, field, type) {
+    encryptBcrypt(extra, query, fieldIndex, field, type) {
         extra = parseInt(extra, 10);
         
         if (!extra) {
@@ -140,14 +142,14 @@ class Encrypt {
         }
 
         return new Promise((resolve, reject) => {
-            this.bcrypt.hash(query.getField(field), extra, function(err, hash) {
+            this.bcrypt.hash(query.getField(fieldIndex, field), extra, function(err, hash) {
                 if (err) {
                     reject(err);
 
                     return;
                 }
 
-                query.setField(field, hash);
+                query.setField(fieldIndex, field, hash);
 
                 resolve();
             });

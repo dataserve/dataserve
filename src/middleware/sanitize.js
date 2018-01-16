@@ -39,21 +39,25 @@ class Sanitize {
     run({ command, query }) {
         let errors = {}, promises = [];
         
-        for (let field in query.getFields()) {
-            let rules = this.model.getField(field).sanitize || this.model.getTableConfig('sanitize');
+        for (let fieldIndex = 0; fieldIndex < query.getFieldsCnt(); ++fieldIndex) {
+            for (let field in query.getFields(fieldIndex)) {
+                let rules = this.model.getField(field).sanitize || this.model.getTableConfig('sanitize');
 
-            if (typeof rules === 'object') {
-                rules = rules[command];
-            }
+                if (typeof rules === 'object') {
+                    rules = rules[command];
+                }
 
-            if (typeof rules !== 'string' || !rules.length) {
-                continue;
-            }
+                if (typeof rules !== 'string' || !rules.length) {
+                    continue;
+                }
 
-            let promise = this.sanitize(query, field, rules, errors);
-            
-            if (promise.length) {
-                promises = promises.concat(promise);
+                let val = query.getField(fieldIndex, field);
+                
+                let promise = this.sanitize(query, fieldIndex, field, val, rules, errors);
+                
+                if (promise.length) {
+                    promises = promises.concat(promise);
+                }
             }
         }
         
@@ -70,7 +74,7 @@ class Sanitize {
         });
     }
 
-    sanitize(query, field, rules, errors) {
+    sanitize(query, fieldIndex, field, val, rules, errors) {
         let promiseRun = [];
         
         rules = rules.split('|');
@@ -81,7 +85,7 @@ class Sanitize {
             rule = camelize(rule);
             
             if (!ALLOWED_RULES[rule]) {
-                this.addError('_invalidRule', rule, field, val, null, errors);
+                this.addError('_invalidRule', rule, field, null, errors);
                 
                 continue;
             }
@@ -89,7 +93,7 @@ class Sanitize {
             let type = this.model.getFieldValidateType(field);
            
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
-                //this.addError('_invalidType', rule, field, val, null, errors);
+                //this.addError('_invalidType', rule, field, null, errors);
                 
                 continue;
             }
@@ -97,10 +101,10 @@ class Sanitize {
             let handler = 'sanitize' + rule.charAt(0).toUpperCase() + rule.slice(1);
             
             if (PROMISE_RULES.indexOf(rule) !== -1) {
-                promiseRun.push([this[handler], [extra, query, field, type, errors]]);
+                promiseRun.push([this[handler], [extra, query, fieldIndex, field, val, type, errors]]);
             } else {
-                if (this[handler](extra, query, field, type) === false) {
-                    this.addError(rule, extra, field, val, type, errors);
+                if (this[handler](extra, query, fieldIndex, field, val, type) === false) {
+                    this.addError(rule, extra, field, type, errors);
                 }
             }
         }
@@ -119,7 +123,7 @@ class Sanitize {
         return promises;
     }
 
-    addError(rule, extra, field, val, type, errors){
+    addError(rule, extra, field, type, errors){
         let reason = REASON[rule];
 
         reason = reason.replace(':field', field)
@@ -135,41 +139,41 @@ class Sanitize {
         };
     }
 
-    sanitizeTrim(extra, query, field, type) {
-        query.setField(field, String(query.getField(field)).trim());
+    sanitizeTrim(extra, query, fieldIndex, field, val, type) {
+        query.setField(fieldIndex, field, String(val).trim());
         
         return true;
     }
         
-    sanitizeType(extra, query, field, type) {
+    sanitizeType(extra, query, fieldIndex, field, val, type) {
         switch (type) {
         case 'Array':
-            if (!Array.isArray(query.getField(field))) {
-                query.setField(field, [query.getField(field)]);
+            if (!Array.isArray(val)) {
+                query.setField(fieldIndex, field, [val]);
             }
             
             break;
         case 'Date':
-            if (typeof query.getField(field) !== 'object' || typeof query.getField(field).getMonth !== 'function') {
-                query.setField(field, new Date(query.getField(field)));
+            if (typeof val !== 'object' || typeof val.getMonth !== 'function') {
+                query.setField(fieldIndex, field, new Date(val));
             }
             
             break;
         case 'Integer':
-            if (typeof query.getField(field) !== 'number' || query.getField(field) % 1 !== 0) {
-                query.setField(field, parseInt(query.getField(field), 10));
+            if (typeof val !== 'number' || val % 1 !== 0) {
+                query.setField(fieldIndex, field, parseInt(val, 10));
             }
 
             break;
         case 'Number':
-            if (typeof query.getField(field) !== 'number') {
-                query.setField(field, Number(query.getField(field)));
+            if (typeof val !== 'number') {
+                query.setField(fieldIndex, field, Number(val));
             }
 
             break;
         case 'String':
-            if (typeof query.getField(field) !== 'string') {
-                query.setField(field, String(query.getField(field)));
+            if (typeof val !== 'string') {
+                query.setField(fieldIndex, field, String(val));
             }
             
             break;

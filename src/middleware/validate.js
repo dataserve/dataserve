@@ -95,22 +95,26 @@ class Validate {
 
     run({ command, query }) {
         let errors = {}, promises = [];
-        
-        for (let field in query.fields) {
-            let rules = this.model.getField(field).validate;
 
-            if (typeof rules === 'object') {
-                rules = rules[command];
-            }
+        for (let fieldIndex = 0; fieldIndex < query.getFieldsCnt(); ++fieldIndex) {
+            for (let field in query.getFields(fieldIndex)) {
+                let rules = this.model.getField(field).validate;
 
-            if (typeof rules !== 'string' || !rules.length) {
-                continue;
-            }
-            
-            let promise = this.validate(field, query.fields[field], rules, errors);
-            
-            if (promise.length) {
-                promises = promises.concat(promise);
+                if (typeof rules === 'object') {
+                    rules = rules[command];
+                }
+
+                if (typeof rules !== 'string' || !rules.length) {
+                    continue;
+                }
+
+                let val = query.getField(fieldIndex, field);
+                
+                let promise = this.validate(field, val, rules, errors);
+                
+                if (promise.length) {
+                    promises = promises.concat(promise);
+                }
             }
         }
         
@@ -137,7 +141,7 @@ class Validate {
             
             if (rule === 'required') {
                 if (typeof val === 'undefined' || val === null) {
-                    this.addError(rule, extra, field, val, null, errors);
+                    this.addError(rule, extra, field, null, errors);
                 }
 
                 continue;
@@ -145,7 +149,7 @@ class Validate {
 
             if (rule === 'no') {
                 if (typeof val !== 'undefined') {
-                    this.addError(rule, extra, field, val, null, errors);
+                    this.addError(rule, extra, field, null, errors);
                 }
 
                 continue;
@@ -154,7 +158,7 @@ class Validate {
             rule = camelize(rule);
             
             if (!ALLOWED_RULES[rule]) {
-                this.addError('_invalidRule', rule, field, val, null, errors);
+                this.addError('_invalidRule', rule, field, null, errors);
                 
                 continue;
             }
@@ -162,7 +166,7 @@ class Validate {
             let type = this.model.getFieldValidateType(field);
             
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
-                this.addError('_invalidType', rule, field, val, null, errors);
+                this.addError('_invalidType', rule, field, null, errors);
                 
                 continue;
             }
@@ -173,7 +177,7 @@ class Validate {
                 promiseRun.push([this[handler], [extra, field, val, type, errors]]);
             } else {
                 if (this[handler](extra, field, val, type) === false) {
-                    this.addError(rule, extra, field, val, type, errors);
+                    this.addError(rule, extra, field, type, errors);
                 }
             }
         }
@@ -192,7 +196,7 @@ class Validate {
         return promises;
     }
 
-    addError(rule, extra, field, val, type, errors){
+    addError(rule, extra, field, type, errors){
         let reason = REASON[rule];
 
         reason = reason.replace(':field', field)
@@ -236,7 +240,7 @@ class Validate {
         return this.model.dataserve.run(`${dbTable}:lookup`, input)
             .then((res) => {
                 if (!res.result.length) {
-                    this.addError('exists', extra, field, val, type, errors);
+                    this.addError('exists', extra, field, type, errors);
                 }
             });
     }
@@ -395,7 +399,7 @@ class Validate {
         return this.model.dataserve.run(`${dbTable}:lookup`, input)
             .then((res) => {
                 if (res.result.length) {
-                    this.addError('unique', extra, field, val, type, errors);
+                    this.addError('unique', extra, field, type, errors);
                 }
             });
     }

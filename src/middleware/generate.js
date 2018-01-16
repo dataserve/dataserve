@@ -42,8 +42,8 @@ class Generate {
 
     run({ command, query }) {
         let errors = {}, promises = [];
-        
-        for (let field in query.getFields()) {
+
+        for (let field in this.model.getFields()) {
             let rules = this.model.getField(field).generate || this.model.getTableConfig('generate');
 
             if (typeof rules === 'object') {
@@ -54,10 +54,12 @@ class Generate {
                 continue;
             }
 
-            let promise = this.generate(query, field, rules, errors);
+            for (let fieldIndex = 0; fieldIndex < query.getFieldsCnt(); ++fieldIndex) {
+                let promise = this.generate(query, fieldIndex, field, rules, errors);
             
-            if (promise.length) {
-                promises = promises.concat(promise);
+                if (promise.length) {
+                    promises = promises.concat(promise);
+                }
             }
         }
         
@@ -74,7 +76,7 @@ class Generate {
         });
     }
 
-    generate(query, field, rules, errors) {
+    generate(query, fieldIndex, field, rules, errors) {
         let promiseRun = [];
         
         rules = rules.split('|');
@@ -101,9 +103,9 @@ class Generate {
             let handler = 'generate' + rule.charAt(0).toUpperCase() + rule.slice(1);
             
             if (PROMISE_RULES.indexOf(rule) !== -1) {
-                promiseRun.push([this[handler], [extra, query, field, type, errors]]);
+                promiseRun.push([this[handler], [extra, query, fieldIndex, field, type, errors]]);
             } else {
-                if (this[handler](extra, query, field, type) === false) {
+                if (this[handler](extra, query, fieldIndex, field, type) === false) {
                     this.addError(rule, extra, field, val, type, errors);
                 }
             }
@@ -139,24 +141,24 @@ class Generate {
         };
     }
 
-    generateSlug(extra, query, field, type, cnt) {
+    generateSlug(extra, query, fieldIndex, field, type, cnt) {
         let [ slugType, slugOpt ] = extra.split(',');
 
         if (slugType === 'alpha') {
-            query.setField(field, randomString(slugOpt, 'A'));
+            query.setField(fieldIndex, field, randomString(slugOpt, 'A'));
 
             return;
         }
 
         if (slugType === 'alphaNum') {
-            query.setField(field, randomString(slugOpt, 'A#'));
+            query.setField(fieldIndex, field, randomString(slugOpt, 'A#'));
 
             return;
         }
         
         if (slugType === 'field') {
             if (!query.getField(slugOpt)) {
-                query.setField(field, '');
+                query.setField(fieldIndex, field, '');
             
                 return;
             }
@@ -176,13 +178,13 @@ class Generate {
                 .replace(/^-+/, '') // Trim - from start of text
                 .replace(/-+$/, ''); // Trim - from end of text
         
-            query.setField(field, slug);
+            query.setField(fieldIndex, field, slug);
 
             return;
         }
     }
 
-    generateSlugUnique(extra, query, field, type, cnt = 0) {
+    generateSlugUnique(extra, query, fieldIndex, field, type, cnt = 0) {
         return new Promise((resolve, reject) => {
             let val = this.generateSlug(extra, query, field, type);
             
@@ -206,14 +208,14 @@ class Generate {
 
                         return this.generateSlugUnique(extra, query, field, type, cnt + 1);
                     }
-                    
-                    return val;
+
+                    query.setField(fieldIndex, field, val);
                 });
         });
     }
     
-    generateUuid(extra, query, field, type) {
-        query.setField(field, this.uuid());
+    generateUuid(extra, query, fieldIndex, field, type) {
+        query.setField(fieldIndex, field, this.uuid());
     }
 
 }

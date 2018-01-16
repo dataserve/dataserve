@@ -140,7 +140,11 @@ class Model {
         
         return this.tableConfig;
     }
-   
+
+    getFields() {
+        return this.fields;
+    }
+    
     getField(field) {
         if (typeof this.fields[field] === 'undefined') {
             return null;
@@ -385,7 +389,7 @@ class Model {
                     return [ rows[id], extra ];
                 }
                 
-                return [ {}, extra ];
+                return [ null, extra ];
             }
             
             if (query.isOutputStyle('BY_ID')) {
