@@ -42,7 +42,7 @@ class Query {
             vals: null,
         };
         
-        this.getMulti = {
+        this.getMany = {
             field: null,
             vals: null,
         };
@@ -168,9 +168,9 @@ class Query {
             }
             
             break;
-        case 'getMulti':
+        case 'getMany':
             for (let field in input) {
-                this.setGetMulti(field, input[field]);
+                this.setGetMany(field, input[field]);
             }
             
             break;
@@ -291,8 +291,8 @@ class Query {
         return this.get.field ? true : false;
     }
 
-    setGetMulti(field, vals) {
-        if (!this.model.isGetMulti(field)) {
+    setGetMany(field, vals) {
+        if (!this.model.isGetMany(field)) {
             return;
         }
         
@@ -303,13 +303,13 @@ class Query {
             return;
         }
         
-        this.getMulti.field = field;
+        this.getMany.field = field;
         
-        this.getMulti.vals = vals;
+        this.getMany.vals = vals;
     }
 
-    hasGetMulti() {
-        return this.getMulti.field ? true : false;
+    hasGetMany() {
+        return this.getMany.field ? true : false;
     }
 
     getFieldsCnt() {

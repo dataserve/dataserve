@@ -3,14 +3,14 @@
 const Promise = require('bluebird');
 const _object = require('lodash/object');
 
-const { Result } = require('./result');
+const { createResult } = require('./result');
 const { camelize, paramFo } = require('./util');
 
 const ALLOWED_COMMANDS = [
     'add',
     'get',
     'getCount',
-    'getMulti',
+    'getMany',
     'inc',
     'lookup',
     'remove',
@@ -54,8 +54,6 @@ class Model {
         
         this.unique = [];
         
-        this.getMulti = [];
-
         this.timestamps = {
             created: {
                 name: 'ctime',
@@ -179,8 +177,8 @@ class Model {
             this.addFillable(field);
         }
         
-        if (attributes.multi) {
-            this.addMulti(field);
+        if (attributes.many) {
+            this.addMany(field);
         }
     }
 
@@ -216,16 +214,18 @@ class Model {
         this.unique = [ ...new Set(this.unique.concat(arr)) ];
     }
 
-    isGetMulti(field) {
-        return this.getMulti.indexOf(field) !== -1;
-    }
-    
-    addGetMulti(arr) {
-        if (!Array.isArray(arr)) {
-            arr = [ arr ];
+    isGetMany(field) {
+        if (!this.relationships || !this.relationships['belongsTo']) {
+            return false;
         }
         
-        this.getMulti = [ ...new Set(this.getMulti.concat(arr)) ];
+        return Object.keys(this.relationships['belongsTo']).some(tableName => {
+            if (this.relationships['belongsTo'][tableName].localColumnName === field) {
+                return true;
+            }
+            
+            return false;
+        });
     }
     
     addRelationship(type, relatedTableConfig) {
@@ -298,7 +298,7 @@ class Model {
 
         return this.log.add(`model,model:${addFunc}`, () => {
             return this.getDb()[addFunc](this, query);
-        }).then(primaryKeyValTmp => {
+        }).then((primaryKeyValTmp) => {
             primaryKeyVal = primaryKeyValTmp;
             
             if (this.cache) {
@@ -338,7 +338,7 @@ class Model {
             cachePromise = Promise.resolve([ {}, getVals ]);
         }
         
-        return cachePromise.then(result => {
+        return cachePromise.then((result) => {
             [ cacheRows, getVals ] = result;
             
             if (!getVals.length) {
@@ -352,7 +352,7 @@ class Model {
             return this.getReadLock(query.get.field, getVals, () => {
                 return this.log.add('model,model:get', () => {
                     return this.getDb().get(this, query, getVals);
-                }).then(rows => {
+                }).then((rows) => {
                     if (this.cache) {
                         //set cache to null for vals that didn't exist in DB
                         let cache = Object.assign(getVals.reduce((obj, val) => {
@@ -368,13 +368,13 @@ class Model {
                     return rows;
                 });
             });
-        }).then(rows => {
+        }).then((rows) => {
             Object.keys(cacheRows).forEach(key => (cacheRows[key] === null) && delete cacheRows[key]);
             
             return Object.assign(cacheRows, rows);
-        }).then(rows => {
+        }).then((rows) => {
             return this.fill(query, rows)
-        }).then(rows => {
+        }).then((rows) => {
             let extra = {
                 dbName: this.dbName,
                 tableName: this.tableName,
@@ -405,22 +405,22 @@ class Model {
         return this.run({
             command: 'lookup',
             query: query,
-        }).then(result => {
+        }).then((result) => {
             return result.meta.found;
         });
     }
 
-    getMulti(query) {
-        if (!query.hasGetMulti()) {
+    getMany(query) {
+        if (!query.hasGetMany()) {
             return Promise.reject('missing param');
         }
 
-        return this.log.add('model,model:getMulti', () => {
-            return this.getDb().getMulti(this, query);
-        }).then(result => {
+        return this.log.add('model,model:getMany', () => {
+            return this.getDb().getMany(this, query);
+        }).then((manyResult) => {
             let ids = [];
             
-            for (let rows of result) {
+            for (let rows of manyResult) {
                 for (let a of rows) {
                     ids.push(a[this.primaryKey]);
                 }
@@ -433,23 +433,28 @@ class Model {
                     fill: query.fill,
                     outputStyle: 'BY_ID',
                 },
-            });
-        }).then(result => {
-            let data = [];
-            
-            for (let id of query.getMulti.vals) {
-                let rows = result.data.shift();
+            }).then((result) => {
+                let data = {};
                 
-                let r = [];
-                
-                for (let row of rows) {
-                    r.push(res.result[row['id']]);
+                for (let id of query.getMany.vals) {
+                    let rows = manyResult.shift();
+                    
+                    let r = [];
+                    
+                    for (let row of rows) {
+                        r.push(result.data[row[this.primaryKey]]);
+                    }
+                    
+                    data[id] = r;
                 }
-                
-                data[id] = r;
-            }
-            
-            return data;
+
+                let extra = {
+                    dbName: this.dbName,
+                    tableName: this.tableName,
+                };
+
+                return [ data, extra ];
+            });
         });
     }
 
@@ -493,7 +498,7 @@ class Model {
         
         return this.log.add('model,model:lookup', () => {
             return this.getDb().lookup(this, query);
-        }).then(args => {
+        }).then((args) => {
             let [ rows, found ] = args;
             
             meta = {
@@ -505,18 +510,18 @@ class Model {
                 
             if (!ids.length) {
                 if (query.isOutputStyle('BY_ID')) {
-                    return Promise.reject(new Result(true, {}));
+                    return Promise.reject(createResult(true, {}));
                 }
                 
-                return Promise.reject(new Result(true, []));
+                return Promise.reject(createResult(true, []));
             }
                 
             if (query.isOutputStyle('LOOKUP_RAW')) {
                 if (query.isOutputStyle('BY_ID')) {
-                    return Promise.reject(new Result(true, rows));
+                    return Promise.reject(createResult(true, rows));
                 }
                 
-                return Promise.reject(new Result(true, Object.values(rows)));
+                return Promise.reject(createResult(true, Object.values(rows)));
             }
                 
             return this.run({
@@ -628,7 +633,7 @@ class Model {
                 
                 if ([ 'hasMany', 'belongsToMany' ].indexOf(type) !== -1) {
                     promises.push(this.dataserve.run(
-                        `${this.dbName}.${tableName}:getMulti`,
+                        `${this.dbName}.${tableName}:getMany`,
                         input
                     ));
                 } else {
@@ -723,7 +728,7 @@ class Model {
             keys = [ keys ];
         }
         
-        return this.cache.get(this.dbTable, field, keys).then(cacheRows => {
+        return this.cache.get(this.dbTable, field, keys).then((cacheRows) => {
             let ids = [];
             
             for (let key of keys) {

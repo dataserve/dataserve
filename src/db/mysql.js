@@ -6,6 +6,7 @@ const mysql = require('mysql');
 const Type = require('type-of-is');
 const util = require('util');
 
+const { createResult } = require('../result');
 const { intArray } = require('../util');
 
 class MySql {
@@ -46,7 +47,7 @@ class MySql {
         
         this.pool = mysql.createPool(opt);
         
-        this._query("SHOW VARIABLES LIKE 'max_connections'").then(rows => {
+        this._query("SHOW VARIABLES LIKE 'max_connections'").then((rows) => {
             if (rows[0].Value < config.connectionLimit) {
                 throw new Error(`Mysql max_connections less than connectionLimit, ${rows[0].Value} < ${config.connectionLimit}`);
             }
@@ -78,7 +79,7 @@ class MySql {
         
         this.pools.write = mysql.createPool(opt);
         
-        this._query("SHOW VARIABLES LIKE 'max_connections'").then(rows => {
+        this._query("SHOW VARIABLES LIKE 'max_connections'").then((rows) => {
             if (rows[0].Value < config.write.connectionLimit) {
                 throw new Error(`Mysql WRITE: max_connections less than connectionLimit, ${rows[0].Value} < ${config.write.connectionLimit}`);
             }
@@ -103,7 +104,7 @@ class MySql {
         
         this.pools.read = mysql.createPool(opt);
         
-        this._query("SHOW VARIABLES LIKE 'max_connections'").then(rows => {
+        this._query("SHOW VARIABLES LIKE 'max_connections'").then((rows) => {
             if (rows[0].Value < config.read.connectionLimit) {
                 throw new Error(`Mysql READ: max_connections less than connectionLimit, ${rows[0].Value} < ${config.read.connectionLimit}`);
             }
@@ -177,7 +178,7 @@ class MySql {
         
         return this.log.add('db,db:add', () => {
             return this.query(sql, bind);
-        }).then(res => {
+        }).then((res) => {
             if (!primaryKeyVal) {
                 primaryKeyVal = res.insertId;
             }
@@ -230,28 +231,28 @@ class MySql {
         });
     }
 
-    getMulti(model, query) {
+    getMany(model, query) {
         var queries = [];
         
-        if (model.getField(query.getMulti.field) == 'int') {
-            query[query.getMulti.field] = intArray(query.getMulti.vals);
-            
-            for (let id of query.getMulti.vals) {
-                let sql = 'SELECT ' + model.getField(model.primaryKey).name + ' ';
+        if (model.getField(query.getMany.field).type == 'int') {
+            let vals = intArray(query.getMany.vals);
+
+            for (let id of vals) {
+                let sql = 'SELECT ' + model.primaryKey + ' ';
                 
                 sql += this.from(model);
                 
-                sql += 'WHERE ' + field + '=' + id;
+                sql += 'WHERE ' + query.getMany.field + '=' + id;
                 
                 queries.push(sql);
             }
-        } else if (model.getField(query.getMulti.field) == 'string') {
+        } else if (model.getField(query.getMany.field).type == 'string') {
             //TODO
         } else {
-            return Promise.reject('invalid field type for multi get:' + model.getField(query.getMulti.field));
+            return Promise.reject('invalid field type for many get:' + query.getMany.field + ' - ' + model.getField(query.getMany.field).type);
         }
         
-        return this.log.add('db,db:getMulti', () => {
+        return this.log.add('db,db:getMany', () => {
             return this.queryMulti(queries);
         });
     }
@@ -332,22 +333,22 @@ class MySql {
         if (query.isOutputStyle('FOUND_ONLY')) {
             return this.log.add('db,db:lookup:found', () => {
                 return this.query(sqlCnt, query.bind, true);
-            }).then(row => {
+            }).then((row) => {
                 let meta = {
                     pages: query.limit.limit ? Math.ceil(row.cnt/query.limit.limit) : null,
                     found: row.cnt,
                 };
                     
-                return Promise.reject(new Result(true, [], meta));
+                return Promise.reject(createResult(true, [], meta));
             });
         }
         
         return this.log.add('db,db:lookup', () => {
             return this.query(sqlRows, query.bind, model.primaryKey)
-        }).then(rows => {
+        }).then((rows) => {
             if (query.isOutputStyle('INCLUDE_FOUND')) {
                 return this.log.add('db,db:lookup:found', () => {
-                    return this.query(sqlCnt, query.bind, true).then(found => [rows, found['cnt']]);
+                    return this.query(sqlCnt, query.bind, true).then((found) => [rows, found['cnt']]);
                 });
             } else {
                 return [rows, null];
@@ -695,7 +696,7 @@ class MySql {
             queryType = null;
         }
 
-        return this._query(sql, bind, forceEndpoint).then(rows => {
+        return this._query(sql, bind, forceEndpoint).then((rows) => {
             if (queryType == 'SELECT') {
                 if (typeof(retType) === 'boolean' && retType) {
                     if (!rows.length) {
@@ -751,11 +752,7 @@ class MySql {
             let query = {};
             
             let queryType = sql.substring(0, 8).toUpperCase();
-            
-            if (lastQueryType && queryType !== lastQueryType) {
-                return Promise.reject('Every query must be of same type in queryMulti');
-            }
-            
+                        
             if (queryType.indexOf('SELECT') == 0) {
                 queryType = 'SELECT';
                 
@@ -782,6 +779,10 @@ class MySql {
             } else {
                 queryType = null;
             }
+
+            if (lastQueryType && queryType !== lastQueryType) {
+                return Promise.reject('Every query must be of same type in queryMulti: ' + queryType + ':' + lastQueryType);
+            }
             
             query = {
                 sql: sql,
@@ -794,42 +795,21 @@ class MySql {
             
             lastQueryType = queryType;
         }
+
         
-        return this._query(sqlConcat.join(';'), bind, forceEndpoint).then(results => {
+        return this._query(sqlConcat.join(';'), bind, forceEndpoint).then((results) => {
             var output = [];
-            
+
+            if (sqlConcat.length === 1) {
+                results = [ results ];
+            }
+
             for (let index in results) {
-                let query = queries[index];
-                
                 let rows = results[index];
-                
+
+                let query = queries[index];
+
                 if (query.type == 'SELECT') {
-                    if (typeof(retType) === 'boolean' && retType) {
-                        if (rows.length) {
-                            output.push(rows[0]);
-                        } else {
-                            output.push(rows);
-                        }
-                        
-                        continue;
-                    }
-                    
-                    if (typeof(retType) === 'string') {
-                        if (!rows.length) {
-                            output.push({});
-                        } else {
-                            let res = {};
-                            
-                            for (let row in rows) {
-                                res[rows[row][retType]] = rows[row];
-                            }
-                            
-                            output.push(res);
-                        }
-                        
-                        continue;
-                    }
-                    
                     output.push(rows);
                     
                     continue;

@@ -23,7 +23,7 @@ class CacheRedis {
         
         return this.log.add('cache,cache:getAll', () => {
             return this.cache.keysAsync('*');
-        }).then(cacheKeys => {
+        }).then((cacheKeys) => {
             if (!cacheKeys.length) {
                 return [];
             }
@@ -51,7 +51,7 @@ class CacheRedis {
         
         return this.log.add('cache,cache:get', () => {
             return this.cache.mgetAsync(cacheKeys)
-        }).then(res => {
+        }).then((res) => {
             let output = {};
 
             for (let key of keys) {
@@ -81,7 +81,7 @@ class CacheRedis {
         
         return this.log.add('cache,cache:set', () => {
             return this.cache.msetAsync(input);
-        }).then(res => {
+        }).then((res) => {
             return vals;
         });
     }

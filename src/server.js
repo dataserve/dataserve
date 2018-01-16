@@ -16,7 +16,7 @@ const util = require('util');
 
 const Dataserve = require('./dataserve');
 const { version } = require('../package.json');
-const { Result } = require('../../js-client');
+const { createResult, Result } = require('./result');
 const { Response } = require('./server/encoder');
 
 class Server {
@@ -156,7 +156,7 @@ class Server {
         const command = input[0].toLowerCase();
         
         if (command === 'ds_log') {
-            let result = new Result(true, this.dataserve.log.getAll());
+            let result = createResult(true, this.dataserve.log.getAll());
             
             return response.encode(result.toJson());
         }
@@ -170,7 +170,7 @@ class Server {
         case 'ds_flush_cache':
         case 'ds_get':
         case 'ds_get_count':
-        case 'ds_get_multi':
+        case 'ds_get_many':
         case 'ds_inc':
         case 'ds_lookup':
         case 'ds_output_cache':
@@ -178,7 +178,6 @@ class Server {
         case 'ds_output_table_schema':
         case 'ds_set':
         case 'ds_remove':
-        case 'ds_remove_multi':
             return this.handleCommandRun(input, command, response);
         }
 
@@ -191,7 +190,7 @@ class Server {
         let dbTable = input[1], payload = {};
 
         if (!dbTable) {
-            let result = new Result(false, 'Command missing dbTable');
+            let result = createResult(false, 'Command missing dbTable');
             
             response.encode(result.toJson());
 
@@ -207,11 +206,11 @@ class Server {
         this.debug('CALL:', dbTableCommand, payload);
 
         this.dataserve.run(dbTableCommand, payload)
-            .then(result => {
+            .then((result) => {
                 let timeRun = (microtime.now() - timeStart) / 1000000;
                 
                 if (typeof result === 'undefined' || !(result instanceof Result)) {
-                    result = new Result(false, 'Unknown error 1');
+                    result = createResult(false, 'Unknown error 1');
                     
                     response.encode(result.toJson());
                     
@@ -229,7 +228,7 @@ class Server {
             .catch(err => {
                 this.debug('CALL FAIL:', err);
 
-                let result = new Result(false, 'Unknown error 2');
+                let result = createResult(false, 'Unknown error 2');
                 
                 response.encode(result.toJson());
 
@@ -249,7 +248,7 @@ class Server {
                     1, //step count
                 ],
                 [
-                    'ds_get_multi',
+                    'ds_get_many',
                     3,
                     ['readonly', 'fast'],
                     1,
@@ -263,7 +262,7 @@ class Server {
     handleCommandUnknown(input, command, response) {
         this.debug('Command not understood: ' + command);
 
-        let result = new Result(false, 'Command not understood: ' + command);
+        let result = createResult(false, 'Command not understood: ' + command);
         
         response.encode(result.toJson());
     }

@@ -234,7 +234,7 @@ class Validate {
         };
         
         return this.model.dataserve.run(`${dbTable}:lookup`, input)
-            .then(res => {
+            .then((res) => {
                 if (!res.result.length) {
                     this.addError('exists', extra, field, val, type, errors);
                 }
@@ -393,7 +393,7 @@ class Validate {
         };
         
         return this.model.dataserve.run(`${dbTable}:lookup`, input)
-            .then(res => {
+            .then((res) => {
                 if (res.result.length) {
                     this.addError('unique', extra, field, val, type, errors);
                 }
