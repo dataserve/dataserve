@@ -7,7 +7,10 @@ const { camelize, randomString } = require('../util');
 module.exports = model => next => obj => {
     let generate = new Generate(model);
 
-    return generate.run(obj).then(() => next(obj));
+    return generate.run(obj).then(() => {
+        console.log('GENERATE DONE');
+        return next(obj);
+    });
 }
 
 const ALLOWED_RULES = {
@@ -141,29 +144,23 @@ class Generate {
         };
     }
 
-    generateSlug(extra, query, fieldIndex, field, type, cnt) {
+    buildSlug(extra, query, fieldIndex, field, type, cnt) {
         let [ slugType, slugOpt ] = extra.split(',');
-
+        
         if (slugType === 'alpha') {
-            query.setField(fieldIndex, field, randomString(slugOpt, 'A'));
-
-            return;
+            return randomString(slugOpt, 'A');
         }
 
         if (slugType === 'alphaNum') {
-            query.setField(fieldIndex, field, randomString(slugOpt, 'A#'));
-
-            return;
+            return randomString(slugOpt, 'A#');
         }
         
         if (slugType === 'field') {
-            if (!query.getField(slugOpt)) {
-                query.setField(fieldIndex, field, '');
-            
-                return;
+            if (!query.getField(fieldIndex, slugOpt)) {
+                return '';
             }
 
-            let val = query.getField(slugOpt);
+            let val = query.getField(fieldIndex, slugOpt);
 
             if (cnt && 1 < cnt) {
                 val += ' ' + cnt;
@@ -177,40 +174,43 @@ class Generate {
                 .replace(/\-\-+/g, '-') // Replace multiple - with single -
                 .replace(/^-+/, '') // Trim - from start of text
                 .replace(/-+$/, ''); // Trim - from end of text
-        
-            query.setField(fieldIndex, field, slug);
 
-            return;
+            return slug;
+        }
+    }
+    
+    generateSlug(extra, query, fieldIndex, field, type, cnt) {
+        let slug = this.buildSlug(extra, query, fieldIndex, field, type);
+
+        if (typeof slug !== 'undefined' && typeof slug !== null) {
+            query.setField(fieldIndex, field, slug);
         }
     }
 
-    generateSlugUnique(extra, query, fieldIndex, field, type, cnt = 0) {
-        return new Promise((resolve, reject) => {
-            let val = this.generateSlug(extra, query, field, type);
-            
-            let input = {
-                '=': {
-                    [field]: val,
-                },
-                outputStyle: 'LOOKUP_RAW',
-                page: 1,
-                limit: 1
-            };
+    generateSlugUnique(extra, query, fieldIndex, field, type, cnt=0) {
+        let val = this.buildSlug(extra, query, fieldIndex, field, type, cnt);
+        
+        let input = {
+            '=': {
+                [field]: val,
+            },
+            outputStyle: 'LOOKUP_RAW',
+            page: 1,
+            limit: 1
+        };
+        
+        return this.model.run({ command: 'lookup', input }).then(res => {
+            if (res.data.length) {
+                if (10 <= cnt) {
+                    this.addError('slugUnique', extra, field, val, type, errors);
+                    
+                    return;
+                }
                 
-            return this.model.run({ input })
-                .then(res => {
-                    if (res.result.length) {
-                        if (10 <= cnt) {
-                            this.addError('slugUnique', extra, field, val, type, errors);
-
-                            return;
-                        }
-
-                        return this.generateSlugUnique(extra, query, field, type, cnt + 1);
-                    }
-
-                    query.setField(fieldIndex, field, val);
-                });
+                return this.generateSlugUnique(extra, query, fieldIndex, field, type, cnt + 1);
+            }
+            
+            query.setField(fieldIndex, field, val);
         });
     }
     
