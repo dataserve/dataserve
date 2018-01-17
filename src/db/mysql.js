@@ -504,7 +504,7 @@ class MySql {
                 return Promise.reject('Missing primary key on setInsert table');
             }
 
-            let cols = [], vals = [];
+            let cols = [], vals = [], custom = [];
             
             for (let field in query.getFields(fieldsIndex)) {
                 cols.push(field);
@@ -513,24 +513,44 @@ class MySql {
                     vals.push(parseInt(query.getField(fieldsIndex, field), 10));
                     
                     if (field != model.primaryKey) {
-                        updates.push(field + '=' + parseInt(query.getField(fieldsIndex, field), 10) + ' ');
+                        if (!query.getCustom(field)) {
+                            updates.push(field + '=' + parseInt(query.getField(fieldsIndex, field), 10));
+                        }
                     }
                 } else {
                     vals.push(':' + field);
                     
                     if (field != model.primaryKey) {
-                        updates.push(field + '=:' + field + ' ');
+                        if (!query.getCustom(field)) {
+                            updates.push(field + '=:' + field);
+                        }
                     }
                     
                     bind[field] = query.getField(fieldsIndex, field);
                 }
             }
+
+            for (let field of query.getCustomFields()) {
+                custom.push(field + '=' + query.getCustom(field));
+            }
             
-            sql = 'INSERT INTO ' + model.getTableName() + ' (' + cols.join(',') + ') VALUES (' + vals.join(',') + ') ON DUPLICATE KEY UPDATE ' + updates.join(',') + ' ';
+            sql = 'INSERT INTO ' + model.getTableName() + ' (' + cols.join(',') + ') VALUES (' + vals.join(',') + ') ON DUPLICATE KEY UPDATE ' + updates.join(',');
+
+            if (custom.length) {
+                if (updates.length) {
+                    sql += ',';
+                }
+
+                sql += custom.join(',');
+            }
         } else {
             sql = 'UPDATE ' + model.getTableName() + ' SET ';
             
             for (let field in query.getFields(fieldsIndex)) {
+                if (query.getCustom(field)) {
+                    continue;
+                }
+                
                 if (model.getField(field).type == 'int') {
                     updates.push(field + '=' + parseInt(query.getField(fieldsIndex, field), 10));
                 } else {
@@ -540,15 +560,23 @@ class MySql {
                 }
             }
             
-            sql += updates.join(',') + ' ';
+            sql += updates.join(',');
+
+            let custom = [];
+
+            for (let field of query.getCustomFields()) {
+                custom.push(field + '=' + query.getCustom(field));
+            }
             
-            if (query.custom.length) {
+            if (custom.length) {
                 if (updates.length) {
                     sql += ',';
                 }
                 
-                sql += query.custom.join(',') + ' ';
+                sql += custom.join(',');
             }
+
+            sql += ' ';
             
             if (model.getField(model.primaryKey).type == 'int') {
                 sql += 'WHERE ' + model.primaryKey + '=' + parseInt(query.primaryKey[fieldsIndex], 10);

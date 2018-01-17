@@ -65,7 +65,7 @@ class Query {
         
         this.limit = {};
 
-        this.custom = [];
+        this.custom = {};
 
         this.fill = {};
         
@@ -132,7 +132,9 @@ class Query {
         }
         
         if (input.custom) {
-            this.addCustom(input.custom);
+            for (let field in input.custom) {
+                this.addCustom(field, input.custom[field]);
+            }
         }
         
         if (input.fill) {
@@ -276,7 +278,7 @@ class Query {
         }
         
         if (!Array.isArray(vals)) {
-            vals = [vals];
+            vals = [ vals ];
             this.singleRowResult = true;
         } else if (!vals.length) {
             return;
@@ -297,7 +299,7 @@ class Query {
         }
         
         if (!Array.isArray(vals)) {
-            vals = [vals];
+            vals = [ vals ];
             this.singleRowResult = true;
         } else if (!vals.length) {
             return;
@@ -366,7 +368,7 @@ class Query {
 
     addWhere(where, binds) {
         if (!Array.isArray(where)) {
-            where = [where];
+            where = [ where ];
         } else if (!where.length) {
             return;
         }
@@ -380,7 +382,7 @@ class Query {
 
     addGroup(group) {
         if (!Array.isArray(group)) {
-            group = [group];
+            group = [ group ];
         } else if (!group.length) {
             return;
         }
@@ -390,7 +392,7 @@ class Query {
 
     addOrder(order) {
         if (!Array.isArray(order)) {
-            order = [order];
+            order = [ order ];
         } else if (!order.length) {
             return;
         }
@@ -405,14 +407,16 @@ class Query {
         };
     }
 
-    addCustom(custom) {
-        if (!Array.isArray(custom)) {
-            custom = [custom];
-        } else if (!custom.length) {
-            return;
-        }
-        
-        this.custom = this.custom.concat(custom);
+    addCustom(field, custom) {
+        this.custom[field] = custom;
+    }
+
+    getCustom(field) {
+        return this.custom[field];
+    }
+
+    getCustomFields() {
+        return Object.keys(this.custom);
     }
 
     setFill(field, val) {
@@ -464,7 +468,7 @@ class Query {
     
     addOutputStyle(style) {
         if (!Array.isArray(style)) {
-            style = [style];
+            style = [ style ];
         } else if (!style.length) {
             return;
         }
@@ -480,7 +484,7 @@ class Query {
 
     setOutputStyle(style) {
         if (!Array.isArray(style)) {
-            style = [style];
+            style = [ style ];
         }
         
         //CAN SET TO EMPTY ARRAY
