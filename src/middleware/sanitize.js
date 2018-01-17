@@ -28,6 +28,11 @@ const PROMISE_RULES = [];
 const REASON = {
     '_invalidRule': 'Invalid rule :rule for field :field',
     '_invalidType': 'Invalid value type :type for field :field',
+    'toArray': 'Could not convert value to array for field :field',
+    'toDate': 'Could not convert value to date for field :field',
+    'toInteger': 'Could not convert value to integer for field :field',
+    'toNumber': 'Could not convert value to number for field :field',
+    'toString': 'Could not convert value to string for field :field',
 };
 
 class Sanitize {
@@ -69,7 +74,7 @@ class Sanitize {
         
         return promises.then(() => {
             if (Object.keys(errors).length) {
-                return Promise.reject('Sanitize failed', errors);
+                return Promise.reject([ 'Sanitize failed', errors ]);
             }
         });
     }
@@ -103,7 +108,7 @@ class Sanitize {
             if (PROMISE_RULES.indexOf(rule) !== -1) {
                 promiseRun.push([this[handler], [extra, query, fieldIndex, field, val, type, errors]]);
             } else {
-                if (this[handler](extra, query, fieldIndex, field, val, type) === false) {
+                if (this[handler](extra, query, fieldIndex, field, val, type, errors) === false) {
                     this.addError(rule, extra, field, type, errors);
                 }
             }
@@ -145,11 +150,11 @@ class Sanitize {
         return true;
     }
         
-    sanitizeType(extra, query, fieldIndex, field, val, type) {
+    sanitizeType(extra, query, fieldIndex, field, val, type, errors) {
         switch (type) {
         case 'Array':
             if (!Array.isArray(val)) {
-                query.setField(fieldIndex, field, [val]);
+                query.setField(fieldIndex, field, [ val ]);
             }
             
             break;
@@ -161,19 +166,37 @@ class Sanitize {
             break;
         case 'Integer':
             if (typeof val !== 'number' || val % 1 !== 0) {
-                query.setField(fieldIndex, field, parseInt(val, 10));
+                val = parseInt(val, 10);
+
+                if (typeof val !== 'number' || val % 1 !== 0) {
+                    this.addError('toInteger', extra, field, type, errors);
+                } else {
+                    query.setField(fieldIndex, field, val);
+                }
             }
 
             break;
         case 'Number':
             if (typeof val !== 'number') {
-                query.setField(fieldIndex, field, Number(val));
+                val = Number(val);
+
+                if (typeof val !== 'number') {
+                    this.addError('toNumber', extra, field, type, errors);
+                } else {
+                    query.setField(fieldIndex, field, val);
+                }
             }
 
             break;
         case 'String':
             if (typeof val !== 'string') {
-                query.setField(fieldIndex, field, String(val));
+                val = String(val);
+
+                if (typeof val !== 'string') {
+                    this.addError('toString', extra, field, type, errors);
+                } else {
+                    query.setField(fieldIndex, field, val);
+                }
             }
             
             break;

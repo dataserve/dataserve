@@ -7,10 +7,7 @@ const { camelize, randomString } = require('../util');
 module.exports = model => next => obj => {
     let generate = new Generate(model);
 
-    return generate.run(obj).then(() => {
-        console.log('GENERATE DONE');
-        return next(obj);
-    });
+    return generate.run(obj).then(() => next(obj));
 }
 
 const ALLOWED_RULES = {
@@ -32,6 +29,7 @@ const PROMISE_RULES = [
 const REASON = {
     '_invalidRule': 'Invalid rule :rule for field :field',
     '_invalidType': 'Invalid value type :type for field :field',
+    'missingField': 'Target field :extra is not populated for field :field',
     'slugUnique': 'Unable to generate unique value for :field',
 };
 
@@ -157,6 +155,8 @@ class Generate {
         
         if (slugType === 'field') {
             if (!query.getField(fieldIndex, slugOpt)) {
+                this.addError('missingField', extra, field, val, type, errors);
+                
                 return '';
             }
 

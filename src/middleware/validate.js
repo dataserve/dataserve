@@ -96,18 +96,18 @@ class Validate {
     run({ command, query }) {
         let errors = {}, promises = [];
 
-        for (let fieldIndex = 0; fieldIndex < query.getFieldsCnt(); ++fieldIndex) {
-            for (let field in query.getFields(fieldIndex)) {
-                let rules = this.model.getField(field).validate;
+        for (let field in this.model.getFields()) {
+            let rules = this.model.getField(field).validate;
 
-                if (typeof rules === 'object') {
-                    rules = rules[command];
-                }
+            if (typeof rules === 'object') {
+                rules = rules[command];
+            }
 
-                if (typeof rules !== 'string' || !rules.length) {
-                    continue;
-                }
+            if (typeof rules !== 'string' || !rules.length) {
+                continue;
+            }
 
+            for (let fieldIndex = 0; fieldIndex < query.getFieldsCnt(); ++fieldIndex) {
                 let val = query.getField(fieldIndex, field);
                 
                 let promise = this.validate(field, val, rules, errors);
@@ -126,7 +126,7 @@ class Validate {
         
         return promises.then(() => {
             if (Object.keys(errors).length) {
-                return Promise.reject(['Validation failed', errors]);
+                return Promise.reject([ 'Validation failed', errors ]);
             }
         });
     }
@@ -154,6 +154,10 @@ class Validate {
 
                 continue;
             }
+
+            if (typeof val === 'undefined') {
+                continue;
+            }
             
             rule = camelize(rule);
             
@@ -172,7 +176,7 @@ class Validate {
             }
             
             let handler = 'validate' + rule.charAt(0).toUpperCase() + rule.slice(1);
-            
+
             if (PROMISE_RULES.indexOf(rule) !== -1) {
                 promiseRun.push([this[handler], [extra, field, val, type, errors]]);
             } else {
