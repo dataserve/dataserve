@@ -16,6 +16,9 @@ const ALLOWED_RULES = {
     ],
     'exists': [
         'Date',
+        'DateTime',
+        'Time',
+        'Year',
         'Integer',
         'Number',
         'String',
@@ -38,6 +41,9 @@ const ALLOWED_RULES = {
     'min': [
         'Array',
         'Date',
+        'DateTime',
+        'Time',
+        'Year',
         'Integer',
         'Number',
         'String',
@@ -45,6 +51,9 @@ const ALLOWED_RULES = {
     'max': [
         'Array',
         'Date',
+        'DateTime',
+        'Time',
+        'Year',
         'Integer',
         'Number',
         'String',
@@ -52,6 +61,9 @@ const ALLOWED_RULES = {
     'required': null,
     'unique': [
         'Date',
+        'DateTime',
+        'Time',
+        'Year',
         'Integer',
         'Number',
         'String',
@@ -138,7 +150,7 @@ class Validate {
 
         for (let split of rules) {
             let [rule, extra] = split.split(':');
-            
+
             if (rule === 'required') {
                 if (typeof val === 'undefined' || val === null) {
                     this.addError(rule, extra, field, null, errors);
@@ -251,7 +263,7 @@ class Validate {
     
     validateIn(extra, field, val, type) {
         extra = extra.split(',');
-        
+
         switch (type) {
         case 'Array':
             if (!Array.isArray(val)) {

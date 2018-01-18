@@ -17,9 +17,12 @@ const ALLOWED_RULES = {
     'type': [
         'Array',
         'Date',
+        'DateTime',
         'Integer',
         'Number',
         'String',
+        'Time',
+        'Year',
     ],
 };
 
@@ -158,9 +161,28 @@ class Sanitize {
             }
             
             break;
+        case 'DateTime':
         case 'Date':
+        case 'Time':
+        case 'Year':
             if (typeof val !== 'object' || typeof val.getMonth !== 'function') {
-                query.setField(fieldIndex, field, new Date(val));
+                val = new Date(val);
+
+                if (isNaN(val.getTime())) {
+                    this.addError('toDate', extra, field, type, errors);
+                } else {
+                    if (type === 'DateTime') {
+                        val = val.toISOString().substr(0, 19).replace('T', ' ');
+                    } else if (type === 'Date') {
+                        val = val.toISOString().substr(0, 10);
+                    } else if (type === 'Time') {
+                        val = val.toISOString().substr(19, 8);
+                    } else if (type === 'Year') {
+                        val = val.toISOString().substr(0, 4);
+                    }
+                    
+                    query.setField(fieldIndex, field, val);
+                }
             }
             
             break;
@@ -190,13 +212,7 @@ class Sanitize {
             break;
         case 'String':
             if (typeof val !== 'string') {
-                val = String(val);
-
-                if (typeof val !== 'string') {
-                    this.addError('toString', extra, field, type, errors);
-                } else {
-                    query.setField(fieldIndex, field, val);
-                }
+                query.setField(fieldIndex, field, String(val));
             }
             
             break;

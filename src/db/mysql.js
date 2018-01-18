@@ -137,11 +137,14 @@ class MySql {
         case 'set':
             return 'Array';
         case 'date':
+            return 'Date';
         case 'datetime':
         case 'timestamp':
+            return 'DateTime';
         case 'time':
+            return 'Time';
         case 'year':
-            return 'Date';
+            return 'Year';
         }
         
         return null;
@@ -162,7 +165,7 @@ class MySql {
             } else {
                 vals.push(':' + field);
                 
-                bind[field] = query.getField(fieldsIndex, field);
+                bind[field] = query.getField(fieldsIndex, field).toString();
             }
         }
         
@@ -526,7 +529,7 @@ class MySql {
                         }
                     }
                     
-                    bind[field] = query.getField(fieldsIndex, field);
+                    bind[field] = query.getField(fieldsIndex, field).toString();
                 }
             }
 
@@ -556,7 +559,7 @@ class MySql {
                 } else {
                     updates.push(field + '=:' + field);
                     
-                    bind[field] = query.getField(fieldsIndex, field);
+                    bind[field] = query.getField(fieldsIndex, field).toString();
                 }
             }
             
