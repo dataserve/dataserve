@@ -1,7 +1,6 @@
 'use strict';
 
 const Promise = require('bluebird');
-const _object = require('lodash/object');
 
 const { createResult } = require('./result');
 const { camelize, paramFo } = require('./util');
@@ -384,25 +383,25 @@ class Model {
         }).then((rows) => {
             return this.fill(query, rows)
         }).then((rows) => {
-            let extra = {
+            let meta = {
                 dbName: this.dbName,
                 tableName: this.tableName,
             };
             
             if (query.singleRowResult) {
                 for (let id in rows) {
-                    return [ rows[id], extra ];
+                    return [ rows[id], meta ];
                 }
                 
-                return [ null, extra ];
+                return [ null, meta ];
             }
             
             if (query.isOutputStyle('BY_ID')) {
-                return [ rows, extra ];
+                return [ rows, meta ];
             }
 
             
-            return [ query.get.vals.map(key => rows[key]), extra];
+            return [ query.get.vals.map(key => rows[key]), meta ];
         });
     }
 
@@ -457,12 +456,12 @@ class Model {
                     data[id] = r;
                 }
 
-                let extra = {
+                let meta = {
                     dbName: this.dbName,
                     tableName: this.tableName,
                 };
 
-                return [ data, extra ];
+                return [ data, meta ];
             });
         });
     }
@@ -503,36 +502,35 @@ class Model {
     }
 
     lookup(query) {
-        var meta = {};
+        let meta = {};
         
         return this.log.add('model,model:lookup', () => {
             return this.getDb().lookup(this, query);
         }).then((args) => {
             let [ rows, found ] = args;
             
-            meta = {
-                pages: found !== null ? Math.ceil(found / query.limit.limit) : null,
-                found: found,
-            };
+            meta.pages = found !== null ? Math.ceil(found / query.limit.limit) : null;
+            
+            meta.found = found;
             
             let ids = rows ? Object.keys(rows) : [];
-                
+
             if (!ids.length) {
                 if (query.isOutputStyle('BY_ID')) {
-                    return Promise.reject(createResult(true, {}));
+                    return Promise.reject(createResult(true, {}, meta));
                 }
                 
-                return Promise.reject(createResult(true, []));
+                return Promise.reject(createResult(true, [], meta));
             }
                 
             if (query.isOutputStyle('LOOKUP_RAW')) {
                 if (query.isOutputStyle('BY_ID')) {
-                    return Promise.reject(createResult(true, rows));
+                    return Promise.reject(createResult(true, rows, meta));
                 }
                 
-                return Promise.reject(createResult(true, Object.values(rows)));
+                return Promise.reject(createResult(true, Object.values(rows), meta));
             }
-                
+
             return this.run({
                 command: 'get',
                 input: {
@@ -540,6 +538,10 @@ class Model {
                     fill: query.fill,
                     outputStyle: query.isOutputStyle('BY_ID') ? 'BY_ID' : null,
                 },
+            }).then(res => {
+                res.meta = Object.assign({}, res.meta, meta);
+
+                return res;
             });
         });
     }

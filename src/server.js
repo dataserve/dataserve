@@ -153,16 +153,20 @@ class Server {
     handleCommand(input, response) {
         //this.debug('QUERY', input);
 
-        const command = input[0].toLowerCase();
+        let [ command, commandUuid ] = input[0].split(':');
+        
+        command = command.toLowerCase();
+
+        commandUuid = commandUuid || null;
         
         if (command === 'ds_log') {
-            let result = createResult(true, this.dataserve.log.getAll());
+            let result = createResult(true, this.dataserve.log.getAll(), { commandUuid });
             
             return response.encode(result.toJson());
         }
 
         if (command === 'command') {
-            return this.handleCommandDoc(input, command, response);
+            return this.handleCommandDoc(input, command, commandUuid, response);
         }
 
         switch (command) {
@@ -178,19 +182,19 @@ class Server {
         case 'ds_output_table_schema':
         case 'ds_set':
         case 'ds_remove':
-            return this.handleCommandRun(input, command, response);
+            return this.handleCommandRun(input, command, commandUuid, response);
         }
 
-        return this.handleCommandUnknown(input, command, response);
+        return this.handleCommandUnknown(input, command, commandUuid, response);
     }
 
-    handleCommandRun(input, command, response) {
+    handleCommandRun(input, command, commandUuid, response) {
         const timeStart = microtime.now();
         
         let dbTable = input[1], payload = {};
 
         if (!dbTable) {
-            let result = createResult(false, 'Command missing dbTable');
+            let result = createResult(false, 'Command missing dbTable', { commandUuid });
             
             response.encode(result.toJson());
 
@@ -210,7 +214,7 @@ class Server {
                 let timeRun = (microtime.now() - timeStart) / 1000000;
                 
                 if (typeof result === 'undefined' || !(result instanceof Result)) {
-                    result = createResult(false, 'Unknown error 1');
+                    result = createResult(false, 'Unknown error 1', { commandUuid });
                     
                     response.encode(result.toJson());
                     
@@ -222,13 +226,15 @@ class Server {
                 } else {
                     this.debug(timeRun, 'CALL FAIL', result.toObject());//, util.inspect(output, false, null));
                 }
+
+                result.meta.commandUuid = commandUuid;
                 
-                response.encode(JSON.stringify(result.toObject()));
+                response.encode(result.toJson());
             })
             .catch(err => {
                 this.debug('CALL FAIL:', err);
 
-                let result = createResult(false, 'Unknown error 2');
+                let result = createResult(false, 'Unknown error 2', { commandUuid });
                 
                 response.encode(result.toJson());
 
@@ -236,7 +242,7 @@ class Server {
             });
     }
 
-    handleCommandDoc(input, command, response) {
+    handleCommandDoc(input, command, commandUuid, response) {
         response.encode(
             [
                 [
@@ -259,10 +265,10 @@ class Server {
         );
     }
 
-    handleCommandUnknown(input, command, response) {
+    handleCommandUnknown(input, command, commandUuid, response) {
         this.debug('Command not understood: ' + command);
 
-        let result = createResult(false, 'Command not understood: ' + command);
+        let result = createResult(false, 'Command not understood: ' + command, { commandUuid });
         
         response.encode(result.toJson());
     }
