@@ -92,13 +92,19 @@ class Encrypt {
                 
                 continue;
             }
+
+            let val = query.getField(fieldIndex, field);
+            
+            if (!val.length) {
+                continue;
+            }
             
             let handler = 'encrypt' + rule.charAt(0).toUpperCase() + rule.slice(1);
             
             if (PROMISE_RULES.indexOf(rule) !== -1) {
-                promiseRun.push([this[handler], [extra, query, fieldIndex, field, type, errors]]);
+                promiseRun.push([this[handler], [extra, query, fieldIndex, field, val, type, errors]]);
             } else {
-                if (this[handler](extra, query, fieldIndex, field, type) === false) {
+                if (this[handler](extra, query, fieldIndex, field, val, type) === false) {
                     this.addError(rule, extra, field, val, type, errors);
                 }
             }
@@ -134,7 +140,7 @@ class Encrypt {
         };
     }
 
-    encryptBcrypt(extra, query, fieldIndex, field, type) {
+    encryptBcrypt(extra, query, fieldIndex, field, val, type) {
         extra = parseInt(extra, 10);
         
         if (!extra) {
