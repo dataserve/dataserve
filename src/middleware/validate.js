@@ -7,7 +7,8 @@ const { camelize } = require('../util');
 module.exports = model => next => obj => {
     let validate = new Validate(model);
 
-    return validate.run(obj).then(() => next(obj));
+    return model.log.add(`validate,validate:${obj.command}`, () => validate.run(obj))
+        .then(() => next(obj));
 }
 
 const ALLOWED_RULES = {

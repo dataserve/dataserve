@@ -7,7 +7,8 @@ const { camelize } = require('../util');
 module.exports = model => next => obj => {
     let encrypt = new Encrypt(model);
 
-    return encrypt.run(obj).then(() => next(obj));
+    return model.log.add(`validate,validate:${obj.command}`, () => encrypt.run(obj))
+        .then(() => next(obj));
 }
 
 const ALLOWED_RULES = {

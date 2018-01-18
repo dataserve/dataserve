@@ -7,7 +7,8 @@ const { camelize } = require('../util');
 module.exports = model => next => obj => {
     let sanitize = new Sanitize(model);
 
-    return sanitize.run(obj).then(() => next(obj));
+    return model.log.add(`sanitize,sanitize:${obj.command}`, () => sanitize.run(obj))
+        .then(() => next(obj));
 }
 
 const ALLOWED_RULES = {

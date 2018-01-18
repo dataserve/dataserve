@@ -7,7 +7,8 @@ const { camelize, randomString } = require('../util');
 module.exports = model => next => obj => {
     let generate = new Generate(model);
 
-    return generate.run(obj).then(() => next(obj));
+    return model.log.add(`generate,generate:${obj.command}`, () => generate.run(obj))
+        .then(() => next(obj));
 }
 
 const ALLOWED_RULES = {

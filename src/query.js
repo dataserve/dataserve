@@ -1,7 +1,5 @@
 'use strict';
 
-const Type = require('type-of-is');
-
 const { intArray } = require('./util');
 
 const ALLOWED_OUTPUT_STYLE = [
@@ -75,20 +73,16 @@ class Query {
     }
 
     build(command, input) {
-        input = this.parseCommandInput(command, input);
+        this.command = command;
         
-        if (!Type.is(input, Object)) {
-            throw new Error('Invalid input, must be an object, primaryKey value(s), received: ' + JSON.stringify(input));
+        input = this.parseCommandInput(command, input);
+
+        if (typeof input !== 'object') {
+            throw new Error('Invalid input, must be an object, received: ' + JSON.stringify(input));
         }
 
         this.input = input;
-        
-        if (input.alias) {
-            this.setAlias(input.alias);
-        } else {
-            this.setAlias(this.model.getTableName().substring(0, 1));
-        }
-        
+                
         if (input.fieldsArr) {
             if (!Array.isArray(input.fieldsArr)) {
                 input.fieldsArr = [ input.fieldsArr ];
@@ -100,40 +94,6 @@ class Query {
                 for (let field in fieldObj) {
                     this.setField(fieldsIndex, field, fieldObj[field]);
                 }
-            }
-        }
-        
-        if (input.join) {
-            for (let table in input.join) {
-                this.addJoin(table, input.join[table]);
-            }
-        }
-        
-        if (input.leftJoin) {
-            for (let table in input.leftJoin) {
-                this.addLeftJoin(table, input.leftJoin[table]);
-            }
-        }
-        
-        if (input.where) {
-            this.addWhere(input.where, input.bind ? input.bind : null);
-        }
-        
-        if (input.group) {
-            this.addGroup(input.group);
-        }
-        
-        if (input.order) {
-            this.addOrder(input.order);
-        }
-        
-        if (input.page && input.limit) {
-            this.setLimit(input.page, input.limit);
-        }
-        
-        if (input.custom) {
-            for (let field in input.custom) {
-                this.addCustom(field, input.custom[field]);
             }
         }
         
@@ -175,6 +135,50 @@ class Query {
                 this.setGetMany(field, input[field]);
             }
             
+            break;
+        case 'lookup':
+            if (input.alias) {
+                this.setAlias(input.alias);
+            } else {
+                this.setAlias(this.model.getTableName().substring(0, 1));
+            }
+
+            if (input.join) {
+                for (let table in input.join) {
+                    this.addJoin(table, input.join[table]);
+                }
+            }
+            
+            if (input.leftJoin) {
+                for (let table in input.leftJoin) {
+                    this.addLeftJoin(table, input.leftJoin[table]);
+                }
+            }
+            
+            if (input.where) {
+                this.addWhere(input.where, input.bind ? input.bind : null);
+            }
+            
+            if (input.group) {
+                this.addGroup(input.group);
+            }
+            
+            if (input.order) {
+                this.addOrder(input.order);
+            }
+            
+            if (input.page && input.limit) {
+                this.setLimit(input.page, input.limit);
+            }
+
+            break;
+        case 'set':
+            if (input.custom) {
+                for (let field in input.custom) {
+                    this.addCustom(field, input.custom[field]);
+                }
+            }
+
             break;
         }
 

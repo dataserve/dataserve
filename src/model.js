@@ -246,6 +246,11 @@ class Model {
         let [ tableName, relatedConfig ] = relatedTableConfig.split(':');
 
         relatedConfig = relatedConfig || '';
+
+        //byproduct of disabling foreign keys in sql-schema-modulizer
+        if (relatedConfig === 'null') {
+            relatedConfig = '';
+        }
         
         let [ foreignColumnName, localColumnName ] = relatedConfig.split(',');
 
@@ -328,7 +333,7 @@ class Model {
     
     get(query) {
         if (!query.hasGet()) {
-            return Promise.reject('missing param:'+JSON.stringify(query.input));
+            return Promise.reject('missing `primaryKey` / `uniqueKey`:' + JSON.stringify(query.input));
         }
 
         var cacheRows = {}, cachePromise = null;
@@ -416,7 +421,7 @@ class Model {
 
     getMany(query) {
         if (!query.hasGetMany()) {
-            return Promise.reject('missing param');
+            return Promise.reject('missing `belongsTo` val');
         }
 
         return this.log.add('model,model:getMany', () => {
@@ -464,7 +469,7 @@ class Model {
 
     inc(query) {
         if (!query.primaryKey) {
-            Promise.reject('missing primary field:'+JSON.stringify(query.input));
+            return Promise.reject('missing `primaryKey` val:'+JSON.stringify(query.input));
         }
 
         if (!query.getFieldsCnt()) {
@@ -628,7 +633,7 @@ class Model {
                 if (config.localColumnName !== 'id') {
                     idsTmp = Object.values(rows).map(row => row[config.localColumnName]);
                 }
-                
+
                 let input = {
                     [config.foreignColumnName]: idsTmp,
                     fill: query.fill[foundFill.fill],
@@ -662,6 +667,10 @@ class Model {
             let fill = {}, found = false;
 
             for (let promiseRes of res) {
+                if (promiseRes.isError()) {
+                    return Promise.reject(res);
+                }
+                
                 fill[promiseRes.meta.tableName] = {
                     type: promiseMap[promiseRes.meta.tableName].type,
                     aliasNameArr: promiseMap[promiseRes.meta.tableName].aliasNameArr,
