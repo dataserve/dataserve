@@ -213,7 +213,11 @@ class Sanitize {
             break;
         case 'String':
             if (typeof val !== 'string') {
-                query.setField(fieldIndex, field, String(val));
+                if (typeof val === 'undefined' || val === null || val === false) {
+                    query.setField(fieldIndex, field, '');
+                } else {
+                    query.setField(fieldIndex, field, String(val));
+                }
             }
             
             break;
