@@ -21,6 +21,9 @@ const ALLOWED_RULES = {
     'uuid': [
         'String',
     ],
+    'uuid64': [
+        'String',
+    ],
 };
 
 const PROMISE_RULES = [
@@ -219,4 +222,14 @@ class Generate {
         query.setField(fieldIndex, field, this.uuid());
     }
 
+    generateUuid64(extra, query, fieldIndex, field, type) {
+        let uuid = new Buffer(this.uuid().replace(/-/g, ''), 'hex').toString('base64');
+
+        if (extra.length) {
+            uuid = uuid.replace(/=/g, '');
+        }
+        
+        query.setField(fieldIndex, field, uuid);
+    }
+    
 }

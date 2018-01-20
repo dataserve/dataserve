@@ -536,6 +536,10 @@ class MySql {
             for (let field of query.getCustomFields()) {
                 custom.push(field + '=' + query.getCustom(field));
             }
+
+            if (!cols.length || !vals.length || !updates.length) {
+                return Promise.reject('missing fields');
+            }
             
             sql = 'INSERT INTO ' + model.getTableName() + ' (' + cols.join(',') + ') VALUES (' + vals.join(',') + ') ON DUPLICATE KEY UPDATE ' + updates.join(',');
 
@@ -577,6 +581,8 @@ class MySql {
                 }
                 
                 sql += custom.join(',');
+            } else if (!updates.length) {
+                return Promise.reject('missing fields');
             }
 
             sql += ' ';
