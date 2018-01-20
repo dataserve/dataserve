@@ -3,7 +3,7 @@
 const Promise = require('bluebird');
 
 const { createResult } = require('./result');
-const { camelize, paramFo } = require('./util');
+const { camelize, paramFn } = require('./util');
 
 const ALLOWED_COMMANDS = [
     'add',
@@ -685,7 +685,7 @@ class Model {
                     let config = this.relationships[fill[tableName].type][tableName];
                     
                     fill[tableName].aliasNameArr.forEach((aliasName) => {
-                        rows[rowIndex][aliasName] = paramFo(fill[tableName].data, rows[rowIndex][config.localColumnName]);
+                        rows[rowIndex][aliasName] = paramFn(fill[tableName].data, rows[rowIndex][config.localColumnName]);
                     });
                 });
             });

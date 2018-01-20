@@ -226,7 +226,7 @@ class Generate {
         let uuid = new Buffer(this.uuid().replace(/-/g, ''), 'hex').toString('base64');
 
         if (extra.length) {
-            uuid = uuid.replace(/=/g, '');
+            uuid = uuid.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
         }
         
         query.setField(fieldIndex, field, uuid);
