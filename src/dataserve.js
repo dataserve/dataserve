@@ -67,13 +67,13 @@ class Dataserve {
         let middleware = this.model[dbTable].getMiddleware();
         
         if (middleware) {
-            for (let mw of middleware) {
+            middleware.forEach((mw) => {
                 if (!this.middlewareLookup || !this.middlewareLookup[mw]) {
                     throw new Error(`missing middlware definition for '${mw}'`);
                 }
 
                 this.manager[dbTable].use('run', this.middlewareLookup[mw]);
-            }
+            });
         }
 
         this.debug(`Created dbTable '${dbTable}'`);

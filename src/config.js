@@ -34,9 +34,9 @@ class Config {
             throw new Exception('no dbs found in config');
         }
 
-        for (let dbName of dbNames) {
+        dbNames.forEach((dbName) => {
             this.dbs[dbName] = {};
-        }
+        });
 
         if (process.env.DB_DEFAULT) {
             this.dbDefault = process.env.DB_DEFAULT;
@@ -49,7 +49,7 @@ class Config {
         }
         
         if (dbList.length) {
-            for (let dbName of dbList) {
+            dbList.forEach((dbName) => {
                 if (process.env[`DB_${dbName}_CACHE`]) {
                     this.configCache(dbName);
                 }
@@ -57,7 +57,7 @@ class Config {
                 if (process.env[`DB_${dbName}`]) {
                     this.configSingle(dbName);
                     
-                    continue;
+                    return;
                 }
                 
                 if (process.env[`DB_${dbName}_TYPE`]
@@ -65,9 +65,9 @@ class Config {
                     && process.env[`DB_${dbName}_READ`]) {
                     this.configReplicated(dbName);
                     
-                    continue;
+                    return;
                 }
-            }
+            });
         }
     }
 

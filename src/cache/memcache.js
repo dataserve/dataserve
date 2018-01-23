@@ -41,42 +41,42 @@ class CacheMemcache {
         }
         
         let cacheKeys = [], lookup = {};
-        
-        for (let key of keys) {
+
+        keys.forEach((key) => {
             cacheKeys.push(this.key(dbTable, field, key));
+            
             lookup[key] = this.key(dbTable, field, key);
-        }
+        });
         
         let output = {};
         
         return this.log.add('cache,cache:get', () => {
             return this.promisify.getMulti(cacheKeys);
-        })
-            .then(res => {
-                let output = {};
+        }).then(res => {
+            let output = {};
+
+            keys.forEach((key) => {
+                let val = res[lookup[key]];
                 
-                for (let key of keys) {
-                    let val = res[lookup[key]];
-                    
-                    if (typeof val === 'undefined') {
-                        continue;
-                    }
-                    
-                    output[key] = JSON.parse(val);
+                if (typeof val === 'undefined') {
+                    return;
                 }
                 
-                return output;
+                output[key] = JSON.parse(val);
             });
+            
+            return output;
+        });
     }
 
     set(dbTable, field, vals) {
         let promises = [];
-        
-        for (let key in vals) {
+
+        Object.keys(vals).forEach((key) => {
             let val = JSON.stringify(vals[key]);
             
             promises.push(this.promisify.set(this.key(dbTable, field, key), val, 0));
-        }
+        });
         
         return this.log.add('cache,cache:set', () => {
             return Promise.all(promises);
@@ -89,10 +89,10 @@ class CacheMemcache {
         }
         
         let promises = [];
-        
-        for (let key of keys) {
+
+        keys.forEach((key) => {
             promises.push(this.promisify.del(this.key(dbTable, field, key)));
-        }
+        });
         
         return this.log.add('cache,cache:del', () => {
             return Promise.all(promises);

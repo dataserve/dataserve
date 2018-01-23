@@ -7,10 +7,12 @@ class CacheJS {
 
     constructor(config, log) {
         this.log = log;
+        
         let opt = {
             max: config.size,
             length: function (n, key) { return 1; },
         };
+        
         this.cache = LRU(opt);
     }
 
@@ -20,11 +22,14 @@ class CacheJS {
     
     getAll() {
         let output = {};
+        
         return this.log.add('cache,cache:getAll', () => {
             let keys = this.cache.keys();
-            for (let key of keys) {
+
+            keys.forEach((key) => {
                 output[key] = this.cache.peek(key);
-            }
+            });
+            
             return Promise.resolve(output);
         });
     }
@@ -33,23 +38,28 @@ class CacheJS {
         if (!Array.isArray(keys)) {
             keys = [keys];
         }
+        
         return this.log.add('cache,cache:get', () => {
             let output = {};
-            for (let key of keys) {
+
+            keys.forEach((key) => {
                 let val = this.cache.get(this.key(dbTable, field, key));
+                
                 if (typeof val !== 'undefined') {
                     output[key] = val;
                 }
-            }
+            });
+            
             return Promise.resolve(output);
         });
     }
 
     set(dbTable, field, vals) {
         return this.log.add('cache,cache:set', () => {
-            for (let key in vals) {
+            Object.keys(vals).forEach((key) => {
                 this.cache.set(this.key(dbTable, field, key), vals[key]);
-            }
+            });
+            
             return Promise.resolve(vals);
         });
     }
@@ -58,10 +68,12 @@ class CacheJS {
         if (!Array.isArray(keys)) {
             keys = [keys];
         }
+        
         return this.log.add('cache,cache:del', () => {
-            for (let key of keys) {
+            keys.forEach((key) => {
                 this.cache.del(this.key(dbTable, field, key));
-            }
+            });
+            
             return Promise.resolve(true);
         });
     }
@@ -69,6 +81,7 @@ class CacheJS {
     delAll() {
         return this.log.add('cache,cache:delAll', () => {
             this.cache.reset();
+            
             return Promise.resolve(true);
         });
     }

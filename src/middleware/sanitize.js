@@ -5,11 +5,20 @@ const Promise = require('bluebird');
 const { camelize } = require('../util');
 
 module.exports = model => next => obj => {
+    if (ALLOWED_COMMANDS.indexOf(obj.command) === -1) {
+        return next(obj);
+    }
+
     let sanitize = new Sanitize(model);
 
     return model.log.add(`sanitize,sanitize:${obj.command}`, () => sanitize.run(obj))
         .then(() => next(obj));
 }
+
+const ALLOWED_COMMANDS = [
+    'add',
+    'set',
+];
 
 const ALLOWED_RULES = {
     'trim': [
@@ -48,8 +57,8 @@ class Sanitize {
     run({ command, query }) {
         let errors = {}, promises = [];
         
-        for (let fieldIndex = 0; fieldIndex < query.getFieldsCnt(); ++fieldIndex) {
-            for (let field in query.getFields(fieldIndex)) {
+        for (let fieldIndex = 0, n = query.getFieldsCnt(); fieldIndex < n; ++fieldIndex) {
+            Object.keys(query.getFields(fieldIndex)).forEach((field) => {
                 let rules = this.model.getField(field).sanitize || this.model.getTableConfig('sanitize');
 
                 if (typeof rules === 'object') {
@@ -57,7 +66,7 @@ class Sanitize {
                 }
 
                 if (typeof rules !== 'string' || !rules.length) {
-                    continue;
+                    return;
                 }
 
                 let val = query.getField(fieldIndex, field);
@@ -67,7 +76,7 @@ class Sanitize {
                 if (promise.length) {
                     promises = promises.concat(promise);
                 }
-            }
+            });
         }
         
         if (!promises.length) {
@@ -78,7 +87,7 @@ class Sanitize {
         
         return promises.then(() => {
             if (Object.keys(errors).length) {
-                return Promise.reject([ 'Sanitize failed', errors ]);
+                return Promise.reject([ 'sanitize', { sanitize: errors } ]);
             }
         });
     }
@@ -87,8 +96,8 @@ class Sanitize {
         let promiseRun = [];
         
         rules = rules.split('|');
-        
-        for (let split of rules) {
+
+        rules.forEach((split) => {
             let [rule, extra] = split.split(':');
 
             rule = camelize(rule);
@@ -96,7 +105,7 @@ class Sanitize {
             if (!ALLOWED_RULES[rule]) {
                 this.addError('_invalidRule', rule, field, null, errors);
                 
-                continue;
+                return;
             }
             
             let type = this.model.getFieldValidateType(field);
@@ -104,7 +113,7 @@ class Sanitize {
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
                 //this.addError('_invalidType', rule, field, null, errors);
                 
-                continue;
+                return;
             }
             
             let handler = 'sanitize' + rule.charAt(0).toUpperCase() + rule.slice(1);
@@ -116,7 +125,7 @@ class Sanitize {
                     this.addError(rule, extra, field, type, errors);
                 }
             }
-        }
+        });
 
         //don't run promise validations if errors already found
         if (promiseRun.length && Object.keys(errors).length) {
@@ -125,9 +134,9 @@ class Sanitize {
 
         let promises = [];
 
-        for (let run of promiseRun) {
+        promiseRun.forEach((run) => {
             promises.push(run[0].bind(this)(...run[1]));
-        }
+        });
         
         return promises;
     }

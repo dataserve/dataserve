@@ -5,11 +5,20 @@ const Promise = require('bluebird');
 const { camelize } = require('../util');
 
 module.exports = model => next => obj => {
+    if (ALLOWED_COMMANDS.indexOf(obj.command) === -1) {
+        return next(obj);
+    }
+    
     let encrypt = new Encrypt(model);
 
     return model.log.add(`validate,validate:${obj.command}`, () => encrypt.run(obj))
         .then(() => next(obj));
 }
+
+const ALLOWED_COMMANDS = [
+    'add',
+    'set',
+];
 
 const ALLOWED_RULES = {
     'bcrypt': [
@@ -37,8 +46,8 @@ class Encrypt {
     run({ command, query }) {
         let errors = {}, promises = [];
         
-        for (let fieldIndex = 0; fieldIndex < query.getFieldsCnt(); ++fieldIndex) {
-            for (let field in query.getFields(fieldIndex)) {
+        for (let fieldIndex = 0, n = query.getFieldsCnt(); fieldIndex < n; ++fieldIndex) {
+            Object.keys(query.getFields(fieldIndex)).forEach((field) => {
                 let rules = this.model.getField(field).encrypt || this.model.getTableConfig('encrypt');
 
                 if (typeof rules === 'object') {
@@ -46,7 +55,7 @@ class Encrypt {
                 }
 
                 if (typeof rules !== 'string' || !rules.length) {
-                    continue;
+                    return;
                 }
 
                 let promise = this.encrypt(query, fieldIndex, field, rules, errors);
@@ -54,7 +63,7 @@ class Encrypt {
                 if (promise.length) {
                     promises = promises.concat(promise);
                 }
-            }
+            });
         }
         
         if (!promises.length) {
@@ -65,7 +74,7 @@ class Encrypt {
         
         return promises.then(() => {
             if (Object.keys(errors).length) {
-                return Promise.reject('Encrypt failed', errors);
+                return Promise.reject('encrypt', { encrypt: errors });
             }
         });
     }
@@ -74,8 +83,8 @@ class Encrypt {
         let promiseRun = [];
         
         rules = rules.split('|');
-        
-        for (let split of rules) {
+
+        rules.forEach((split) => {
             let [rule, extra] = split.split(':');
 
             rule = camelize(rule);
@@ -83,7 +92,7 @@ class Encrypt {
             if (!ALLOWED_RULES[rule]) {
                 this.addError('_invalidRule', rule, field, val, null, errors);
                 
-                continue;
+                return;
             }
             
             let type = this.model.getFieldValidateType(field);
@@ -91,13 +100,13 @@ class Encrypt {
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
                 //this.addError('_invalidType', rule, field, val, null, errors);
                 
-                continue;
+                return;
             }
 
             let val = query.getField(fieldIndex, field);
             
             if (!val.length) {
-                continue;
+                return;
             }
             
             let handler = 'encrypt' + rule.charAt(0).toUpperCase() + rule.slice(1);
@@ -109,7 +118,7 @@ class Encrypt {
                     this.addError(rule, extra, field, val, type, errors);
                 }
             }
-        }
+        });
 
         //don't run promise validations if errors already found
         if (promiseRun.length && Object.keys(errors).length) {
@@ -118,9 +127,9 @@ class Encrypt {
 
         let promises = [];
 
-        for (let run of promiseRun) {
+        promiseRun.forEach((run) => {
             promises.push(run[0].bind(this)(...run[1]));
-        }
+        });
         
         return promises;
     }

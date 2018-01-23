@@ -156,8 +156,8 @@ class MySql {
         }
 
         let cols = [], vals = [], bind = [], primaryKeyVal = null;
-        
-        for (let field in query.getFields(fieldsIndex)) {
+
+        Object.keys(query.getFields(fieldsIndex)).forEach((field) =>{
             cols.push(field);
             
             if (model.getField(field).type == 'int') {
@@ -167,7 +167,7 @@ class MySql {
                 
                 bind[field] = query.getField(fieldsIndex, field).toString();
             }
-        }
+        });
         
         if (!model.getField(model.primaryKey).autoInc) {
             primaryKeyVal = query.getField(fieldsIndex, model.primaryKey);
@@ -193,7 +193,7 @@ class MySql {
     addMulti(model, query) {
         let promiseRun = [];
         
-        for (let fieldsIndex = 0; fieldsIndex < query.getFieldsCnt(); ++fieldsIndex) {
+        for (let fieldsIndex = 0, n = query.getFieldsCnt(); fieldsIndex < n; ++fieldsIndex) {
             promiseRun.push(this.add(model, query, fieldsIndex));
         }
 
@@ -211,14 +211,14 @@ class MySql {
             getVals = [...new Set(getVals)];
             
             let wh = [], cnt = 1;
-            
-            for (let index in getVals) {
+
+            getVals.forEach((val) => {
                 wh.push(':' + query.get.field + cnt);
                 
-                bind[query.get.field + cnt] = getVals[index];
+                bind[query.get.field + cnt] = val;
                 
                 ++cnt;
-            }
+            });
             
             where.push(query.get.field + ' IN (' + wh.join(',') + ')');
         }
@@ -235,12 +235,10 @@ class MySql {
     }
 
     getMany(model, query) {
-        var queries = [];
+        var queries = [], bind = {};
         
         if (model.getField(query.getMany.field).type == 'int') {
-            let vals = intArray(query.getMany.vals);
-
-            for (let id of vals) {
+            intArray(query.getMany.vals).forEach((id) => {
                 let sql = 'SELECT ' + model.primaryKey + ' ';
                 
                 sql += this.from(model);
@@ -248,9 +246,23 @@ class MySql {
                 sql += 'WHERE ' + query.getMany.field + '=' + id;
                 
                 queries.push(sql);
-            }
+            });
         } else if (model.getField(query.getMany.field).type == 'string') {
-            //TODO
+            let cnt = 0;
+            
+            query.getMany.vals.forEach((id) => {
+                let sql = 'SELECT ' + model.primaryKey + ' ';
+                
+                sql += this.from(model);
+                
+                sql += 'WHERE ' + query.getMany.field + '=:id' + cnt;
+                
+                queries.push(sql);
+
+                bind['id' + cnt] = id;
+
+                ++cnt;
+            });
         } else {
             return Promise.reject('invalid field type for many get:' + query.getMany.field + ' - ' + model.getField(query.getMany.field).type);
         }
@@ -270,10 +282,10 @@ class MySql {
         vals = intArray(vals);
         
         let updates = [];
-        
-        for (let field in query.getFields(fieldsIndex)) {
+
+        Object.keys(query.getFields(fieldsIndex)).forEach((field) => {
             updates.push(field + '=' + field + ' + ' + parseInt(query.getField(fieldIndex, field), 10));
-        }
+        });
         
         let sql = 'UPDATE ' + model.getTableName() + ' SET ';
         
@@ -289,7 +301,7 @@ class MySql {
     incMulti(model, query) {
         let promiseRun = [];
         
-        for (let fieldsIndex = 0; fieldsIndex < query.getFieldsCnt(); ++fieldsIndex) {
+        for (let fieldsIndex = 0, n = query.getFieldsCnt(); fieldsIndex < n; ++fieldsIndex) {
             promiseRun.push(this.inc(model, query, fieldsIndex));
         }
 
@@ -304,15 +316,15 @@ class MySql {
         let sql = this.from(model, query.alias);
         
         if (query.join && Array.isArray(query.join) && query.join.length) {
-            for (let table in query.join) {
+            Object.keys(query.join).forEach((table) => {
                 sql += 'INNER JOIN ' + table + ' ON (' + query.join[table] + ') ';
-            }
+            });
         }
         
         if (query.leftJoin && Array.isArray(query.leftJoin) && query.leftJoin.length) {
-            for (let table in query.leftJoin) {
-                sql += 'LEFT JOIN ' + table + ' ON (' + query.leftTable[table] + ') ';
-            }
+            Object.keys(query.leftJoin).forEach((table) => {
+                sql += 'LEFT JOIN ' + table + ' ON (' + query.leftJoin[table] + ') ';
+            });
         }
         
         sql += this.where(query.where);
@@ -363,9 +375,9 @@ class MySql {
         let where = [], bind = {}, input = null;
 
         if (input = query.raw('=')) {
-            for (let field in input) {
+            Object.keys(input).forEach((field) => {
                 if (!model.getField(field)) {
-                    continue;
+                    return;
                 }
 
                 let vals = input[field];
@@ -377,113 +389,113 @@ class MySql {
                 if (model.getField(field).type == 'int') {
                     vals = intArray(vals);
 
-                    where.push(query.alias + '.' + field + ' IN (' + vals.join(',') + ') ');
+                    where.push(query.alias + '.' + field + ' IN (' + vals.join(',') + ')');
                 } else {
                     vals = [...new Set(vals)];
 
                     let wh = [], cnt = 1;
 
-                    for (let val of vals) {
+                    vals.forEach((val) => {
                         wh.push(':' + field + cnt);
 
                         bind[field + cnt] = val;
 
                         ++cnt;
-                    }
+                    });
 
                     where.push(field + ' IN (' + wh.join(',') + ')');
                 }
-            }
+            });
         }
 
         if (input = query.raw('%search')) {
-            for (let field in input) {
+            Object.keys(input).forEach((field) => {
                 if (!model.getField(field)) {
-                    continue;
+                    return;
                 }
 
                 where.push(query.alias + '.' + field + ' LIKE :' + field);
 
                 bind[field] = '%' + input[field];
-            }
+            });
         }
 
         if (input = query.raw('search%')) {
-            for (let field in input) {
+            Object.keys(input).forEach((field) => {
                 if (!model.getField(field)) {
-                    continue;
+                    return;
                 }
 
                 where.push(query.alias + '.' + field + ' LIKE :' + field);
 
                 bind[field] = input[field] + '%';
-            }
+            });
         }
 
         if (input = query.raw('%search%')) {
-            for (let field in input) {
+            Object.keys(input).forEach((field) => {
                 if (!model.getField(field)) {
-                    continue;
+                    return;
                 }
 
                 where.push(query.alias + '.' + field + ' LIKE :' + field);
 
                 bind[field] = '%' + input[field] + '%';
-            }
+            });
         }
 
         if (input = query.raw('>')) {
-            for (let field in input) {
+            Object.keys(input).forEach((field) => {
                 if (!model.getField(field)) {
-                    continue;
+                    return;
                 }
 
                 where.push(':' + field + '_greater < ' + query.alias + '.' + field);
 
                 bind[field + '_greater'] = parseInt(input[field], 10);
-            }
+            });
         }
 
         if (input = query.raw('>=')) {
-            for (let field in input) {
+            Object.keys(input).forEach((field) => {
                 if (!model.getField(field)) {
-                    continue;
+                    return;
                 }
 
                 where.push(':' + field + '_greater_equal <= ' + query.alias + '.' + field);
 
                 bind[field + '_greater_equal'] = parseInt(input[field], 10);
-            }
+            });
         }
 
         if (input = query.raw('<')) {
-            for (let field in input) {
+            Object.keys(input).forEach((field) => {
                 if (!model.getField(field)) {
-                    continue;
+                    return;
                 }
 
                 where.push(query.alias + '.' + field + ' < :' + field + '_less');
 
                 bind[field + '_less'] = parseInt(input[field], 10);
-            }
+            });
         }
 
         if (input = query.raw('<=')) {
-            for (let field in input) {
+            Object.keys(input).forEach((field) => {
                 if (!model.getField(field)) {
-                    continue;
+                    return;
                 }
 
                 where.push(query.alias + '.' + field + '. <= :' + field + '_less_equal');
 
                 bind[field + '_less_equal'] = parseInt(input[field], 10);
-            }
+            });
         }
 
         if (input = query.raw('modulo')) {
-            for (let field in input) {
+            Object.keys(input).forEach((field) => {
                 if (!model.getField(field)) {
-                    continue;
+                    return;
                 }
 
                 where.push(query.alias + '.' + field + ' % :' + field + '_modulo_mod = :' + field + '_modulo_val');
@@ -491,7 +503,7 @@ class MySql {
                 bind[field + '_modulo_mod'] = parseInt(input[field]['mod'], 10);
 
                 bind[field + '_modulo_val'] = parseInt(input[field]['val'], 10);
-            }
+            });
         }
 
         query.addWhere(where, bind);
@@ -508,8 +520,8 @@ class MySql {
             }
 
             let cols = [], vals = [], custom = [];
-            
-            for (let field in query.getFields(fieldsIndex)) {
+
+            Object.keys(query.getFields(fieldsIndex)).forEach((field) => {
                 cols.push(field);
                 
                 if (model.getField(field).type == 'int') {
@@ -531,11 +543,11 @@ class MySql {
                     
                     bind[field] = query.getField(fieldsIndex, field).toString();
                 }
-            }
+            });
 
-            for (let field of query.getCustomFields()) {
+            Object.keys(query.getCustomFields()).forEach((field) => {
                 custom.push(field + '=' + query.getCustom(field));
-            }
+            });
 
             if (!cols.length || !vals.length || !updates.length) {
                 return Promise.reject('missing fields');
@@ -552,10 +564,10 @@ class MySql {
             }
         } else {
             sql = 'UPDATE ' + model.getTableName() + ' SET ';
-            
-            for (let field in query.getFields(fieldsIndex)) {
+
+            Object.keys(query.getFields(fieldsIndex)).forEach((field) => {
                 if (query.getCustom(field)) {
-                    continue;
+                    return;
                 }
                 
                 if (model.getField(field).type == 'int') {
@@ -565,15 +577,15 @@ class MySql {
                     
                     bind[field] = query.getField(fieldsIndex, field).toString();
                 }
-            }
+            });
             
             sql += updates.join(',');
 
             let custom = [];
 
-            for (let field of query.getCustomFields()) {
+            Object.keys(query.getCustomFields()).forEach((field) => {
                 custom.push(field + '=' + query.getCustom(field));
-            }
+            });
             
             if (custom.length) {
                 if (updates.length) {
@@ -612,7 +624,7 @@ class MySql {
     setMulti(model, query) {
         let promiseRun = [];
         
-        for (let fieldsIndex = 0; fieldsIndex < query.getFieldsCnt(); ++fieldsIndex) {
+        for (let fieldsIndex = 0, n = query.getFieldsCnt(); fieldsIndex < n; ++fieldsIndex) {
             promiseRun.push(this.set(model, query, fieldsIndex));
         }
 
@@ -640,14 +652,14 @@ class MySql {
             vals = [...new Set(vals)];
             
             let wh = [], cnt = 1;
-            
-            for (let key in vals) {
+
+            vals.forEach((val) => {
                 wh.push(':' + model.primaryKey + cnt);
                 
-                bind[model.primaryKey + cnt] = vals[key];
+                bind[model.primaryKey + cnt] = val;
                 
                 ++cnt;
-            }
+            });
             
             sql += 'WHERE ' + model.primaryKey + ' IN (' + wh.join(',') + ')';
         }
@@ -757,10 +769,10 @@ class MySql {
                     }
                     
                     let res = {};
-                    
-                    for (let row in rows) {
-                        res[rows[row][retType]] = rows[row];
-                    }
+
+                    rows.forEach((row) => {
+                        res[row[retType]] = row;
+                    });
                     
                     return res;
                 }
@@ -792,8 +804,8 @@ class MySql {
 
     queryMulti(input, bind={}, forceEndpoint=null) {
         let queries = [], sqlConcat = [], lastQueryType = null;
-        
-        for (let sql of input) {
+
+        input.forEach((sql) => {
             let query = {};
             
             let queryType = sql.substring(0, 8).toUpperCase();
@@ -839,8 +851,7 @@ class MySql {
             sqlConcat.push(sql);
             
             lastQueryType = queryType;
-        }
-
+        });
         
         return this._query(sqlConcat.join(';'), bind, forceEndpoint).then((results) => {
             var output = [];
@@ -849,7 +860,7 @@ class MySql {
                 results = [ results ];
             }
 
-            for (let index in results) {
+            Object.keys(results).forEach((index) => {
                 let rows = results[index];
 
                 let query = queries[index];
@@ -857,7 +868,7 @@ class MySql {
                 if (query.type == 'SELECT') {
                     output.push(rows);
                     
-                    continue;
+                    return;
                 }
                 
                 if (query.type == 'INSERT') {
@@ -865,7 +876,7 @@ class MySql {
                         insertId: rows.insertId,
                     });
                     
-                    continue;
+                    return;
                 }
                 
                 if (query.type == 'DELETE') {
@@ -873,7 +884,7 @@ class MySql {
                         affectedRows: rows.affectedRows,
                     });
                     
-                    continue;
+                    return;
                 }
                 
                 if (query.type == 'UPDATE' || query.type == 'REPLACE') {
@@ -882,13 +893,11 @@ class MySql {
                         changedRows: rows.changedRows,
                     });
                     
-                    continue;
+                    return;
                 }
                 
                 output.push(null);
-                
-                continue;
-            }
+            });
             
             return output;
         });

@@ -88,10 +88,10 @@ class Model {
         if (!this.tableConfig.fields) {
             throw new Error('Missing fields information for table: ' + this.tableName);
         }
-        
-        for (let key in this.tableConfig.fields) {
+
+        Object.keys(this.tableConfig.fields).forEach((key) => {
             this.addField(key, this.tableConfig.fields[key]);
-        }
+        });
         
         if (!this.primaryKey) {
             throw new Error('A primary key must be specified for table: ' + this.tableName);
@@ -124,11 +124,11 @@ class Model {
         }
         
         if (this.tableConfig.relationships) {
-            for (let type in this.tableConfig.relationships) {
-                for (let relatedTableConfig of this.tableConfig.relationships[type]) {
+            Object.keys(this.tableConfig.relationships).forEach((type) => {
+                this.tableConfig.relationships[type].forEach((relatedTableConfig) => {
                     this.addRelationship(type, relatedTableConfig);
-                }
-            }
+                });
+            });
         }
     }
 
@@ -427,12 +427,12 @@ class Model {
             return this.getDb().getMany(this, query);
         }).then((manyResult) => {
             let ids = [];
-            
-            for (let rows of manyResult) {
-                for (let a of rows) {
+
+            manyResult.forEach((rows) => {
+                rows.forEach((a) => {
                     ids.push(a[this.primaryKey]);
-                }
-            }
+                });
+            });
             
             return this.run({
                 command: 'get',
@@ -443,18 +443,18 @@ class Model {
                 },
             }).then((result) => {
                 let data = {};
-                
-                for (let id of query.getMany.vals) {
+
+                query.getMany.vals.forEach((id) => {
                     let rows = manyResult.shift();
                     
                     let r = [];
-                    
-                    for (let row of rows) {
+
+                    rows.forEach((row) => {
                         r.push(result.data[row[this.primaryKey]]);
-                    }
+                    });
                     
                     data[id] = r;
-                }
+                });
 
                 let meta = {
                     dbName: this.dbName,
@@ -620,12 +620,12 @@ class Model {
         
         let promiseMap = {};
 
-        for (let type in this.relationships) {
-            for (let tableName in this.relationships[type]) {
+        Object.keys(this.relationships).forEach((type) => {
+            Object.keys(this.relationships[type]).forEach((tableName) => {
                 let foundFill = query.findFill(tableName);
                 
                 if (!foundFill) {
-                    continue;
+                    return;
                 }
 
                 let config = this.relationships[type][tableName];
@@ -658,8 +658,8 @@ class Model {
                     type,
                     aliasNameArr: foundFill.aliasNameArr,
                 };
-            }
-        }
+            });
+        });
 
         if (!promises.length) {
             return rows;
@@ -668,7 +668,7 @@ class Model {
         return Promise.all(promises).then((res) => {
             let fill = {}, found = false;
 
-            for (let promiseRes of res) {
+            promiseRes.forEach((res) => {
                 if (promiseRes.isError()) {
                     return Promise.reject(res);
                 }
@@ -678,7 +678,7 @@ class Model {
                     aliasNameArr: promiseMap[promiseRes.meta.tableName].aliasNameArr,
                     data: promiseRes.data,
                 };
-            }
+            });
 
             Object.keys(fill).forEach((tableName) => {
                 Object.keys(rows).forEach((rowIndex) => {
@@ -716,10 +716,10 @@ class Model {
         }
         
         let lockKey = [];
-        
-        for (let v of val) {
+
+        val.forEach((v) => {
             lockKey.push(field + ':' + v);
-        }
+        });
 
         let fn = isWrite ? 'acquireWrite' : 'acquireRead';
         
@@ -745,12 +745,12 @@ class Model {
         
         return this.cache.get(this.dbTable, field, keys).then((cacheRows) => {
             let ids = [];
-            
-            for (let key of keys) {
+
+            keys.forEach((key) => {
                 if (typeof cacheRows[key] === 'undefined') {
                     ids.push(key);
                 }
-            }
+            });
             
             return [ cacheRows, ids ];
         });

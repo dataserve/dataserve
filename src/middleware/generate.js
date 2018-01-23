@@ -5,11 +5,20 @@ const Promise = require('bluebird');
 const { camelize, randomString } = require('../util');
 
 module.exports = model => next => obj => {
+    if (ALLOWED_COMMANDS.indexOf(obj.command) === -1) {
+        return next(obj);
+    }
+
     let generate = new Generate(model);
 
     return model.log.add(`generate,generate:${obj.command}`, () => generate.run(obj))
         .then(() => next(obj));
 }
+
+const ALLOWED_COMMANDS = [
+    'add',
+    'set',
+];
 
 const ALLOWED_RULES = {
     'slug': [
@@ -48,7 +57,7 @@ class Generate {
     run({ command, query }) {
         let errors = {}, promises = [];
 
-        for (let field in this.model.getFields()) {
+        Object.keys(this.model.getFields()).forEach((field) => {
             let rules = this.model.getField(field).generate || this.model.getTableConfig('generate');
 
             if (typeof rules === 'object') {
@@ -56,17 +65,17 @@ class Generate {
             }
 
             if (typeof rules !== 'string' || !rules.length) {
-                continue;
+                return;
             }
 
-            for (let fieldIndex = 0; fieldIndex < query.getFieldsCnt(); ++fieldIndex) {
+            for (let fieldIndex = 0, n = query.getFieldsCnt(); fieldIndex < n; ++fieldIndex) {
                 let promise = this.generate(query, fieldIndex, field, rules, errors);
-            
+                
                 if (promise.length) {
                     promises = promises.concat(promise);
                 }
             }
-        }
+        });
         
         if (!promises.length) {
             promises = Promise.resolve();
@@ -76,7 +85,7 @@ class Generate {
         
         return promises.then(() => {
             if (Object.keys(errors).length) {
-                return Promise.reject('Generate failed', errors);
+                return Promise.reject('generate', { generate: errors });
             }
         });
     }
@@ -85,8 +94,8 @@ class Generate {
         let promiseRun = [];
         
         rules = rules.split('|');
-        
-        for (let split of rules) {
+
+        rules.forEach((split) => {
             let [rule, extra] = split.split(':');
 
             rule = camelize(rule);
@@ -94,7 +103,7 @@ class Generate {
             if (!ALLOWED_RULES[rule]) {
                 this.addError('_invalidRule', rule, field, val, null, errors);
                 
-                continue;
+                return;
             }
             
             let type = this.model.getFieldValidateType(field);
@@ -102,7 +111,7 @@ class Generate {
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
                 //this.addError('_invalidType', rule, field, val, null, errors);
                 
-                continue;
+                return;
             }
             
             let handler = 'generate' + rule.charAt(0).toUpperCase() + rule.slice(1);
@@ -114,7 +123,7 @@ class Generate {
                     this.addError(rule, extra, field, val, type, errors);
                 }
             }
-        }
+        });
 
         //don't run promise validations if errors already found
         if (promiseRun.length && Object.keys(errors).length) {
@@ -123,9 +132,9 @@ class Generate {
 
         let promises = [];
 
-        for (let run of promiseRun) {
+        promiseRun.forEach((run) => {
             promises.push(run[0].bind(this)(...run[1]));
-        }
+        });
         
         return promises;
     }

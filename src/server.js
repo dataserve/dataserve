@@ -296,10 +296,10 @@ cli.command('sql')
         
         startServer().then((dataserve) => {
             let schema = [];
-            
-            for (let dbName of dataserve.config.getDbNames()) {
+
+            dataserve.config.getDbNames().forEach((dbName) => {
                 schema.push(dataserve.config.getDbSchema(dbName));
-            }
+            });
             
             console.log(schema.join('\n'));
 

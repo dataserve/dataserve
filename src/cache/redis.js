@@ -42,9 +42,9 @@ class CacheRedis {
         if (keysRaw) {
             cacheKeys = keys;
         } else {
-            for (let key of keys) {
+            keys.forEach((key) => {
                 cacheKeys.push(this.key(dbTable, field, key));
-            }
+            });
         }
         
         let output = {};
@@ -54,15 +54,15 @@ class CacheRedis {
         }).then((res) => {
             let output = {};
 
-            for (let key of keys) {
+            keys.forEach((key) => {
                 let val = res.shift();
                 
                 if (val === null) {
-                    continue;
+                    return;
                 }
                 
                 output[key] = JSON.parse(val);
-            }
+            });
             
             return output;
         });
@@ -70,14 +70,14 @@ class CacheRedis {
 
     set(dbTable, field, vals) {
         let input = [];
-        
-        for (let key in vals) {
+
+        Object.keys(vals).forEach((key) => {
             let val = JSON.stringify(vals[key]);
             
             input.push(this.key(dbTable, field, key));
             
             input.push(val);
-        }
+        });
         
         return this.log.add('cache,cache:set', () => {
             return this.cache.msetAsync(input);
@@ -92,10 +92,10 @@ class CacheRedis {
         }
         
         let cacheKeys = [];
-        
-        for (let key of keys) {
+
+        keys.forEach((key) => {
             cacheKeys.push(this.key(dbTable, field, key));
-        }
+        });
         
         return this.log.add('cache,cache:del', () => {
             return this.cache.delAsync(cacheKeys);

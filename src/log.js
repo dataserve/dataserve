@@ -21,8 +21,8 @@ class Log {
         
         return func().then((res) => {
             let timeRun = (microtime.now() - timeStart) / 1000000;
-            
-            for (let type of types) {
+
+            types.forEach((type) => {
                 if (typeof this.log[type] === 'undefined') {
                     this.log[type] = {
                         entries: [],
@@ -32,7 +32,7 @@ class Log {
                 if (!this.opt.maxEntries || this.log[type].entries.length < this.opt.maxEntries) {
                     this.log[type].entries.push(timeRun);
                 }
-            };
+            });
 
             return res;
         });
@@ -46,10 +46,10 @@ class Log {
         }
         
         let res = {};
-        
-        for (let type of types) {
+
+        types.forEach((type) => {
             if (!this.log[type]) {
-                continue;
+                return;
             }
 
             this.log[type].max = Math.max(...this.log[type].entries);
@@ -69,7 +69,7 @@ class Log {
             }
             
             res[type] = this.log[type];
-        }
+        });
         
         return res;
     }

@@ -5,11 +5,20 @@ const Promise = require('bluebird');
 const { camelize } = require('../util');
 
 module.exports = model => next => obj => {
+    if (ALLOWED_COMMANDS.indexOf(obj.command) === -1) {
+        return next(obj);
+    }
+
     let validate = new Validate(model);
 
     return model.log.add(`validate,validate:${obj.command}`, () => validate.run(obj))
         .then(() => next(obj));
 }
+
+const ALLOWED_COMMANDS = [
+    'add',
+    'set',
+];
 
 const ALLOWED_RULES = {
     'email': [
@@ -109,7 +118,7 @@ class Validate {
     run({ command, query }) {
         let errors = {}, promises = [];
 
-        for (let field in this.model.getFields()) {
+        Object.keys(this.model.getFields()).forEach((field) => {
             let rules = this.model.getField(field).validate;
 
             if (typeof rules === 'object') {
@@ -117,10 +126,10 @@ class Validate {
             }
 
             if (typeof rules !== 'string' || !rules.length) {
-                continue;
+                return;
             }
 
-            for (let fieldIndex = 0; fieldIndex < query.getFieldsCnt(); ++fieldIndex) {
+            for (let fieldIndex = 0, n = query.getFieldsCnt(); fieldIndex < n; ++fieldIndex) {
                 let val = query.getField(fieldIndex, field);
                 
                 let promise = this.validate(field, val, rules, errors);
@@ -129,7 +138,7 @@ class Validate {
                     promises = promises.concat(promise);
                 }
             }
-        }
+        });
         
         if (!promises.length) {
             promises = Promise.resolve();
@@ -139,7 +148,7 @@ class Validate {
         
         return promises.then(() => {
             if (Object.keys(errors).length) {
-                return Promise.reject([ 'Validation failed', errors ]);
+                return Promise.reject([ 'validation', { validation: errors } ]);
             }
         });
     }
@@ -149,7 +158,7 @@ class Validate {
         
         rules = rules.split('|');
 
-        for (let split of rules) {
+        rules.forEach((split) => {
             let [rule, extra] = split.split(':');
 
             if (rule === 'required') {
@@ -157,7 +166,7 @@ class Validate {
                     this.addError(rule, extra, field, null, errors);
                 }
 
-                continue;
+                return;
             }
 
             if (rule === 'no') {
@@ -165,11 +174,11 @@ class Validate {
                     this.addError(rule, extra, field, null, errors);
                 }
 
-                continue;
+                return;
             }
 
             if (typeof val === 'undefined') {
-                continue;
+                return;
             }
             
             rule = camelize(rule);
@@ -177,7 +186,7 @@ class Validate {
             if (!ALLOWED_RULES[rule]) {
                 this.addError('_invalidRule', rule, field, null, errors);
                 
-                continue;
+                return;
             }
             
             let type = this.model.getFieldValidateType(field);
@@ -185,7 +194,7 @@ class Validate {
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
                 this.addError('_invalidType', rule, field, null, errors);
                 
-                continue;
+                return;
             }
             
             let handler = 'validate' + rule.charAt(0).toUpperCase() + rule.slice(1);
@@ -197,7 +206,7 @@ class Validate {
                     this.addError(rule, extra, field, type, errors);
                 }
             }
-        }
+        });
 
         //don't run promise validations if errors already found
         if (promiseRun.length && Object.keys(errors).length) {
@@ -206,9 +215,9 @@ class Validate {
 
         let promises = [];
 
-        for (let run of promiseRun) {
+        promiseRun.forEach((run) => {
             promises.push(run[0].bind(this)(...run[1]));
-        }
+        });
         
         return promises;
     }
@@ -239,7 +248,7 @@ class Validate {
     }
 
     validateExists(extra, field, val, type, errors) {
-        let [dbTable, column] = extra.split(',');
+        let [ dbTable, column ] = extra.split(',');
 
         if (!column) {
             column = field;
@@ -270,11 +279,9 @@ class Validate {
             if (!Array.isArray(val)) {
                 val = [val];
             }
-            
-            for (let v of val) {
-                if (extra.indexOf(v) === -1) {
-                    return false;
-                }
+
+            if (!val.every((v) => extra.indexOf(v) !== -1)) {
+                return false;
             }
             
             break;

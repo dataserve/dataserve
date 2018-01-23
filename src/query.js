@@ -82,34 +82,8 @@ class Query {
         }
 
         this.input = input;
-                
-        if (input.fieldsArr) {
-            if (!Array.isArray(input.fieldsArr)) {
-                input.fieldsArr = [ input.fieldsArr ];
-            }
 
-            for (let fieldObj of input.fieldsArr) {
-                let fieldsIndex = this.newField();
-                
-                for (let field in fieldObj) {
-                    this.setField(fieldsIndex, field, fieldObj[field]);
-                }
-            }
-        }
-        
-        if (input.fill) {
-            if (typeof input.fill === 'string') {
-                this.setFill(input.fill, true);
-            } else if (Array.isArray(input.fill)) {
-                input.fill.forEach(table => {
-                    this.setFill(table, true);
-                });
-            } else if (typeof input.fill === 'object') {
-                for (let table in input.fill) {
-                    this.setFill(table, input.fill[table]);
-                }
-            }
-        }
+        this.buildFill(input);
         
         if (input.outputStyle) {
             this.addOutputStyle(input.outputStyle);
@@ -120,21 +94,29 @@ class Query {
         }
 
         switch (command) {
+        case 'add':
+            this.buildFields(input);
+            
+            break;
         case 'get':
             if (this.primaryKey) {
                 this.setGet(this.model.getPrimaryKey(), this.primaryKey);
             } else {
-                for (let field in input) {
+                Object.keys(input).forEach((field) => {
                     this.setGet(field, input[field]);
-                }
+                });
             }
             
             break;
         case 'getMany':
-            for (let field in input) {
+            Object.keys(input).forEach((field) => {
                 this.setGetMany(field, input[field]);
-            }
+            });
             
+            break;
+        case 'inc':
+            this.buildFields(input);
+
             break;
         case 'lookup':
             if (input.alias) {
@@ -144,15 +126,15 @@ class Query {
             }
 
             if (input.join) {
-                for (let table in input.join) {
+                Object.keys(input.join).forEach((table) => {
                     this.addJoin(table, input.join[table]);
-                }
+                });
             }
             
             if (input.leftJoin) {
-                for (let table in input.leftJoin) {
+                Object.keys(input.leftJoin).forEach((table) => {
                     this.addLeftJoin(table, input.leftJoin[table]);
-                }
+                });
             }
             
             if (input.where) {
@@ -173,16 +155,54 @@ class Query {
 
             break;
         case 'set':
+            this.buildFields(input);
+            
             if (input.custom) {
-                for (let field in input.custom) {
+                Object.keys(input.custom).forEach((field) => {
                     this.addCustom(field, input.custom[field]);
-                }
+                });
             }
 
             break;
         }
 
         return this;
+    }
+
+    buildFill(input) {
+        if (!input.fill) {
+            return;
+        }
+        
+        if (typeof input.fill === 'string') {
+            this.setFill(input.fill, true);
+        } else if (Array.isArray(input.fill)) {
+            input.fill.forEach(table => {
+                this.setFill(table, true);
+            });
+        } else if (typeof input.fill === 'object') {
+            Object.keys(input.fill).forEach((table) => {
+                this.setFill(table, input.fill[table]);
+            });
+        }
+    }
+    
+    buildFields(input) {
+        if (!input.fieldsArr) {
+            return;
+        }
+        
+        if (!Array.isArray(input.fieldsArr)) {
+            input.fieldsArr = [ input.fieldsArr ];
+        }
+
+        input.fieldsArr.forEach((fieldObj) => {
+            let fieldsIndex = this.newField();
+
+            Object.keys(fieldObj).forEach((field) => {
+                this.setField(fieldsIndex, field, fieldObj[field]);
+            });
+        });
     }
 
     parseCommandInput(command, input) {
@@ -216,8 +236,8 @@ class Query {
                     let fieldsArr = input.fields;
                 
                     let primaryKeys = [];
-                
-                    for (let fields of fieldsArr) {
+
+                    fieldsArr.forEach((fields) => {
                         let primaryKey = fields[this.model.getPrimaryKey()];
 
                         if (typeof primaryKey === 'undefined') {
@@ -225,7 +245,7 @@ class Query {
                         }
                     
                         primaryKeys.push(primaryKey);
-                    }
+                    });
 
                     input.fieldsArr = fieldsArr;
 
@@ -476,12 +496,10 @@ class Query {
         } else if (!style.length) {
             return;
         }
-        
-        for (let st of style) {
-            if (!this.validOutputStyle(st)) {
-                continue;
-            }
-        }
+
+        style = style.filter((st) => {
+            return this.validOutputStyle(st);
+        });
         
         this.outputStyle = this.outputStyle.concat(style);
     }
@@ -490,19 +508,12 @@ class Query {
         if (!Array.isArray(style)) {
             style = [ style ];
         }
+
+        style = style.filter((st) => {
+            return this.validOutputStyle(st);
+        });
         
-        //CAN SET TO EMPTY ARRAY
-        let styleValid = [];
-        
-        for (let st of style) {
-            if (!this.validOutputStyle(st)) {
-                continue;
-            }
-            
-            styleValid.push(st);
-        }
-        
-        this.outputStyle = styleValid;
+        this.outputStyle = style;
     }
 
     isOutputStyle(style) {

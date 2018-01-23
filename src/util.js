@@ -41,25 +41,25 @@ module.exports.loadJson = function(path) {
 module.exports.randomString = function(length, chars) {
     let mask = '';
     
-    if (chars.indexOf('a') > -1) {
+    if (-1 < chars.indexOf('a')) {
         mask += 'abcdefghijklmnopqrstuvwxyz';
     }
     
-    if (chars.indexOf('A') > -1) {
+    if (-1 < chars.indexOf('A')) {
         mask += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     }
     
-    if (chars.indexOf('#') > -1) {
+    if (-1 < chars.indexOf('#')) {
         mask += '0123456789';
     }
     
-    if (chars.indexOf('!') > -1) {
+    if (-1 < chars.indexOf('!')) {
         mask += '~`!@#$%^&*()_+-={}[]:";\'<>?,./|\\';
     }
     
     let result = '';
     
-    for (var i = length; i > 0; --i) {
+    for (var i = length; 0 < i; --i) {
         result += mask[Math.floor(Math.random() * mask.length)];
     }
     
