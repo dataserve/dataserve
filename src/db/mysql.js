@@ -545,7 +545,7 @@ class MySql {
                 }
             });
 
-            Object.keys(query.getCustomFields()).forEach((field) => {
+            query.getCustomFields().forEach((field) => {
                 custom.push(field + '=' + query.getCustom(field));
             });
 
