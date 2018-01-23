@@ -233,12 +233,12 @@ class Query {
 
                     delete(input.fields);
                 } else {
-                    input[this.model.getPrimaryKey()] = [ input.fields[this.model.getPrimaryKey()] ];
-                    
-                    if (typeof input[this.model.getPrimaryKey()] === 'undefined') {
+                    if (typeof input.fields[this.model.getPrimaryKey()] === 'undefined') {
                         throw new Error('primary key missing');
                     }
 
+                    input[this.model.getPrimaryKey()] = input.fields[this.model.getPrimaryKey()];
+                    
                     input.fieldsArr = [ input.fields ];
                 
                     delete(input.fields);

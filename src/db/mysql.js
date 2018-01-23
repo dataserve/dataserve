@@ -588,11 +588,19 @@ class MySql {
             sql += ' ';
             
             if (model.getField(model.primaryKey).type == 'int') {
-                sql += 'WHERE ' + model.primaryKey + '=' + parseInt(query.primaryKey[fieldsIndex], 10);
+                if (Array.isArray(query.primaryKey)) {
+                    sql += 'WHERE ' + model.primaryKey + '=' + parseInt(query.primaryKey[fieldsIndex], 10);
+                } else {
+                    sql += 'WHERE ' + model.primaryKey + '=' + parseInt(query.primaryKey, 10);
+                }
             } else {
                 sql += 'WHERE ' + model.primaryKey + '=:' + model.primaryKey;
-                
-                bind[model.primaryKey] = query.primaryKey[fieldsIndex];
+
+                if (Array.isArray(query.primaryKey)) {
+                    bind[model.primaryKey] = query.primaryKey[fieldsIndex];
+                } else {
+                    bind[model.primaryKey] = query.primaryKey;
+                }
             }
         }
         
