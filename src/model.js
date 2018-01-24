@@ -668,7 +668,7 @@ class Model {
         return Promise.all(promises).then((res) => {
             let fill = {}, found = false;
 
-            promiseRes.forEach((res) => {
+            res.forEach((promiseRes) => {
                 if (promiseRes.isError()) {
                     return Promise.reject(res);
                 }
