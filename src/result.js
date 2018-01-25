@@ -1,6 +1,6 @@
 'use strict';
 
-const { Result } = require('../../js-client');
+const { Result } = require('dataserve-client');
 
 function createResult(status=null, data=null, meta={}) {
     meta.generatedBy = 'dataserve';

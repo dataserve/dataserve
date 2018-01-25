@@ -12,7 +12,7 @@
     "bluebird": "^3.5.0",
     "cluster-readwrite-lock": "0.0.1",
     "commander": "^2.11.0",
-    "dataserve-client": "^1.0.2",
+    "dataserve-client": "^1.0.3",
     "debug": "^2.6.8",
     "dotenv": "^4.0.0",
     "ip": "^1.1.5",
@@ -51,7 +51,7 @@
     "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/.bin/codacy-coverage && rm -rf ./coverage",
     "test": "mocha"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "devDependencies": {
     "chai": "^4.1.2",
     "mocha": "^4.0.1"
