@@ -74,7 +74,7 @@ class Encrypt {
         
         return promises.then(() => {
             if (Object.keys(errors).length) {
-                return Promise.reject('encrypt', { encrypt: errors });
+                return Promise.reject([ 'encrypt', { encrypt: errors } ]);
             }
         });
     }

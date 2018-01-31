@@ -85,7 +85,7 @@ class Generate {
         
         return promises.then(() => {
             if (Object.keys(errors).length) {
-                return Promise.reject('generate', { generate: errors });
+                return Promise.reject([ 'generate', { generate: errors } ]);
             }
         });
     }
@@ -101,7 +101,7 @@ class Generate {
             rule = camelize(rule);
             
             if (!ALLOWED_RULES[rule]) {
-                this.addError('_invalidRule', rule, field, val, null, errors);
+                this.addError('_invalidRule', rule, field, null, errors);
                 
                 return;
             }
@@ -109,7 +109,7 @@ class Generate {
             let type = this.model.getFieldValidateType(field);
            
             if (ALLOWED_RULES[rule].indexOf(type) === -1) {
-                //this.addError('_invalidType', rule, field, val, null, errors);
+                //this.addError('_invalidType', rule, field, null, errors);
                 
                 return;
             }
@@ -120,7 +120,7 @@ class Generate {
                 promiseRun.push([this[handler], [extra, query, fieldIndex, field, type, errors]]);
             } else {
                 if (this[handler](extra, query, fieldIndex, field, type) === false) {
-                    this.addError(rule, extra, field, val, type, errors);
+                    this.addError(rule, extra, field, type, errors);
                 }
             }
         });
@@ -139,7 +139,7 @@ class Generate {
         return promises;
     }
 
-    addError(rule, extra, field, val, type, errors){
+    addError(rule, extra, field, type, errors){
         let reason = REASON[rule];
 
         reason = reason.replace(':field', field)
@@ -155,8 +155,8 @@ class Generate {
         };
     }
 
-    buildSlug(extra, query, fieldIndex, field, type, cnt) {
-        let [ slugType, slugOpt ] = extra.split(',');
+    buildSlug(extra, query, fieldIndex, field, type, errors, cnt) {
+        let [ slugType, slugOpt, slugOptExtra ] = extra.split(',');
         
         if (slugType === 'alpha') {
             return randomString(slugOpt, 'A');
@@ -167,16 +167,24 @@ class Generate {
         }
         
         if (slugType === 'field') {
-            if (!query.getField(fieldIndex, slugOpt)) {
-                this.addError('missingField', extra, field, val, type, errors);
+            let otherField = slugOpt;
+
+            let requireExist = slugOptExtra;
+
+            if (requireExist === 'true' && typeof query.getField(fieldIndex, field) === 'undefined') {
+                return null;
+            }
+            
+            if (!query.getField(fieldIndex, otherField)) {
+                this.addError('missingField', extra, field, type, errors);
                 
-                return '';
+                return null;
             }
 
-            let val = query.getField(fieldIndex, slugOpt);
+            let val = query.getField(fieldIndex, otherField);
 
             if (cnt && 1 < cnt) {
-                val += ' ' + cnt;
+                val += ' ' + (cnt - 1);
             }
         
             let slug = val
@@ -192,7 +200,7 @@ class Generate {
         }
     }
     
-    generateSlug(extra, query, fieldIndex, field, type, cnt) {
+    generateSlug(extra, query, fieldIndex, field, type) {
         let slug = this.buildSlug(extra, query, fieldIndex, field, type);
 
         if (typeof slug !== 'undefined' && typeof slug !== null) {
@@ -200,8 +208,12 @@ class Generate {
         }
     }
 
-    generateSlugUnique(extra, query, fieldIndex, field, type, cnt=0) {
-        let val = this.buildSlug(extra, query, fieldIndex, field, type, cnt);
+    generateSlugUnique(extra, query, fieldIndex, field, type, errors, cnt=0) {
+        let val = this.buildSlug(extra, query, fieldIndex, field, type, errors, cnt);
+
+        if (val === null) {
+            return;
+        }
         
         let input = {
             '=': {
@@ -211,16 +223,16 @@ class Generate {
             page: 1,
             limit: 1
         };
-        
+
         return this.model.run({ command: 'lookup', input }).then(res => {
             if (res.data.length) {
-                if (10 <= cnt) {
-                    this.addError('slugUnique', extra, field, val, type, errors);
+                if (100 <= cnt) {
+                    this.addError('slugUnique', extra, field, type, errors);
                     
                     return;
                 }
                 
-                return this.generateSlugUnique(extra, query, fieldIndex, field, type, cnt + 1);
+                return this.generateSlugUnique(extra, query, fieldIndex, field, type, errors, cnt + 1);
             }
             
             query.setField(fieldIndex, field, val);
