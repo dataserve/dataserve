@@ -44,6 +44,8 @@ class Query {
             field: null,
             vals: null,
         };
+
+        this.incSet = [];
         
         this.primaryKey = null;
         
@@ -74,7 +76,7 @@ class Query {
 
     build(command, input) {
         this.command = command;
-        
+       
         input = this.parseCommandInput(command, input);
 
         if (typeof input !== 'object') {
@@ -155,7 +157,7 @@ class Query {
 
             break;
         case 'set':
-            this.buildFields(input);
+            this.buildSet(input);
             
             if (input.custom) {
                 Object.keys(input.custom).forEach((field) => {
@@ -205,9 +207,53 @@ class Query {
         });
     }
 
+    buildIncSet(input) {
+        if (!input.fieldsArr || !input.fieldsArr.length) {
+            return;
+        }
+
+        //find primary/unique key for each fields input
+        this.fieldsArr.forEach((fields, index) => {
+            if (fields[this.model.getPrimaryKey()]) {
+                this.setIncSet(index, this.model.getPrimaryKey(), {
+                    [this.model.getPrimaryKey()] : fields[this.model.getPrimaryKey()],
+                });
+
+                return;
+            }
+
+            let uniqueArr = this.model.getUnique();
+
+            for (let i = 0, n = uniqueArr.length; i < n; ++i) {
+                let keyFields = uniqueArr[i];
+
+                keyFields = keyFields.split(':');
+
+                //a value exist for every key in unique key?
+                let valid = keyFields.every((keyField) => {
+                    return fields[keyField];
+                });
+                
+                if (valid) {
+                    this.setIncSet(index, keyFields, keyFields.reduce((obj, keyField) => {
+                        obj[keyField] = fields[keyField];
+                        
+                        return obj;
+                    }, {}));
+
+                    return;
+                }
+            }
+                               
+            throw new Error('primary/unique key missing in fieldsArr');
+        });
+    }
+
     parseCommandInput(command, input) {
         switch (command) {
         case 'add':
+        case 'inc':
+        case 'set':
             if (Array.isArray(input)) {
                 input = {
                     fieldsArr: input,
@@ -222,49 +268,6 @@ class Query {
                 delete input.fields;
             }
 
-            break;
-        case 'inc':
-        case 'set':
-            if (Array.isArray(input)) {
-                input = {
-                    fields: input,
-                };
-            }
-
-            if (input.fields) {
-                if (Array.isArray(input.fields)) {
-                    let fieldsArr = input.fields;
-                
-                    let primaryKeys = [];
-
-                    fieldsArr.forEach((fields) => {
-                        let primaryKey = fields[this.model.getPrimaryKey()];
-
-                        if (typeof primaryKey === 'undefined') {
-                            throw new Error('primary key missing in fieldsArr');
-                        }
-                    
-                        primaryKeys.push(primaryKey);
-                    });
-
-                    input.fieldsArr = fieldsArr;
-
-                    input[this.model.getPrimaryKey()] = primaryKeys;
-
-                    delete(input.fields);
-                } else {
-                    if (typeof input.fields[this.model.getPrimaryKey()] === 'undefined') {
-                        throw new Error('primary key missing');
-                    }
-
-                    input[this.model.getPrimaryKey()] = input.fields[this.model.getPrimaryKey()];
-                    
-                    input.fieldsArr = [ input.fields ];
-                
-                    delete(input.fields);
-                }
-            }
-            
             break;
         case 'get':
         case 'remove':
@@ -336,6 +339,21 @@ class Query {
 
     hasGetMany() {
         return this.getMany.field ? true : false;
+    }
+
+    getIncSet(index) {
+        return this.incSet[index];
+    }
+    
+    hasIncSet(index) {
+        return typeof this.incSet[index] !== 'undefined';
+    }
+
+    setIncSet(index, fields, vals) {
+        this.incSet[index] = {
+            fields: fields,
+            valsObj: valsObj,
+        };
     }
 
     getFieldsCnt() {

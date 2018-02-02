@@ -516,7 +516,8 @@ class MySql {
             let primaryKey = query.getField(fieldsIndex, model.primaryKey);
 
             if (typeof primaryKey === 'undefined') {
-                return Promise.reject('Missing primary key on setInsert table');
+                //TODO: CAN BE UNIQUE KEY INSTEAD OF PRIMARY
+                //return Promise.reject('Missing primary key on setInsert table');
             }
 
             let cols = [], vals = [], custom = [];

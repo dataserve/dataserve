@@ -97,14 +97,6 @@ class Model {
             throw new Error('A primary key must be specified for table: ' + this.tableName);
         }
         
-        if (typeof this.tableConfig.setInsert !== 'undefined') {
-            this.setInsert = this.tableConfig.setInsert;
-            
-            if (this.setInsert && !this.isFillable(this.primaryKey)) {
-                throw new Error('Primary key must be fillable when `setInsert` is set to true');
-            }
-        }
-
         if (this.tableConfig.middleware) {
             this.addMiddleware(this.tableConfig.middleware);
         }
@@ -120,6 +112,20 @@ class Model {
                 if (typeof this.tableConfig.timestamps.modified !== 'undefined') {
                     this.timestamps.modified = this.tableConfig.timestamps.modified;
                 }
+            }
+        }
+
+        if (this.tableConfig.keys) {
+            Object.keys(this.tableConfig.keys).forEach((name) => {
+                this.addKey(this.tableConfig.keys[name]);
+            });
+        }
+
+        if (typeof this.tableConfig.setInsert !== 'undefined') {
+            this.setInsert = this.tableConfig.setInsert;
+            
+            if (this.setInsert && !this.isFillable(this.primaryKey) && this.unique.length === 0) {
+                throw new Error('Primary key must be fillable when `setInsert` is set to true and no unique keys exist');
             }
         }
         
@@ -140,6 +146,14 @@ class Model {
         return this.tableConfig;
     }
 
+    getPrimaryKey() {
+        return this.primaryKey;
+    }
+    
+    isPrimaryKey(field) {
+        return this.primaryKey === field;
+    }
+    
     getFields() {
         return this.fields;
     }
@@ -185,12 +199,13 @@ class Model {
         }
     }
 
-    getPrimaryKey() {
-        return this.primaryKey;
-    }
-    
-    isPrimaryKey(field) {
-        return this.primaryKey === field;
+    addKey(key) {
+        switch (key.type) {
+        case 'unique':
+            this.addUnique(key.fields, true);
+
+            break;
+        }
     }
     
     isFillable(field) {
@@ -205,15 +220,23 @@ class Model {
         this.fillable = [ ...new Set(this.fillable.concat(arr)) ];
     }
 
+    getUnique() {
+        return this.unique;
+    }
+    
     isUnique(field) {
         return this.unique.indexOf(field) !== -1;
     }
     
-    addUnique(arr) {
+    addUnique(arr, isMulti=false) {
+        if (isMulti) {
+            arr = arr.sort().join(':');
+        }
+
         if (!Array.isArray(arr)) {
             arr = [ arr ];
         }
-        
+
         this.unique = [ ...new Set(this.unique.concat(arr)) ];
     }
 
@@ -547,8 +570,8 @@ class Model {
     }
 
     set(query) {
-        if (!query.primaryKey) {
-            return Promise.reject('missing primary key');
+        if (!query.primaryKey && !query.uniqueKey) {
+            return Promise.reject('missing primary/unique key');
         }
         
         if (!query.getFieldsCnt()) {
@@ -561,7 +584,7 @@ class Model {
             return this.log.add(`model,model:${setFunc}`, () => {
                 return this.getDb()[setFunc](this, query);
             }).then(() => {
-                if (this.cache) {
+                if (this.cache && query.primaryKey) {
                     return this.cacheDeletePrimary(query.primaryKey);
                 }
             });
