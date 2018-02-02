@@ -90,7 +90,7 @@ const PROMISE_RULES = [
 ];
 
 const REASON = {
-    '_invalidRule': 'Invalid rule :rule for field :field',
+    '_invalidRule': 'Invalid rule :extra for field :field',
     '_invalidType': 'Invalid value type :type for field :field',
     'email': ':field must be a valid email address',
     'exists': ':field does not exist',
@@ -227,7 +227,8 @@ class Validate {
 
         reason = reason.replace(':field', field)
             .replace(':extra', extra)
-            .replace(':type', type);
+            .replace(':type', type)
+            .replace(':rule', rule);
 
         if (rule.substr(0, 1) === '_') {
             rule = extra;

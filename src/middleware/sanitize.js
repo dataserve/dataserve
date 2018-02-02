@@ -39,7 +39,7 @@ const ALLOWED_RULES = {
 const PROMISE_RULES = [];
 
 const REASON = {
-    '_invalidRule': 'Invalid rule :rule for field :field',
+    '_invalidRule': 'Invalid rule :extra for field :field',
     '_invalidType': 'Invalid value type :type for field :field',
     'toArray': 'Could not convert value to array for field :field',
     'toDate': 'Could not convert value to date for field :field',
@@ -145,7 +145,9 @@ class Sanitize {
         let reason = REASON[rule];
 
         reason = reason.replace(':field', field)
-            .replace(':extra', extra);
+            .replace(':extra', extra)
+            .replace(':type', type)
+            .replace(':rule', rule);
 
         if (rule.substr(0, 1) === '_') {
             rule = extra;
@@ -176,7 +178,11 @@ class Sanitize {
         case 'Time':
         case 'Year':
             if (typeof val !== 'object' || typeof val.getMonth !== 'function') {
-                val = new Date(val);
+                if (typeof val === 'number') {
+                    val = new Date(val * 1000);
+                } else {
+                    val = new Date(val);
+                }
 
                 if (isNaN(val.getTime())) {
                     this.addError('toDate', extra, field, type, errors);

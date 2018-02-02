@@ -18,6 +18,8 @@ class MySql {
         
         this.replicated = false;
 
+        this.selectFields = this.selectFields.bind(this);
+
         if (config.write && config.read) {
             this.configReplicated(dbName, config);
             
@@ -669,13 +671,25 @@ class MySql {
         });
     }
 
+    selectFields(model) {
+        return (field) => {
+            let type = this.validateType(model.getField(field).type);
+
+            if (type === 'DateTime') {
+                return `UNIX_TIMESTAMP(${field})`;
+            }
+
+            return field;
+        };
+    }
+    
     select(model, raw=''){
         if (raw) {
             return 'SELECT ' + raw + ' ';
         }
         
         return 'SELECT '
-            + Object.keys(model.fields).join(',')
+            + Object.keys(model.fields).map(this.selectFields(model)).join(',')
             + (model.timestamps && model.timestamps.created ? ',UNIX_TIMESTAMP(' + model.timestamps.created.name + ') AS ' + model.timestamps.created.name : '')
             + (model.timestamps && model.timestamps.modified ? ',UNIX_TIMESTAMP(' + model.timestamps.modified.name + ') AS ' + model.timestamps.modified.name : '')
             + ' ';
@@ -776,6 +790,7 @@ class MySql {
                     
                     return res;
                 }
+
                 return rows;
             }
             

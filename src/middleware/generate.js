@@ -40,7 +40,7 @@ const PROMISE_RULES = [
 ];
 
 const REASON = {
-    '_invalidRule': 'Invalid rule :rule for field :field',
+    '_invalidRule': 'Invalid rule :extra for field :field',
     '_invalidType': 'Invalid value type :type for field :field',
     'missingField': 'Target field :extra is not populated for field :field',
     'slugUnique': 'Unable to generate unique value for :field',
@@ -143,7 +143,9 @@ class Generate {
         let reason = REASON[rule];
 
         reason = reason.replace(':field', field)
-            .replace(':extra', extra);
+            .replace(':extra', extra)
+            .replace(':type', type)
+            .replace(':rule', rule);
 
         if (rule.substr(0, 1) === '_') {
             rule = extra;
