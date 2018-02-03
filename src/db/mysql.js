@@ -676,7 +676,7 @@ class MySql {
             let type = this.validateType(model.getField(field).type);
 
             if (type === 'DateTime') {
-                return `UNIX_TIMESTAMP(${field}) as ${field}`;
+                return `UNIX_TIMESTAMP(${field}) AS ${field}`;
             }
 
             return field;
