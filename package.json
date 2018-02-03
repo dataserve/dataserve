@@ -51,7 +51,7 @@
     "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/.bin/codacy-coverage && rm -rf ./coverage",
     "test": "mocha"
   },
-  "version": "1.0.1",
+  "version": "1.0.2",
   "devDependencies": {
     "chai": "^4.1.2",
     "mocha": "^4.0.1"
