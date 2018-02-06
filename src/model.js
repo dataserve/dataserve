@@ -381,7 +381,7 @@ class Model {
             
             return Object.assign(cacheRows, rows);
         }).then((rows) => {
-            return this.fill(query, rows)
+            return this.fill(query, rows);
         }).then((rows) => {
             let meta = {
                 dbName: this.dbName,
@@ -668,11 +668,15 @@ class Model {
         return Promise.all(promises).then((res) => {
             let fill = {}, found = false;
 
+            let errored = res.find((promiseRes) => {
+                return promiseRes.isError();
+            });
+
+            if (errored) {
+                return Promise.reject(errored);
+            }
+            
             res.forEach((promiseRes) => {
-                if (promiseRes.isError()) {
-                    return Promise.reject(res);
-                }
-                
                 fill[promiseRes.meta.tableName] = {
                     type: promiseMap[promiseRes.meta.tableName].type,
                     aliasNameArr: promiseMap[promiseRes.meta.tableName].aliasNameArr,

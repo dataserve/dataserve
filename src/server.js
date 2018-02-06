@@ -66,6 +66,10 @@ class Server {
         };
         
         this.lock = 1 < this.workers ? new ClusterReadwriteLock(cluster, opt) : new ReadwriteLock(opt);
+
+        process.on("unhandledRejection", function(reason, promise) {
+            console.log("Unhandled Rejection at: Promise ", promise, " reason: ", reason);
+        });
     }
 
     start() {
