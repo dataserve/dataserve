@@ -633,7 +633,17 @@ class Model {
                 let idsTmp = ids;
 
                 if (config.localColumnName !== 'id') {
-                    idsTmp = Object.values(rows).map(row => row[config.localColumnName]);
+                    idsTmp = Object.values(rows).reduce((acc, row) => {
+                        if (typeof row[config.localColumnName] !== 'undefined') {
+                            acc.push(row[config.localColumnName]);
+                        }
+
+                        return acc;
+                    }, []);
+                }
+
+                if (!idsTmp.length) {
+                    return;
                 }
 
                 let input = {

@@ -966,10 +966,12 @@ class MySql {
                     connection.release();
 
                     if (error) {
-                        return reject(error.message);
+                        reject(error.message);
+                        
+                        return;
                     }
 
-                    return resolve(results);
+                    resolve(results);
                 });
             });
         });

@@ -67,8 +67,8 @@ class Server {
         
         this.lock = 1 < this.workers ? new ClusterReadwriteLock(cluster, opt) : new ReadwriteLock(opt);
 
-        process.on("unhandledRejection", function(reason, promise) {
-            console.log("Unhandled Rejection at: Promise ", promise, " reason: ", reason);
+        process.on('unhandledRejection', (reason, promise) => {
+            this.debug('Unhandled Rejection at: Promise ', promise, ' reason: ', reason);
         });
     }
 
@@ -92,8 +92,10 @@ class Server {
                 cluster.on('message', (worker, msg, handle) => {
                     if (msg === 'WORKER-ONLINE') {
                         ++onlineCnt;
+                        
                         if (!resolved && onlineCnt == this.workers) {
                             resolved = true;
+                            
                             resolve();
                         }
                     }
@@ -213,37 +215,35 @@ class Server {
 
         this.debug('CALL:', dbTableCommand, payload);
 
-        this.dataserve.run(dbTableCommand, payload)
-            .then((result) => {
-                let timeRun = (microtime.now() - timeStart) / 1000000;
-                
-                if (typeof result === 'undefined' || !(result instanceof Result)) {
-                    result = createResult(false, 'Unknown error 1', { commandUuid });
-                    
-                    response.encode(result.toJson());
-                    
-                    return;
-                }
-
-                if (result.isSuccess()) {
-                    this.debug(timeRun, 'CALL SUCCESS', dbTableCommand);
-                } else {
-                    this.debug(timeRun, 'CALL FAIL', result.toObject());//, util.inspect(output, false, null));
-                }
-
-                result.meta.commandUuid = commandUuid;
+        this.dataserve.run(dbTableCommand, payload).then((result) => {
+            let timeRun = (microtime.now() - timeStart) / 1000000;
+            
+            if (typeof result === 'undefined' || !(result instanceof Result)) {
+                result = createResult(false, 'Unknown error 1', { commandUuid });
                 
                 response.encode(result.toJson());
-            })
-            .catch(err => {
-                this.debug('CALL FAIL:', err);
-
-                let result = createResult(false, 'Unknown error 2', { commandUuid });
                 
-                response.encode(result.toJson());
-
                 return;
-            });
+            }
+
+            if (result.isSuccess()) {
+                this.debug(timeRun, 'CALL SUCCESS', dbTableCommand);
+            } else {
+                this.debug(timeRun, 'CALL FAIL', result.toObject());//, util.inspect(output, false, null));
+            }
+
+            result.meta.commandUuid = commandUuid;
+            
+            response.encode(result.toJson());
+        }).catch((err) => {
+            this.debug('CALL FAIL:', err);
+
+            let result = createResult(false, 'Unknown error 2', { commandUuid });
+            
+            response.encode(result.toJson());
+
+            return;
+        });
     }
 
     handleCommandDoc(input, command, commandUuid, response) {
