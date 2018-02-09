@@ -361,7 +361,7 @@ class MySql {
         }
         
         return this.log.add('db,db:lookup', () => {
-            return this.query(sqlRows, query.bind, model.primaryKey)
+            return this.query(sqlRows, query.bind);
         }).then((rows) => {
             if (query.isOutputStyle('INCLUDE_FOUND')) {
                 return this.log.add('db,db:lookup:found', () => {

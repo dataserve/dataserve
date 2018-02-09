@@ -400,7 +400,6 @@ class Model {
                 return [ rows, meta ];
             }
 
-            
             return [ query.get.vals.map(key => rows[key]), meta ];
         });
     }
@@ -512,23 +511,15 @@ class Model {
             meta.pages = found !== null ? Math.ceil(found / query.limit.limit) : null;
             
             meta.found = found;
-            
-            let ids = rows ? Object.keys(rows) : [];
+
+            let ids = rows.map((row) => row[this.primaryKey]);
 
             if (!ids.length) {
-                if (query.isOutputStyle('BY_ID')) {
-                    return Promise.reject(createResult(true, {}, meta));
-                }
-                
                 return Promise.reject(createResult(true, [], meta));
             }
                 
             if (query.isOutputStyle('LOOKUP_RAW')) {
-                if (query.isOutputStyle('BY_ID')) {
-                    return Promise.reject(createResult(true, rows, meta));
-                }
-                
-                return Promise.reject(createResult(true, Object.values(rows), meta));
+                return Promise.reject(createResult(true, rows, meta));
             }
 
             return this.run({
@@ -536,7 +527,6 @@ class Model {
                 input: {
                     [this.primaryKey]: ids,
                     fill: query.fill,
-                    outputStyle: query.isOutputStyle('BY_ID') ? 'BY_ID' : null,
                 },
             }).then(res => {
                 res.meta = Object.assign({}, res.meta, meta);
