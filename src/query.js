@@ -118,6 +118,7 @@ class Query {
             this.buildFields(input);
 
             break;
+        case 'getCount':
         case 'lookup':
             if (input.alias) {
                 this.setAlias(input.alias);
