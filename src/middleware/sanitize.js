@@ -174,9 +174,25 @@ class Sanitize {
             
             break;
         case 'DateTime':
+            if (type === 'DateTime' && val === '0000-00-00 00:00:00') {
+                break;
+            }
+            //pass thru
         case 'Date':
+            if (type === 'Date' && val === '0000-00-00') {
+                break;
+            }
+            //pass thru
         case 'Time':
+            if (type === 'Time' && val === '00:00:00') {
+                break;
+            }
+            //pass thru
         case 'Year':
+            if (type === 'Year' && val === '0000') {
+                break;
+            }
+            
             if (typeof val !== 'object' || typeof val.getMonth !== 'function') {
                 if (typeof val === 'number') {
                     val = new Date(val * 1000);
