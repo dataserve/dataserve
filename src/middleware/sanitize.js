@@ -21,6 +21,9 @@ const ALLOWED_COMMANDS = [
 ];
 
 const ALLOWED_RULES = {
+    'hexcolor': [
+        'String',
+    ],
     'trim': [
         'String',
     ],
@@ -41,6 +44,7 @@ const PROMISE_RULES = [];
 const REASON = {
     '_invalidRule': 'Invalid rule :extra for field :field',
     '_invalidType': 'Invalid value type :type for field :field',
+    'hexcolor': 'Invalid hex color for field :field',
     'toArray': 'Could not convert value to array for field :field',
     'toDate': 'Could not convert value to date for field :field',
     'toInteger': 'Could not convert value to integer for field :field',
@@ -159,6 +163,21 @@ class Sanitize {
         };
     }
 
+    sanitizeHexcolor(extra, query, fieldIndex, field, val, type) {
+        console.log('SANITIZE COLOR', fieldIndex, field, val, type);
+        let color = val.replace(/[^0-9a-fA-F]/g, '');
+
+        if (color.length !== 3 && color.length !== 6) {
+            return false;
+        }
+
+        color = '#' + color;
+
+        query.setField(fieldIndex, field, color);
+        
+        return true;
+    }
+    
     sanitizeTrim(extra, query, fieldIndex, field, val, type) {
         query.setField(fieldIndex, field, String(val).trim());
         
