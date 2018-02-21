@@ -29,6 +29,7 @@
     "sql-schema-modulizer": "^1.2.1",
     "type-of-is": "^3.5.1",
     "uuid": "^3.1.0",
+    "valid-url": "^1.0.9",
     "validator": "^8.0.0"
   },
   "homepage": "https://github.com/dataserve/dataserve",

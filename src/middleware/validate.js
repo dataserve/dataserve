@@ -1,6 +1,7 @@
 'use strict';
 
 const Promise = require('bluebird');
+const validUrl = require('valid-url');
 
 const { camelize } = require('../util');
 
@@ -82,6 +83,15 @@ const ALLOWED_RULES = {
         'Integer',
         'Number',
     ],
+    'url': [
+        'String',
+    ],
+    'urlHttp': [
+        'String',
+    ],
+    'urlHttps': [
+        'String',
+    ],
 };
 
 const PROMISE_RULES = [
@@ -103,6 +113,9 @@ const REASON = {
     'no': ':field not allowed',
     'required': ':field is required',
     'unique': ':field already exists',
+    'url': ':field must be a valid web uri',
+    'urlHttp': ':field must be a valid http web uri',
+    'urlHttps': ':field must be a valid https web uri',
 };
 
 class Validate {
@@ -442,4 +455,29 @@ class Validate {
         
         return true;
     }
+
+    validateUrl(extra, field, val, type) {
+        if (!validUrl.isWebUri(val)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    validateUrlHttp(extra, field, val, type) {
+        if (!validUrl.isHttpUri(val)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    validateUrlHttps(extra, field, val, type) {
+        if (!validUrl.isHttpsUri(val)) {
+            return false;
+        }
+
+        return true;
+    }
+
 }
