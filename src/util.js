@@ -58,8 +58,10 @@ module.exports.randomString = function(length, chars) {
     }
     
     let result = '';
+
+    let i = length;
     
-    for (var i = length; 0 < i; --i) {
+    for (; 0 < i; --i) {
         result += mask[Math.floor(Math.random() * mask.length)];
     }
     

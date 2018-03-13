@@ -115,7 +115,7 @@ class Generate {
             }
             
             let handler = 'generate' + rule.charAt(0).toUpperCase() + rule.slice(1);
-            
+
             if (PROMISE_RULES.indexOf(rule) !== -1) {
                 promiseRun.push([this[handler], [extra, query, fieldIndex, field, type, errors]]);
             } else {
@@ -169,11 +169,11 @@ class Generate {
         }
         
         if (slugType === 'field') {
-            let otherField = slugOpt;
+            let otherField = slugOpt || field;
 
             let requireExist = slugOptExtra;
 
-            if (requireExist === 'true' && typeof query.getField(fieldIndex, field) === 'undefined') {
+            if (requireExist === 'true' && typeof query.getField(fieldIndex, otherField) === 'undefined') {
                 return null;
             }
             
