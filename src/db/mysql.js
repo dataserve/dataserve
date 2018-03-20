@@ -410,6 +410,40 @@ class MySql {
             });
         }
 
+        if (input = query.raw('!=')) {
+            Object.keys(input).forEach((field) => {
+                if (!model.getField(field)) {
+                    return;
+                }
+
+                let vals = input[field];
+
+                if (!Array.isArray(vals)) {
+                    vals = [vals];
+                }
+
+                if (model.getField(field).type == 'int') {
+                    vals = intArray(vals);
+
+                    where.push(query.alias + '.' + field + ' NOT IN (' + vals.join(',') + ')');
+                } else {
+                    vals = [...new Set(vals)];
+
+                    let wh = [], cnt = 1;
+
+                    vals.forEach((val) => {
+                        wh.push(':' + field + cnt);
+
+                        bind[field + cnt] = val;
+
+                        ++cnt;
+                    });
+
+                    where.push(field + ' NOT IN (' + wh.join(',') + ')');
+                }
+            });
+        }
+        
         if (input = query.raw('%search')) {
             Object.keys(input).forEach((field) => {
                 if (!model.getField(field)) {
