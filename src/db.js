@@ -2,7 +2,9 @@
 
 class DB {
 
-    constructor(config, log){
+    constructor(dataserve, config, log){
+        this.dataserve = dataserve;
+
         this.config = config;
         
         this.log = log;
@@ -27,7 +29,7 @@ class DB {
         case 'mysql':
             let MySql = require('./db/mysql');
             
-            this.dbs[dbKey] = new MySql(dbName, dbConfig, this.log);
+            this.dbs[dbKey] = new MySql(dbName, dbConfig, this.dataserve, this.log);
             
             break;
         default:

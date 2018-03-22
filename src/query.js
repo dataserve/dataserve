@@ -49,9 +49,9 @@ class Query {
         
         this.fieldsArr = [];
 
-        this.join = {};
+        this.join = null;
         
-        this.leftJoin = {};
+        this.leftJoin = null;
         
         this.where = [];
         
@@ -384,10 +384,18 @@ class Query {
     }
 
     addJoin(table, on) {
+        if (!this.join) {
+            this.join = {};
+        }
+        
         this.join[table] = on;
     }
 
     addLeftJoin(table, on) {
+        if (!this.leftJoin) {
+            this.leftJoin = {};
+        }
+        
         this.leftJoin[table] = on;
     }
 

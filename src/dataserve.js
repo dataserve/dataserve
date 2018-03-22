@@ -22,7 +22,7 @@ class Dataserve {
         
         this.config = new Config(configPath, this.middlewareLookup);
 
-        this.db = new DB(this.config, this.log);
+        this.db = new DB(this, this.config, this.log);
         
         this.cache = new Cache(this.config, this.log);
 

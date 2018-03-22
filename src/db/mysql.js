@@ -11,8 +11,12 @@ const { intArray } = require('../util');
 
 class MySql {
     
-    constructor(dbName, config, log){
+    constructor(dbName, config, dataserve, log){
         this.debug = require('debug')('dataserve:mysql');
+
+        this.dbName = dbName;
+
+        this.dataserve = dataserve;
         
         this.log = log;
         
@@ -316,21 +320,21 @@ class MySql {
         let sqlSelect = 'SELECT ' + query.alias + '.' + model.primaryKey + ' '
         
         let sql = this.from(model, query.alias);
-        
-        if (query.join && Array.isArray(query.join) && query.join.length) {
+
+        if (query.join) {
             Object.keys(query.join).forEach((table) => {
                 sql += 'INNER JOIN ' + table + ' ON (' + query.join[table] + ') ';
             });
         }
         
-        if (query.leftJoin && Array.isArray(query.leftJoin) && query.leftJoin.length) {
+        if (query.leftJoin) {
             Object.keys(query.leftJoin).forEach((table) => {
                 sql += 'LEFT JOIN ' + table + ' ON (' + query.leftJoin[table] + ') ';
             });
         }
         
         sql += this.where(query.where);
-        
+
         let sqlGroup = this.group(query.group);
         
         sql += sqlGroup;
@@ -373,25 +377,45 @@ class MySql {
         });
     }
 
-    buildLookup(model, query) {
+    buildLookupOther(model, query, field) {
+        let alias = query.alias;
+        
+        let otherTableIndex = field.indexOf('.');
+
+        if (otherTableIndex !== -1) {
+            let otherTable = field.substring(0, otherTableIndex);
+
+            field = field.substring(otherTableIndex + 1);
+
+            model = this.dataserve.getModel(this.dbName + '.' + otherTable);
+
+            alias = otherTable;
+        }
+
+        return { alias, field, model };
+    }
+    
+    buildLookup(modelOrig, query) {
         let where = [], bind = {}, input = null;
 
         if (input = query.raw('=')) {
-            Object.keys(input).forEach((field) => {
-                if (!model.getField(field)) {
-                    return;
-                }
-
-                let vals = input[field];
+            Object.keys(input).forEach((fieldOrig) => {
+                let vals = input[fieldOrig];
 
                 if (!Array.isArray(vals)) {
                     vals = [vals];
                 }
 
+                let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
+                
+                if (!model.getField(field)) {
+                    return;
+                }
+
                 if (model.getField(field).type == 'int') {
                     vals = intArray(vals);
 
-                    where.push(query.alias + '.' + field + ' IN (' + vals.join(',') + ')');
+                    where.push(alias + '.' + field + ' IN (' + vals.join(',') + ')');
                 } else {
                     vals = [...new Set(vals)];
 
@@ -405,27 +429,29 @@ class MySql {
                         ++cnt;
                     });
 
-                    where.push(field + ' IN (' + wh.join(',') + ')');
+                    where.push(alias + '.' + field + ' IN (' + wh.join(',') + ')');
                 }
             });
         }
 
         if (input = query.raw('!=')) {
-            Object.keys(input).forEach((field) => {
-                if (!model.getField(field)) {
-                    return;
-                }
-
-                let vals = input[field];
+            Object.keys(input).forEach((fieldOrig) => {
+                let vals = input[fieldOrig];
 
                 if (!Array.isArray(vals)) {
                     vals = [vals];
                 }
 
+                let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
+
+                if (!model.getField(field)) {
+                    return;
+                }
+
                 if (model.getField(field).type == 'int') {
                     vals = intArray(vals);
 
-                    where.push(query.alias + '.' + field + ' NOT IN (' + vals.join(',') + ')');
+                    where.push(alias + '.' + field + ' NOT IN (' + vals.join(',') + ')');
                 } else {
                     vals = [...new Set(vals)];
 
@@ -439,106 +465,140 @@ class MySql {
                         ++cnt;
                     });
 
-                    where.push(field + ' NOT IN (' + wh.join(',') + ')');
+                    where.push(alias + '.' + field + ' NOT IN (' + wh.join(',') + ')');
                 }
             });
         }
         
         if (input = query.raw('%search')) {
-            Object.keys(input).forEach((field) => {
+            Object.keys(input).forEach((fieldOrig) => {
+                let val = input[fieldOrig];
+
+                let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
+                
                 if (!model.getField(field)) {
                     return;
                 }
 
                 where.push(query.alias + '.' + field + ' LIKE :' + field);
 
-                bind[field] = '%' + input[field];
+                bind[field] = '%' + val;
             });
         }
 
         if (input = query.raw('search%')) {
-            Object.keys(input).forEach((field) => {
+            Object.keys(input).forEach((fieldOrig) => {
+                let val = input[fieldOrig];
+
+                let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
+                
                 if (!model.getField(field)) {
                     return;
                 }
 
-                where.push(query.alias + '.' + field + ' LIKE :' + field);
+                where.push(alias + '.' + field + ' LIKE :' + field);
 
-                bind[field] = input[field] + '%';
+                bind[field] = val + '%';
             });
         }
 
         if (input = query.raw('%search%')) {
-            Object.keys(input).forEach((field) => {
+            Object.keys(input).forEach((fieldOrig) => {
+                let val = input[fieldOrig];
+
+                let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
+                
                 if (!model.getField(field)) {
                     return;
                 }
 
-                where.push(query.alias + '.' + field + ' LIKE :' + field);
+                where.push(alias + '.' + field + ' LIKE :' + field);
 
-                bind[field] = '%' + input[field] + '%';
+                bind[field] = '%' + val + '%';
             });
         }
 
         if (input = query.raw('>')) {
-            Object.keys(input).forEach((field) => {
+            Object.keys(input).forEach((fieldOrig) => {
+                let val = input[fieldOrig];
+
+                let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
+                
                 if (!model.getField(field)) {
                     return;
                 }
 
-                where.push(':' + field + '_greater < ' + query.alias + '.' + field);
+                where.push(':' + field + '_greater < ' + alias + '.' + field);
 
-                bind[field + '_greater'] = parseInt(input[field], 10);
+                bind[field + '_greater'] = parseInt(val, 10);
             });
         }
 
         if (input = query.raw('>=')) {
-            Object.keys(input).forEach((field) => {
+            Object.keys(input).forEach((fieldOrig) => {
+                let val = input[fieldOrig];
+
+                let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
+                
                 if (!model.getField(field)) {
                     return;
                 }
 
-                where.push(':' + field + '_greater_equal <= ' + query.alias + '.' + field);
+                where.push(':' + field + '_greater_equal <= ' + alias + '.' + field);
 
-                bind[field + '_greater_equal'] = parseInt(input[field], 10);
+                bind[field + '_greater_equal'] = parseInt(val, 10);
             });
         }
 
         if (input = query.raw('<')) {
-            Object.keys(input).forEach((field) => {
+            Object.keys(input).forEach((fieldOrig) => {
+                let val = input[fieldOrig];
+
+                let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
+                
                 if (!model.getField(field)) {
                     return;
                 }
 
-                where.push(query.alias + '.' + field + ' < :' + field + '_less');
+                where.push(alias + '.' + field + ' < :' + field + '_less');
 
-                bind[field + '_less'] = parseInt(input[field], 10);
+                bind[field + '_less'] = parseInt(val, 10);
             });
         }
 
         if (input = query.raw('<=')) {
-            Object.keys(input).forEach((field) => {
+            Object.keys(input).forEach((fieldOrig) => {
+                let val = input[fieldOrig];
+
+                let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
+                
                 if (!model.getField(field)) {
                     return;
                 }
 
-                where.push(query.alias + '.' + field + '. <= :' + field + '_less_equal');
+                where.push(alias + '.' + field + '. <= :' + field + '_less_equal');
 
-                bind[field + '_less_equal'] = parseInt(input[field], 10);
+                bind[field + '_less_equal'] = parseInt(val, 10);
             });
         }
 
         if (input = query.raw('modulo')) {
-            Object.keys(input).forEach((field) => {
+            Object.keys(input).forEach((fieldOrig) => {
+                let mod = input[fieldOrig]['mod'];
+
+                let val = input[fieldOrig]['val'];
+
+                let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
+                
                 if (!model.getField(field)) {
                     return;
                 }
 
-                where.push(query.alias + '.' + field + ' % :' + field + '_modulo_mod = :' + field + '_modulo_val');
+                where.push(alias + '.' + field + ' % :' + field + '_modulo_mod = :' + field + '_modulo_val');
 
-                bind[field + '_modulo_mod'] = parseInt(input[field]['mod'], 10);
+                bind[field + '_modulo_mod'] = parseInt(mod, 10);
 
-                bind[field + '_modulo_val'] = parseInt(input[field]['val'], 10);
+                bind[field + '_modulo_val'] = parseInt(val, 10);
             });
         }
 
