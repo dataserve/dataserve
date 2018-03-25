@@ -63,7 +63,7 @@ class Query {
         
         this.limit = {};
 
-        this.raw = '';
+        this.queryRaw = {};
 
         this.custom = {};
 
@@ -497,16 +497,16 @@ class Query {
         return null;
     }
     
-    setRaw(str) {
-        this.raw = str;
+    setRaw(input) {
+        this.queryRaw = input;
     }
 
     getRaw(field) {
         if (field) {
-            return this.raw[field];
+            return this.queryRaw[field];
         }
         
-        return this.raw;
+        return this.queryRaw;
     }
 
     validOutputStyle(style) {
