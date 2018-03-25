@@ -74,6 +74,10 @@ class Sanitize {
                 }
 
                 let val = query.getField(fieldIndex, field);
+
+                if (val === null && this.model.getField(field).nullable) {
+                    return;
+                }
                 
                 let promise = this.sanitize(query, fieldIndex, field, val, rules, errors);
                 

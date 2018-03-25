@@ -144,6 +144,10 @@ class Validate {
 
             for (let fieldIndex = 0, n = query.getFieldsCnt(); fieldIndex < n; ++fieldIndex) {
                 let val = query.getField(fieldIndex, field);
+
+                if (val === null && this.model.getField(field).nullable) {
+                    continue;
+                }
                 
                 let promise = this.validate(field, val, rules, errors);
                 

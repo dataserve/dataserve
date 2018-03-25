@@ -619,13 +619,23 @@ class MySql {
 
             Object.keys(query.getFields(fieldsIndex)).forEach((field) => {
                 cols.push(field);
-                
-                if (model.getField(field).type == 'int') {
-                    vals.push(parseInt(query.getField(fieldsIndex, field), 10));
+
+                const val = query.getField(fieldsIndex, field);
+
+                const isNull = val === null && model.getField(field).nullable;
+
+                if (isNull) {
+                    vals.push('NULL');
+                    
+                    if (!query.getCustom(field)) {
+                        updates.push(field + '=NULL');
+                    }
+                } else if (model.getField(field).type == 'int') {
+                    vals.push(parseInt(val, 10));
                     
                     if (field != model.primaryKey) {
                         if (!query.getCustom(field)) {
-                            updates.push(field + '=' + parseInt(query.getField(fieldsIndex, field), 10));
+                            updates.push(field + '=' + parseInt(val, 10));
                         }
                     }
                 } else {
@@ -636,7 +646,7 @@ class MySql {
                             updates.push(field + '=:' + field);
                         }
                     }
-                    
+
                     bind[field] = query.getField(fieldsIndex, field).toString();
                 }
             });
@@ -665,8 +675,14 @@ class MySql {
                 if (query.getCustom(field)) {
                     return;
                 }
-                
-                if (model.getField(field).type == 'int') {
+
+                const val = query.getField(fieldsIndex, field);
+
+                const isNull = val === null && model.getField(field).nullable;
+
+                if (isNull) {
+                    updates.push(field + '=NULL');
+                } else if (model.getField(field).type == 'int') {
                     updates.push(field + '=' + parseInt(query.getField(fieldsIndex, field), 10));
                 } else {
                     updates.push(field + '=:' + field);
@@ -677,10 +693,8 @@ class MySql {
             
             sql += updates.join(',');
 
-            let custom = [];
-
-            Object.keys(query.getCustomFields()).forEach((field) => {
-                custom.push(field + '=' + query.getCustom(field));
+            const custom = Object.keys(query.getCustomFields()).map((field) => {
+                return field + '=' + query.getCustom(field);
             });
             
             if (custom.length) {
