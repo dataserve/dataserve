@@ -304,6 +304,12 @@ class MySql {
         });
     }
 
+    raw(model, query) {
+        return this.log.add('db,db:raw', () => {
+            return this.query(query.getRaw('sql'));
+        });
+    }
+
     incMulti(model, query) {
         let promiseRun = [];
         

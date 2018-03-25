@@ -12,6 +12,7 @@ const ALLOWED_COMMANDS = [
     'getMany',
     'inc',
     'lookup',
+    'raw',
     'remove',
     'set',
 ];
@@ -569,6 +570,10 @@ class Model {
             
             return null;
         });
+    }
+
+    raw(query) {
+        return this.getDb().raw(this, query);
     }
 
     remove(query) {

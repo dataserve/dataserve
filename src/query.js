@@ -63,6 +63,8 @@ class Query {
         
         this.limit = {};
 
+        this.raw = '';
+
         this.custom = {};
 
         this.fill = {};
@@ -153,6 +155,10 @@ class Query {
             if (input.page && input.limit) {
                 this.setLimit(input.page, input.limit);
             }
+
+            break;
+        case 'raw':
+            this.setRaw(input);
 
             break;
         case 'set':
@@ -491,6 +497,18 @@ class Query {
         return null;
     }
     
+    setRaw(str) {
+        this.raw = str;
+    }
+
+    getRaw(field) {
+        if (field) {
+            return this.raw[field];
+        }
+        
+        return this.raw;
+    }
+
     validOutputStyle(style) {
         if (ALLOWED_OUTPUT_STYLE.indexOf(style) === -1) {
             return false;

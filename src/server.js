@@ -187,6 +187,7 @@ class Server {
         case 'ds_output_db_schema':
         case 'ds_output_table_schema':
         case 'ds_set':
+        case 'ds_raw':
         case 'ds_remove':
             return this.handleCommandRun(input, command, commandUuid, response);
         }
