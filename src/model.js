@@ -573,7 +573,9 @@ class Model {
     }
 
     raw(query) {
-        return this.getDb().raw(this, query);
+        return this.getDb().raw(this, query).then((result) => {
+            return [ result ];
+        });
     }
 
     remove(query) {
