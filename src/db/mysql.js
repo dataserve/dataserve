@@ -304,18 +304,6 @@ class MySql {
         });
     }
 
-    raw(model, query) {
-        if (!query.getRaw('sql') || typeof query.getRaw('sql') !== 'string') {
-            return Promise.reject('missing sql');
-        }
-
-        const bind = (typeof query.getRaw('bind') === 'object' && query.getRaw('bind')) || {};
-        
-        return this.log.add('db,db:raw', () => {
-            return this.query(query.getRaw('sql'), bind);
-        });
-    }
-
     incMulti(model, query) {
         let promiseRun = [];
         
@@ -615,6 +603,20 @@ class MySql {
         }
 
         query.addWhere(where, bind);
+    }
+
+    raw(model, query) {
+        if (!query.getRaw('sql') || typeof query.getRaw('sql') !== 'string') {
+            return Promise.reject('missing sql');
+        }
+
+        const bind = (typeof query.getRaw('bind') === 'object' && query.getRaw('bind')) || {};
+
+        const retType = query.getRaw('retType') || null;
+        
+        return this.log.add('db,db:raw', () => {
+            return this.query(query.getRaw('sql'), bind, retType);
+        });
     }
 
     set(model, query, fieldsIndex=0) {
