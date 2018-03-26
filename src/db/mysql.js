@@ -305,8 +305,14 @@ class MySql {
     }
 
     raw(model, query) {
+        if (!query.getRaw('sql') || typeof query.getRaw('sql') !== 'string') {
+            return Promise.reject('missing sql');
+        }
+
+        const bind = (typeof query.getRaw('bind') === 'object' && query.getRaw('bind')) || {};
+        
         return this.log.add('db,db:raw', () => {
-            return this.query(query.getRaw('sql'));
+            return this.query(query.getRaw('sql'), bind);
         });
     }
 
