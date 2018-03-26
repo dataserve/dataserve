@@ -317,7 +317,7 @@ class MySql {
     lookup(model, query) {
         this.buildLookup(model, query);
         
-        let sqlSelect = 'SELECT ' + query.alias + '.' + model.primaryKey + ' '
+        let sqlSelect = 'SELECT ' + (query.distinct ? 'DISTINCT ' : '') + query.alias + '.' + model.primaryKey + ' '
         
         let sql = this.from(model, query.alias);
 

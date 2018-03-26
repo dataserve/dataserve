@@ -60,6 +60,8 @@ class Query {
         this.group = [];
         
         this.order = [];
+
+        this.distinct = null;
         
         this.limit = {};
 
@@ -128,6 +130,10 @@ class Query {
                 this.setAlias(this.model.getTableName().substring(0, 1));
             }
 
+            if (input.distinct) {
+                this.distinct = true;
+            }
+
             if (input.join) {
                 Object.keys(input.join).forEach((table) => {
                     this.addJoin(table, input.join[table]);
@@ -151,7 +157,7 @@ class Query {
             if (input.order) {
                 this.addOrder(input.order);
             }
-            
+
             if (input.page && input.limit) {
                 this.setLimit(input.page, input.limit);
             }
