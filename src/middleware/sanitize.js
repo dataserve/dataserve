@@ -168,7 +168,10 @@ class Sanitize {
     }
 
     sanitizeHexcolor(extra, query, fieldIndex, field, val, type) {
-        console.log('SANITIZE COLOR', fieldIndex, field, val, type);
+        if (val.length === 0) {
+            return true;
+        }
+
         let color = val.replace(/[^0-9a-fA-F]/g, '');
 
         if (color.length !== 3 && color.length !== 6) {
