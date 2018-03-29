@@ -412,24 +412,58 @@ class MySql {
                     return;
                 }
 
-                if (model.getField(field).type == 'int') {
-                    vals = intArray(vals);
+                const nullable = model.getField(field).nullable;
+                
+                if (model.getField(field).type == 'int') {                    
+                    vals = intArray(vals, true, nullable);
 
-                    where.push(alias + '.' + field + ' IN (' + vals.join(',') + ')');
+                    let containsNull = false;
+                    
+                    if (nullable) {
+                        vals = vals.filter((val) => {
+                            if (val === null) {
+                                containsNull = true;
+
+                                return false;
+                            }
+
+                            return true;
+                        });
+                    }
+
+                    if (containsNull && vals.length) {
+                        where.push('(' + alias + '.' + field + ' IN (' + vals.join(',') + ') OR ' + alias + '.' + field + ' IS NULL)');
+                    } else if (containsNull) {
+                        where.push(alias + '.' + field + ' IS NULL');
+                    } else {
+                        where.push(alias + '.' + field + ' IN (' + vals.join(',') + ')');
+                    }
                 } else {
                     vals = [...new Set(vals)];
 
                     let wh = [], cnt = 1;
 
+                    let containsNull = false;
+
                     vals.forEach((val) => {
-                        wh.push(':' + field + cnt);
+                        if (val === null && nullable) {
+                            containsNull = true;
+                        } else {
+                            wh.push(':' + field + cnt);
 
-                        bind[field + cnt] = val;
+                            bind[field + cnt] = val;
 
-                        ++cnt;
+                            ++cnt;
+                        }
                     });
 
-                    where.push(alias + '.' + field + ' IN (' + wh.join(',') + ')');
+                    if (containsNull && wh.length) {
+                        where.push('(' + alias + '.' + field + ' IN (' + wh.join(',') + ') OR ' + alias + '.' + field + ' IS NULL)');
+                    } else if (containsNull) {
+                        where.push(alias + '.' + field + ' IS NULL');
+                    } else {
+                        where.push(alias + '.' + field + ' IN (' + wh.join(',') + ')');
+                    }
                 }
             });
         }
@@ -448,28 +482,62 @@ class MySql {
                     return;
                 }
 
-                if (model.getField(field).type == 'int') {
-                    vals = intArray(vals);
+                const nullable = model.getField(field).nullable;
 
-                    where.push(alias + '.' + field + ' NOT IN (' + vals.join(',') + ')');
+                if (model.getField(field).type == 'int') {
+                    vals = intArray(vals, true, nullable);
+
+                    let containsNull = false;
+                    
+                    if (nullable) {
+                        vals = vals.filter((val) => {
+                            if (val === null) {
+                                containsNull = true;
+
+                                return false;
+                            }
+
+                            return true;
+                        });
+                    }
+                    
+                    if (containsNull && vals.length) {
+                        where.push('(' + alias + '.' + field + ' NOT IN (' + vals.join(',') + ') AND ' + alias + '.' + field + ' IS NOT NULL)');
+                    } else if (containsNull) {
+                        where.push(alias + '.' + field + ' IS NOT NULL');
+                    } else {
+                        where.push(alias + '.' + field + ' NOT IN (' + vals.join(',') + ')');
+                    }
                 } else {
                     vals = [...new Set(vals)];
 
                     let wh = [], cnt = 1;
 
+                    let containsNull = false;
+
                     vals.forEach((val) => {
-                        wh.push(':' + field + cnt);
+                        if (val === null && nullable) {
+                            containsNull = true;
+                        } else {
+                            wh.push(':' + field + cnt);
 
-                        bind[field + cnt] = val;
+                            bind[field + cnt] = val;
 
-                        ++cnt;
+                            ++cnt;
+                        }
                     });
 
-                    where.push(alias + '.' + field + ' NOT IN (' + wh.join(',') + ')');
+                    if (containsNull && wh.length) {
+                        where.push('(' + alias + '.' + field + ' NOT IN (' + wh.join(',') + ') AND ' + alias + '.' + field + ' IS NOT NULL)');
+                    } else if (containsNull) {
+                        where.push(alias + '.' + field + ' IS NOT NULL');
+                    } else {
+                        where.push(alias + '.' + field + ' NOT IN (' + wh.join(',') + ')');
+                    }
                 }
             });
         }
-        
+
         if (input = query.raw('%search')) {
             Object.keys(input).forEach((fieldOrig) => {
                 let val = input[fieldOrig];
