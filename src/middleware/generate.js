@@ -27,6 +27,9 @@ const ALLOWED_RULES = {
     'slugUnique': [
         'String',
     ],
+    'slugUniqueCensor': [
+        'String',
+    ],
     'uuid': [
         'String',
     ],
@@ -37,6 +40,7 @@ const ALLOWED_RULES = {
 
 const PROMISE_RULES = [
     'slugUnique',
+    'slugUniqueCensor',
 ];
 
 const REASON = {
@@ -44,7 +48,69 @@ const REASON = {
     '_invalidType': 'Invalid value type :type for field :field',
     'missingField': 'Target field :extra is not populated for field :field',
     'slugUnique': 'Unable to generate unique value for :field',
+    'slugUniqueCensor': 'Unable to generate unique value for :field',
 };
+
+const CENSOR = [
+    'arab',
+    'ass',
+    'b(e|3)an(e|3)r',
+    'b(i|1)tch',
+    'b(l|1)(o|0)w',
+    'b(o|0)n(e|3)r',
+    'bu(t|7)(t|7)',
+    '(c|k)h(i|1)nk',
+    '(c|k)h(o|0)ad',
+    '(c|k)l(i|1)t',
+    '(c|k)(o|0)ck',
+    '(c|k)(o|0)(o|0)n',
+    '(c|k)(o|0)(o|0)t(e|3)r',
+    '(c|k)(o|0)(o|0)ch',
+    '(c|k)um',
+    '(c|k)un(t|7)',
+    'd(i|1)c(c|k)',
+    'd(o|0)ng',
+    'd(o|0)k(i|1)',
+    'd(o|0)uch',
+    'dyk(e|3)',
+    'fag',
+    'fany',
+    'fanny',
+    'f(e|3)lch',
+    'fuck',
+    'gay',
+    'g(o|0)(o|0)c',
+    'g(o|0)(o|0)k',
+    'handj(o|0)',
+    'h(o|0)m(o|0)',
+    'h(o|0)le',
+    'l(i|1)ck',
+    'jack',
+    'j(e|3)rk',
+    'j(i|1)z',
+    'l(e|3)sb(o|0)',
+    'l(e|3)zz',
+    'm(i|1)ng(e|3)',
+    'muff',
+    'n(i|1)g',
+    'nut',
+    'pak(i|1)',
+    'pen(i|1)',
+    'p(i|1)ss',
+    'p(o|0)(o|0)(p|n)',
+    'pr(i|1)ck',
+    'puss',
+    's(e|3)x',
+    'shag',
+    'sh(i|1)(t|7)',
+    'slu(t|7)',
+    'snatch',
+    't(i|1)t',
+    'twat',
+    'va(g|j)',
+    'wan(c|k)',
+    'wh(o|0)r(e|3)',
+];
 
 class Generate {
 
@@ -157,17 +223,43 @@ class Generate {
         };
     }
 
-    buildSlug(extra, query, fieldIndex, field, type, errors, cnt) {
+    buildSlug(extra, query, fieldIndex, field, type, errors, cnt, censor=false) {
         let [ slugType, slugOpt, slugOptExtra ] = extra.split(',');
         
-        if (slugType === 'alpha') {
-            return randomString(slugOpt, 'A');
+        if (slugType === 'alpha' || slugType === 'alphaNum') {
+            let gen = slugType === 'alpha' ? 'A' : 'A#';
+
+            let slug;
+            
+            if (censor) {
+                let valid = false;
+                
+                for (let i = 0; i < 5000; ++i) {
+                    slug = randomString(slugOpt, gen);
+
+                    let reg = new RegExp(CENSOR.join('|'), 'gi');
+
+                    if (slug.match(reg)) {
+                        continue;
+                    }
+
+                    valid = true;
+
+                    break;
+                }
+
+                if (!valid) {
+                    this.addError('slugUniqueCensor', extra, field, type, errors);
+                    
+                    return null;
+                }
+            } else {
+                slug = randomString(slugOpt, gen);
+            }
+            
+            return slug;
         }
 
-        if (slugType === 'alphaNum') {
-            return randomString(slugOpt, 'A#');
-        }
-        
         if (slugType === 'field') {
             let otherField = slugOpt || field;
 
@@ -235,6 +327,37 @@ class Generate {
                 }
                 
                 return this.generateSlugUnique(extra, query, fieldIndex, field, type, errors, cnt + 1);
+            }
+            
+            query.setField(fieldIndex, field, val);
+        });
+    }
+
+    generateSlugUniqueCensor(extra, query, fieldIndex, field, type, errors, cnt=0) {
+        let val = this.buildSlug(extra, query, fieldIndex, field, type, errors, cnt, true);
+
+        if (val === null) {
+            return;
+        }
+        
+        let input = {
+            '=': {
+                [field]: val,
+            },
+            outputStyle: 'LOOKUP_RAW',
+            page: 1,
+            limit: 1
+        };
+
+        return this.model.run({ command: 'lookup', input }).then(res => {
+            if (res.data.length) {
+                if (100 <= cnt) {
+                    this.addError('slugUniqueCensor', extra, field, type, errors);
+                    
+                    return;
+                }
+                
+                return this.generateSlugUniqueCensor(extra, query, fieldIndex, field, type, errors, cnt + 1);
             }
             
             query.setField(fieldIndex, field, val);
