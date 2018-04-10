@@ -544,10 +544,6 @@ class MySql {
 
                 let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
                 
-                if (!model.getField(field)) {
-                    return;
-                }
-
                 where.push(query.alias + '.' + field + ' LIKE :' + field);
 
                 bind[field] = '%' + val;
@@ -560,10 +556,6 @@ class MySql {
 
                 let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
                 
-                if (!model.getField(field)) {
-                    return;
-                }
-
                 where.push(alias + '.' + field + ' LIKE :' + field);
 
                 bind[field] = val + '%';
@@ -576,10 +568,6 @@ class MySql {
 
                 let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
                 
-                if (!model.getField(field)) {
-                    return;
-                }
-
                 where.push(alias + '.' + field + ' LIKE :' + field);
 
                 bind[field] = '%' + val + '%';
@@ -592,13 +580,9 @@ class MySql {
 
                 let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
                 
-                if (!model.getField(field)) {
-                    return;
-                }
-
                 where.push(':' + field + '_greater < ' + alias + '.' + field);
 
-                bind[field + '_greater'] = parseInt(val, 10);
+                bind[field + '_greater'] = val;
             });
         }
 
@@ -607,14 +591,10 @@ class MySql {
                 let val = input[fieldOrig];
 
                 let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
-                
-                if (!model.getField(field)) {
-                    return;
-                }
 
                 where.push(':' + field + '_greater_equal <= ' + alias + '.' + field);
 
-                bind[field + '_greater_equal'] = parseInt(val, 10);
+                bind[field + '_greater_equal'] = val;
             });
         }
 
@@ -624,13 +604,9 @@ class MySql {
 
                 let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
                 
-                if (!model.getField(field)) {
-                    return;
-                }
-
                 where.push(alias + '.' + field + ' < :' + field + '_less');
 
-                bind[field + '_less'] = parseInt(val, 10);
+                bind[field + '_less'] = val;
             });
         }
 
@@ -640,13 +616,9 @@ class MySql {
 
                 let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
                 
-                if (!model.getField(field)) {
-                    return;
-                }
+                where.push(alias + '.' + field + ' <= :' + field + '_less_equal');
 
-                where.push(alias + '.' + field + '. <= :' + field + '_less_equal');
-
-                bind[field + '_less_equal'] = parseInt(val, 10);
+                bind[field + '_less_equal'] = val;
             });
         }
 
@@ -658,10 +630,6 @@ class MySql {
 
                 let { alias, field, model } = this.buildLookupOther(modelOrig, query, fieldOrig);
                 
-                if (!model.getField(field)) {
-                    return;
-                }
-
                 where.push(alias + '.' + field + ' % :' + field + '_modulo_mod = :' + field + '_modulo_val');
 
                 bind[field + '_modulo_mod'] = parseInt(mod, 10);
