@@ -46,6 +46,7 @@ const PROMISE_RULES = [
 const REASON = {
     '_invalidRule': 'Invalid rule :extra for field :field',
     '_invalidType': 'Invalid value type :type for field :field',
+    'censorFail': 'Could not create slug for field :field',
     'missingField': 'Target field :extra is not populated for field :field',
     'slugUnique': 'Unable to generate unique value for :field',
     'slugUniqueCensor': 'Unable to generate unique value for :field',
@@ -185,7 +186,7 @@ class Generate {
             if (PROMISE_RULES.indexOf(rule) !== -1) {
                 promiseRun.push([this[handler], [extra, query, fieldIndex, field, type, errors]]);
             } else {
-                if (this[handler](extra, query, fieldIndex, field, type) === false) {
+                if (this[handler](extra, query, fieldIndex, field, type, errors) === false) {
                     this.addError(rule, extra, field, type, errors);
                 }
             }
@@ -249,7 +250,7 @@ class Generate {
                 }
 
                 if (!valid) {
-                    this.addError('slugUniqueCensor', extra, field, type, errors);
+                    this.addError('censorFail', extra, field, type, errors);
                     
                     return null;
                 }
@@ -294,8 +295,8 @@ class Generate {
         }
     }
     
-    generateSlug(extra, query, fieldIndex, field, type) {
-        let slug = this.buildSlug(extra, query, fieldIndex, field, type);
+    generateSlug(extra, query, fieldIndex, field, type, errors) {
+        let slug = this.buildSlug(extra, query, fieldIndex, field, type, errors);
 
         if (typeof slug !== 'undefined' && typeof slug !== null) {
             query.setField(fieldIndex, field, slug);
@@ -364,11 +365,11 @@ class Generate {
         });
     }
     
-    generateUuid(extra, query, fieldIndex, field, type) {
+    generateUuid(extra, query, fieldIndex, field, type, errors) {
         query.setField(fieldIndex, field, this.uuid());
     }
 
-    generateUuid64(extra, query, fieldIndex, field, type) {
+    generateUuid64(extra, query, fieldIndex, field, type, errors) {
         let uuid = new Buffer(this.uuid().replace(/-/g, ''), 'hex').toString('base64');
 
         if (extra.length) {
