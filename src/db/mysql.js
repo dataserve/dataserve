@@ -45,6 +45,7 @@ class MySql {
             password: config.password,
             database: dbName,
             multipleStatements: true,
+            charset: 'utf8mb4',
         };
         
         if (config.port) {
@@ -77,6 +78,7 @@ class MySql {
             password: config.write.password,
             database: dbName,
             multipleStatements: true,
+            charset: 'utf8mb4',
         };
         
         if (config.write.port) {
@@ -102,6 +104,7 @@ class MySql {
             password: config.read.password,
             database: dbName,
             multipleStatements: true,
+            charset: 'utf8mb4',
         };
         
         if (config.read.port) {
