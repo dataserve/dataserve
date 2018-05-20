@@ -70,6 +70,9 @@ const ALLOWED_RULES = {
         'String',
     ],
     'required': null,
+    'slugAlphaNum': [
+        'String',
+    ],
     'unique': [
         'Date',
         'DateTime',
@@ -112,6 +115,7 @@ const REASON = {
     'max': ':field must be under :extra',
     'no': ':field not allowed',
     'required': ':field is required',
+    'slugAlphaNum': ':field must be alphanumeric',
     'unique': ':field already exists',
     'url': ':field must be a valid web uri',
     'urlHttp': ':field must be a valid http web uri',
@@ -444,6 +448,15 @@ class Validate {
                     this.addError('unique', extra, field, type, errors);
                 }
             });
+    }
+
+    validateSlugAlphaNum(extra, field, val, type) {
+        switch (type) {
+        case 'String':
+            return val.replace(/[^0-9a-zA-Z]/g, '') === val;
+        }
+
+        return false;
     }
 
     validateUnsigned(extra, field, val, type) {
