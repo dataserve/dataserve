@@ -225,8 +225,14 @@ class Generate {
     }
 
     buildSlug(extra, query, fieldIndex, field, type, errors, cnt, censor=false) {
-        let [ slugType, slugOpt, slugOptExtra ] = extra.split(',');
-        
+        let [ slugType, slugOpt, ...slugOptExtra ] = extra.split(',');
+
+        let skipWhenPopulated = slugOptExtra.indexOf('skipWhenPopulated') !== -1;
+
+        if (skipWhenPopulated && query.getField(fieldIndex, field) !== undefined) {
+            return null;
+        }
+
         if (slugType === 'alpha' || slugType === 'alphaNum') {
             let gen = slugType === 'alpha' ? 'A' : 'A#';
 
@@ -264,9 +270,9 @@ class Generate {
         if (slugType === 'field') {
             let otherField = slugOpt || field;
 
-            let requireExist = slugOptExtra;
+            let requireExist = slugOptExtra.indexOf('requireExist') !== -1;
 
-            if (requireExist === 'true' && typeof query.getField(fieldIndex, otherField) === 'undefined') {
+            if (requireExist && typeof query.getField(fieldIndex, otherField) === 'undefined') {
                 return null;
             }
             

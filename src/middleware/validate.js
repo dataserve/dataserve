@@ -148,7 +148,7 @@ class Validate {
                 if (val === null && this.model.getField(field).nullable) {
                     continue;
                 }
-                
+
                 let promise = this.validate(field, val, rules, errors);
                 
                 if (promise.length) {
