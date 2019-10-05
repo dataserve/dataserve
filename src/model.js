@@ -130,8 +130,6 @@ class Model {
                     this.addRelationship(type, relatedTableConfig);
                 });
             });
-            
-            console.log(JSON.stringify(this.relationships));
         }
     }
 
