@@ -130,6 +130,8 @@ class Model {
                     this.addRelationship(type, relatedTableConfig);
                 });
             });
+            
+            console.log(JSON.stringify(this.relationships));
         }
     }
 
@@ -235,10 +237,16 @@ class Model {
     addRelationship(type, relatedTableConfig) {
         type = camelize(type);
         
-        if ([ 'belongsTo', 'belongsToMany', 'hasOne', 'hasMany' ].indexOf(type) === -1) {
+        if ([
+            'belongsTo',
+            'belongsToPolymorphic',
+            'belongsToMany',
+            'hasOne',
+            'hasMany',
+        ].indexOf(type) === -1) {
             return;
         }
-        
+
         if (!this.relationships[type]) {
             this.relationships[type] = {};
         }
@@ -252,10 +260,12 @@ class Model {
             relatedConfig = '';
         }
         
-        let [ foreignColumnName, localColumnName ] = relatedConfig.split(',');
+        let [ foreignColumnName, localColumnName, extra ] = relatedConfig.split(',');
 
+        let poly = {};
+        
         if (!foreignColumnName) {
-            if ([ 'belongsTo', 'belongsToMany' ].indexOf(type) !== -1) {
+            if ([ 'belongsTo', 'belongsToPolymorphic', 'belongsToMany' ].indexOf(type) !== -1) {
                 foreignColumnName = 'id';
             } else {
                 foreignColumnName = this.tableName + '_id';
@@ -269,10 +279,35 @@ class Model {
                 localColumnName = 'id';
             }
         }
+
+        let polymorphic = undefined, localColumnValName = undefined;
+        
+        if ([ 'belongsToPolymorphic' ].indexOf(type) !== -1 && extra) {
+            localColumnValName = localColumnName;
+            
+            localColumnName = localColumnName + '_id';
+            
+            let newTableName = localColumnValName;
+            
+            if (this.relationships[type][newTableName]
+                && this.relationships[type][newTableName].polymorphic) {
+                polymorphic = this.relationships[type][newTableName].polymorphic;
+            } else {
+                polymorphic = {};
+            }
+
+            extra.split('-').forEach((val) => {
+                polymorphic[val] = tableName;
+            });
+
+            tableName = newTableName;
+        }
         
         this.relationships[type][tableName] = {
             foreignColumnName,
             localColumnName,
+            localColumnValName,
+            polymorphic,
         };
     }
 
@@ -627,44 +662,95 @@ class Model {
 
                 let config = this.relationships[type][tableName];
 
-                let idsTmp = ids;
+                if (config.polymorphic) {
+                    let polymorphicVals = Object.values(rows).reduce((acc, row) => {
+                        let polymorphicVal = row[config.localColumnValName];
 
-                if (config.localColumnName !== 'id') {
-                    idsTmp = Object.values(rows).reduce((acc, row) => {
-                        if (typeof row[config.localColumnName] !== 'undefined') {
-                            acc.push(row[config.localColumnName]);
+                        let polymorphicId = row[config.localColumnName];
+
+                        if (!acc[polymorphicVal]) {
+                            acc[polymorphicVal] = [];
                         }
 
+                        acc[polymorphicVal].push(polymorphicId);
+
                         return acc;
-                    }, []);
-                }
+                    }, {});
 
-                if (!idsTmp.length) {
-                    return;
-                }
+                    Object.keys(polymorphicVals).forEach((polymorphicVal) => {
+                        let idsTmp = polymorphicVals[polymorphicVal];
 
-                let input = {
-                    [config.foreignColumnName]: idsTmp,
-                    fill: query.fill[foundFill.fill],
-                    outputStyle: 'BY_ID',
-                };
-                
-                if ([ 'hasMany', 'belongsToMany' ].indexOf(type) !== -1) {
-                    promises.push(this.dataserve.run(
-                        `${this.dbName}.${tableName}:getMany`,
-                        input
-                    ));
+                        if (!idsTmp.length) {
+                            return;
+                        }
+
+                        let tblName = config.polymorphic[polymorphicVal];
+
+                        let input = {
+                            [config.foreignColumnName]: idsTmp,
+                            fill: query.fill[foundFill.fill],
+                            outputStyle: 'BY_ID',
+                        };
+
+                        if ([ 'hasManyPolymorphic', 'belongsToManyPolymorphic' ].indexOf(type) !== -1) {
+                            promises.push(this.dataserve.run(
+                                `${this.dbName}.${tblName}:getMany`,
+                                input
+                            ));
+                        } else {
+                            promises.push(this.dataserve.run(
+                                `${this.dbName}.${tblName}:get`,
+                                input
+                            ));
+                        }
+                        
+                        promiseMap[tblName] = {
+                            type,
+                            aliasNameArr: foundFill.aliasNameArr,
+                            configTableName: tableName,
+                            polymorphicVal,
+                        };
+                    });
                 } else {
-                    promises.push(this.dataserve.run(
-                        `${this.dbName}.${tableName}:get`,
-                        input
-                    ));
-                }
+                    let idsTmp = ids;
+
+                    if (config.localColumnName !== 'id') {
+                        idsTmp = Object.values(rows).reduce((acc, row) => {
+                            if (typeof row[config.localColumnName] !== 'undefined' && row[config.localColumnName] !== null) {
+                                acc.push(row[config.localColumnName]);
+                            }
+
+                            return acc;
+                        }, []);
+                    }
+
+                    if (!idsTmp.length) {
+                        return;
+                    }
+
+                    let input = {
+                        [config.foreignColumnName]: idsTmp,
+                        fill: query.fill[foundFill.fill],
+                        outputStyle: 'BY_ID',
+                    };
+                    
+                    if ([ 'hasMany', 'belongsToMany' ].indexOf(type) !== -1) {
+                        promises.push(this.dataserve.run(
+                            `${this.dbName}.${tableName}:getMany`,
+                            input
+                        ));
+                    } else {
+                        promises.push(this.dataserve.run(
+                            `${this.dbName}.${tableName}:get`,
+                            input
+                        ));
+                    }
                 
-                promiseMap[tableName] = {
-                    type,
-                    aliasNameArr: foundFill.aliasNameArr,
-                };
+                    promiseMap[tableName] = {
+                        type,
+                        aliasNameArr: foundFill.aliasNameArr,
+                    };
+                }
             });
         });
 
@@ -688,17 +774,31 @@ class Model {
                     type: promiseMap[promiseRes.meta.tableName].type,
                     aliasNameArr: promiseMap[promiseRes.meta.tableName].aliasNameArr,
                     data: promiseRes.data,
+                    polymorphicVal: promiseMap[promiseRes.meta.tableName].polymorphicVal || undefined,
+                    configTableName: promiseMap[promiseRes.meta.tableName].configTableName || undefined,
                 };
             });
 
             Object.keys(fill).forEach((tableName) => {
-                Object.keys(rows).forEach((rowIndex) => {
-                    let config = this.relationships[fill[tableName].type][tableName];
-                    
-                    fill[tableName].aliasNameArr.forEach((aliasName) => {
-                        rows[rowIndex][aliasName] = paramFn(fill[tableName].data, rows[rowIndex][config.localColumnName]);
+                let configTableName = fill[tableName].configTableName || tableName;
+                
+                let config = this.relationships[fill[tableName].type][configTableName];
+
+                if (fill[tableName].polymorphicVal) {
+                    Object.keys(rows).forEach((rowIndex) => {
+                        if (rows[rowIndex][config.localColumnValName] === fill[tableName].polymorphicVal) {
+                            fill[tableName].aliasNameArr.forEach((aliasName) => {
+                                rows[rowIndex][aliasName] = paramFn(fill[tableName].data, rows[rowIndex][config.localColumnName]);
+                            });
+                        }
                     });
-                });
+                } else {
+                    Object.keys(rows).forEach((rowIndex) => {
+                        fill[tableName].aliasNameArr.forEach((aliasName) => {
+                            rows[rowIndex][aliasName] = paramFn(fill[tableName].data, rows[rowIndex][config.localColumnName]);
+                        });
+                    });
+                }
             });
 
             return rows;
