@@ -147,6 +147,14 @@ class Model {
     
     getField(field) {
         if (typeof this.fields[field] === 'undefined') {
+            if (this.timestamps.created
+                && this.timestamps.created.name === field) {
+                return this.timestamps.created;
+            } else if (this.timestamps.modified
+                       && this.timestamps.modified.name === field) {
+                return this.timestamps.modified;
+            }
+            
             return null;
         }
         

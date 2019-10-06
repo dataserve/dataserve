@@ -190,7 +190,7 @@ class Query {
         if (typeof input.fill === 'string') {
             this.setFill(input.fill, true);
         } else if (Array.isArray(input.fill)) {
-            input.fill.forEach(table => {
+            input.fill.forEach((table) => {
                 this.setFill(table, true);
             });
         } else if (typeof input.fill === 'object') {
@@ -380,7 +380,13 @@ class Query {
     }
     
     setField(index, field, val) {
-        if (!this.model.isFillable(field)) {
+        if (!this.model.isFillable(field)
+            && (!this.model.timestamps.created
+                || (this.model.timestamps.created
+                    && this.model.timestamps.created.name !== field))
+            && (!this.model.timestamps.modified
+                || (this.model.timestamps.modified
+                    && this.model.timestamps.modified.name !== field))) {
             return;
         }
         
