@@ -289,11 +289,11 @@ class Model {
         let polymorphic = undefined, localColumnValName = undefined;
         
         if ([ 'belongsToPolymorphic' ].indexOf(type) !== -1 && extra) {
-            localColumnValName = localColumnName;
+            let newTableName = localColumnName;
+
+            localColumnValName = localColumnName + '_type';
             
             localColumnName = localColumnName + '_id';
-            
-            let newTableName = localColumnValName;
             
             if (this.relationships[type][newTableName]
                 && this.relationships[type][newTableName].polymorphic) {
