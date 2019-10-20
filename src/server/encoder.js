@@ -5,7 +5,7 @@ var Response = function(writer) {
 };
 
 Response.prototype.bulk = function(value) {
-    var b = new Buffer(value.toString());
+    var b = Buffer.from(value.toString());
     
     this.writer.write('$' + b.length + '\r\n');
     

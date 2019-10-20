@@ -376,7 +376,7 @@ class Generate {
     }
 
     generateUuid64(extra, query, fieldIndex, field, type, errors) {
-        let uuid = new Buffer(this.uuid().replace(/-/g, ''), 'hex').toString('base64');
+        let uuid = Buffer.from(this.uuid().replace(/-/g, ''), 'hex').toString('base64');
 
         if (extra.length) {
             uuid = uuid.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
