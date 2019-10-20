@@ -656,7 +656,7 @@ class Model {
 
         let promises = [];
         
-        let promiseMap = {};
+        let promiseMap = [];
 
         Object.keys(this.relationships).forEach((type) => {
             Object.keys(this.relationships[type]).forEach((tableName) => {
@@ -710,12 +710,12 @@ class Model {
                             ));
                         }
                         
-                        promiseMap[tblName] = {
+                        promiseMap.push({
                             type,
                             aliasNameArr: foundFill.aliasNameArr,
                             configTableName: tableName,
                             polymorphicVal,
-                        };
+                        });
                     });
                 } else {
                     let idsTmp = ids;
@@ -752,10 +752,10 @@ class Model {
                         ));
                     }
                 
-                    promiseMap[tableName] = {
+                    promiseMap.push({
                         type,
                         aliasNameArr: foundFill.aliasNameArr,
-                    };
+                    });
                 }
             });
         });
@@ -775,33 +775,43 @@ class Model {
                 return Promise.reject(errored);
             }
             
-            res.forEach((promiseRes) => {
-                fill[promiseRes.meta.tableName] = {
-                    type: promiseMap[promiseRes.meta.tableName].type,
-                    aliasNameArr: promiseMap[promiseRes.meta.tableName].aliasNameArr,
+            res.forEach((promiseRes, index) => {
+                let key = promiseRes.meta.tableName;
+
+                if (promiseMap[index].polymorphicVal) {
+                    key += '-' + promiseMap[index].polymorphicVal;
+                }
+                
+                fill[key] = {
+                    type: promiseMap[index].type,
+                    aliasNameArr: promiseMap[index].aliasNameArr,
                     data: promiseRes.data,
-                    polymorphicVal: promiseMap[promiseRes.meta.tableName].polymorphicVal || undefined,
-                    configTableName: promiseMap[promiseRes.meta.tableName].configTableName || undefined,
+                    polymorphicVal: promiseMap[index].polymorphicVal || undefined,
+                    configTableName: promiseMap[index].configTableName || undefined,
                 };
             });
 
-            Object.keys(fill).forEach((tableName) => {
-                let configTableName = fill[tableName].configTableName || tableName;
+            Object.keys(fill).forEach((tableNameOrig) => {
+                let fillConfig = fill[tableNameOrig];
                 
-                let config = this.relationships[fill[tableName].type][configTableName];
+                let tableName = tableNameOrig.split('-')[0];
+                
+                let configTableName = fillConfig.configTableName || tableName;
+                
+                let config = this.relationships[fillConfig.type][configTableName];
 
-                if (fill[tableName].polymorphicVal) {
+                if (fillConfig.polymorphicVal) {
                     Object.keys(rows).forEach((rowIndex) => {
-                        if (rows[rowIndex][config.localColumnValName] === fill[tableName].polymorphicVal) {
-                            fill[tableName].aliasNameArr.forEach((aliasName) => {
-                                rows[rowIndex][aliasName] = paramFn(fill[tableName].data, rows[rowIndex][config.localColumnName]);
+                        if (rows[rowIndex][config.localColumnValName] === fillConfig.polymorphicVal) {
+                            fillConfig.aliasNameArr.forEach((aliasName) => {
+                                rows[rowIndex][aliasName] = paramFn(fillConfig.data, rows[rowIndex][config.localColumnName]);
                             });
                         }
                     });
                 } else {
                     Object.keys(rows).forEach((rowIndex) => {
-                        fill[tableName].aliasNameArr.forEach((aliasName) => {
-                            rows[rowIndex][aliasName] = paramFn(fill[tableName].data, rows[rowIndex][config.localColumnName]);
+                        fillConfig.aliasNameArr.forEach((aliasName) => {
+                            rows[rowIndex][aliasName] = paramFn(fillConfig.data, rows[rowIndex][config.localColumnName]);
                         });
                     });
                 }
