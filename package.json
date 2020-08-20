@@ -8,7 +8,7 @@
   },
   "description": "Dataserve is a fast and consistent interface to your data layer, run as a service via TCP or UNIX sockets",
   "dependencies": {
-    "bcrypt": "^3.0.6",
+    "bcrypt": "^5.0.0",
     "bluebird": "^3.5.5",
     "cluster-readwrite-lock": "0.0.1",
     "commander": "^2.20.0",
