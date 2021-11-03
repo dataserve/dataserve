@@ -30,7 +30,7 @@
     "type-of-is": "^3.5.1",
     "uuid": "^3.3.2",
     "valid-url": "^1.0.9",
-    "validator": "^8.2.0"
+    "validator": "^13.7.0"
   },
   "homepage": "https://github.com/dataserve/dataserve",
   "keywords": [
